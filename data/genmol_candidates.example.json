@@ -1,0 +1,16 @@
+{
+  "candidates": [
+    {
+      "id": "genmol_0001",
+      "smiles": "C1=CC2=NC3=CC=CC=C3SC2=CC=C1",
+      "name": "example_phenothiazine_1",
+      "notes": "Replace with real external GenMol output"
+    },
+    {
+      "id": "genmol_0002",
+      "smiles": "CC1=CC2=NC3=CC=CC=C3SC2=CC=C1",
+      "name": "example_phenothiazine_2",
+      "notes": "Replace with real external GenMol output"
+    }
+  ]
+}

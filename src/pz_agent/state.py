@@ -21,6 +21,7 @@ class RunState:
     knowledge_graph_path: Path | None = None
     critique_notes: list[dict[str, Any]] | None = None
     media_registry: list[dict[str, Any]] | None = None
+    generation_registry: list[dict[str, Any]] | None = None
     logs: list[str] = field(default_factory=list)
 
     def log(self, message: str) -> None:

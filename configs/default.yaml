@@ -3,6 +3,7 @@ project:
 generation:
   engine: genmol
   mode: phenothiazine_derivative_generation
+  external_genmol_path: null
   prompts:
     objective: generate phenothiazine derivatives suitable for downstream screening
 screening:
