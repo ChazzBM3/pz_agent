@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
 
 from pz_agent.io import read_json, write_json
 
@@ -61,6 +62,20 @@ def merge_live_search_results(run_dir: str | Path, live_results: list[dict]) -> 
     return out_path
 
 
+def _paper_key(hit: dict) -> str:
+    raw = (hit.get("url") or hit.get("title") or "unknown").strip().lower()
+    digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+    return f"paper::{digest}"
+
+
+def _evidence_relation(hit: dict, note: dict) -> str:
+    if hit.get("match_type") == "exact":
+        return "EXACT_MATCH_OF"
+    if note.get("signals", {}).get("warns_instability"):
+        return "CONTRADICTED_BY"
+    return "ANALOG_OF"
+
+
 def rebuild_graph_and_report_from_enriched(run_dir: str | Path) -> tuple[Path, Path]:
     run_dir = Path(run_dir)
     critique_path = run_dir / "critique_notes.enriched.json"
@@ -70,6 +85,7 @@ def rebuild_graph_and_report_from_enriched(run_dir: str | Path) -> tuple[Path, P
     critique_notes = read_json(critique_path)
     base_graph = read_json(run_dir / "knowledge_graph.json")
     base_report = read_json(run_dir / "report.json")
+    evidence_report = read_json(run_dir / "evidence_report.json") if (run_dir / "evidence_report.json").exists() else {}
 
     nodes = list(base_graph.get("nodes", []))
     edges = list(base_graph.get("edges", []))
@@ -110,7 +126,7 @@ def rebuild_graph_and_report_from_enriched(run_dir: str | Path) -> tuple[Path, P
             edges.append({"source": claim_id, "target": query_node_id, "type": "SUPPORTED_BY"})
 
             for h_idx, hit in enumerate(bundle.get("hits", [])):
-                paper_id = f"paper::{candidate_id}::{q_idx}::{h_idx}"
+                paper_id = _paper_key(hit)
                 evidence_id = f"evidence_hit::{candidate_id}::{q_idx}::{h_idx}"
                 add_node({
                     "id": paper_id,
@@ -135,14 +151,35 @@ def rebuild_graph_and_report_from_enriched(run_dir: str | Path) -> tuple[Path, P
                 edges.append({"source": query_node_id, "target": paper_id, "type": "SUPPORTED_BY"})
                 edges.append({"source": claim_id, "target": evidence_id, "type": "HAS_EVIDENCE_HIT"})
                 edges.append({"source": evidence_id, "target": paper_id, "type": "SUPPORTED_BY"})
-                relation = "EXACT_MATCH_OF" if hit.get("match_type") == "exact" else "ANALOG_OF"
+                relation = _evidence_relation(hit, note)
                 edges.append({"source": evidence_id, "target": candidate_id, "type": relation})
+
+        for plot_path in evidence_report.get("plots", []):
+            plot_name = Path(plot_path).name
+            media_id = f"media_plot::{candidate_id}::{plot_name}"
+            add_node({
+                "id": media_id,
+                "type": "MediaArtifact",
+                "attrs": {
+                    "candidate_id": candidate_id,
+                    "image_path": plot_path,
+                    "media_type": "plot",
+                    "caption": f"Generated plot artifact {plot_name} for candidate {candidate_id}",
+                    "source_url": None,
+                    "provenance": {
+                        "source_type": "generated_plot",
+                        "confidence": 1.0,
+                    },
+                },
+            })
+            edges.append({"source": claim_id, "target": media_id, "type": "HAS_MEDIA_EVIDENCE"})
 
     enriched_graph = {
         "nodes": nodes,
         "edges": edges,
         "enriched_from": str(critique_path),
         "mode": "normalized_live_evidence",
+        "paper_deduplication": "url_or_title_fingerprint",
     }
 
     enriched_report = dict(base_report)
@@ -150,6 +187,7 @@ def rebuild_graph_and_report_from_enriched(run_dir: str | Path) -> tuple[Path, P
     enriched_report["critique_notes"] = critique_notes
     enriched_report["knowledge_graph"] = str(knowledge_graph_path)
     enriched_report["enrichment_mode"] = "normalized_live_evidence"
+    enriched_report["paper_deduplication"] = "url_or_title_fingerprint"
 
     write_json(knowledge_graph_path, enriched_graph)
     write_json(report_path, enriched_report)

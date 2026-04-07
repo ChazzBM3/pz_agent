@@ -10,6 +10,8 @@ The codebase now supports:
 - evidence-aware report generation with placeholder plot artifacts
 - live web-search enrichment artifacts
 - normalized enriched KG rebuild with first-class literature/evidence nodes
+- paper deduplication by URL/title fingerprint
+- attachment of generated plot artifacts into enriched KG as media nodes
 
 ## Current KG layers
 
@@ -24,18 +26,19 @@ The codebase now supports:
 ### Enriched KG
 - enriched claim nodes
 - query-bundle nodes
-- paper nodes per live search hit
+- deduplicated paper nodes
 - evidence-hit nodes per live search hit
 - explicit `ANALOG_OF` / `EXACT_MATCH_OF` edges
+- generated plot media nodes attached to enriched claim nodes
 
 ## Next coding step
 
 The next step should be improving semantic quality:
-- deduplicate papers across candidates
-- classify evidence into support vs contradiction
-- attach local/generated plot paths as media nodes in enriched graph
+- classify evidence into support vs contradiction based on snippets
+- attach local/generated plot paths more selectively per candidate
 - generate actual plots with matplotlib or plotly
 - replace placeholder molecules with real GenMol outputs
+- add chemistry-aware exact matching via SMILES/InChI/name normalization
 
 ## Why it is not fully live yet
 
