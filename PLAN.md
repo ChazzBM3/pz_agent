@@ -31,7 +31,9 @@ From `urop.pdf`, the intended project appears to be:
    - Keep the project to library generation, surrogate screening, Pareto analysis, and selective DFT validation.
 
 4. **Methodology**
-   - **Library generation via directed scaffold decoration**
+   - **Initial molecular generation via a generative AI pass using GenMol to create phenothiazine derivatives**
+   - **Structure standardization and QC**
+   - **Primary screening focused on synthesizability and solubility**
    - **Surrogate model benchmarking and scoring**
    - **Pareto front construction and analysis**
    - **DFT validation of top candidates**
@@ -121,12 +123,12 @@ The orchestrator should never do chemistry logic itself if a specialist can do i
 ## 2. Library Designer Agent
 
 ### Responsibility
-Generate phenothiazine derivatives by directed scaffold decoration.
+Generate phenothiazine derivatives from an initial **GenMol-driven generative pass** constrained to the phenothiazine family.
 
 ### Tasks
-- encode the phenothiazine core
-- define allowed substitution sites
-- enumerate R-group substitutions
+- specify the phenothiazine scaffold and generation constraints for GenMol
+- run a generative pass to propose phenothiazine derivatives
+- optionally post-filter by allowed sites / motif constraints
 - enforce synthetic / structural sanity filters
 - deduplicate molecules by canonical SMILES / InChIKey
 
@@ -142,7 +144,7 @@ Generate phenothiazine derivatives by directed scaffold decoration.
 - rejection log for invalid structures
 
 ### Notes
-This should be constrained enumeration, not unconstrained generative chemistry.
+This should be **constrained generative chemistry**: use GenMol to propose derivatives, but keep generation tightly bounded to the phenothiazine scaffold family.
 
 ---
 
@@ -171,14 +173,15 @@ Prepare chemically consistent representations before scoring.
 Run low-cost models to estimate relevant properties.
 
 ### Possible properties
-Depending on the actual project targets, this likely includes some subset of:
-- HOMO / LUMO proxies
-- oxidation / reduction potential proxies
+Based on the current UROP framing, the **primary screening properties** should be:
+- synthesizability / synthetic accessibility
+- solubility
+
+Secondary properties can include:
 - stability proxies
-- solubility proxies
-- synthetic accessibility
+- HOMO / LUMO or redox-relevant descriptors
 - molecular size / planarity / steric descriptors
-- redox-relevant descriptors
+- novelty / diversity indicators
 
 ### Tasks
 - call one or more surrogate models
@@ -220,11 +223,12 @@ If no surrogate meets a minimum calibration threshold, the run should stop or fa
 ## 6. Multi-Objective Ranking Agent
 
 ### Responsibility
-Convert raw properties into a screening decision.
+Convert raw properties into a screening decision, with **synthesizability and solubility as the primary objectives**.
 
 ### Tasks
 - normalize objectives
 - apply hard constraints first
+- prioritize synthesizability and solubility in ranking
 - compute weighted scores if needed
 - compute Pareto front / non-dominated sorting
 - cluster candidates to avoid trivial analog redundancy
@@ -322,6 +326,8 @@ Build and maintain a scientific knowledge graph that acts as structured long-ter
 ### Design principle
 The KG should function as **structured scientific memory**, not just a document index. It must retain provenance, confidence, and links back to raw artifacts.
 
+A particularly useful pattern here is to let the **critique agent** update the KG each iteration by searching the web/literature for top candidates or close analogs, then attaching support/contradiction signals and provenance to candidate nodes.
+
 ---
 
 ## 10. Validation Agent
@@ -346,12 +352,14 @@ Compare DFT results back to surrogate predictions and close the loop.
 
 ```text
 Config / project brief
-  -> Library Designer
+  -> GenMol-constrained Library Designer
   -> Structure Standardization
-  -> Surrogate Screening
+  -> Surrogate Screening (synthesizability + solubility first)
   -> Benchmark / Calibration
   -> Knowledge Graph Agent
   -> Multi-Objective Ranking
+  -> Critique Agent (web/literature search on top candidates)
+  -> Knowledge Graph Update
   -> Explanation / Report
   -> DFT Handoff
   -> Validation / Feedback
@@ -477,13 +485,13 @@ pz_agent/
 - add config loading
 
 ## Phase 2 — chemistry input layer
-- encode phenothiazine scaffold and substitution sites
-- build directed scaffold decoration logic
-- sanitize and deduplicate structures
+- encode phenothiazine scaffold and GenMol generation constraints
+- build GenMol prompt / generation adapter
+- sanitize and deduplicate generated structures
 
 ## Phase 3 — surrogate scoring
 - wire in descriptor calculation
-- implement one baseline surrogate model
+- implement one baseline surrogate focused on synthesizability and solubility
 - add benchmark/calibration set handling
 
 ## Phase 4 — knowledge graph layer
@@ -531,8 +539,9 @@ The orchestrator should enforce these:
 Even without LangGraph, the agent split is still valuable because each stage has a different job:
 - generate chemistry
 - standardize inputs
-- score properties
+- score synthesizability / solubility and other properties
 - benchmark models
+- critique top candidates with external evidence
 - rank candidates
 - prepare validation
 
@@ -550,12 +559,13 @@ That separation helps with:
 
 A strong first milestone would be:
 
-1. define the phenothiazine scaffold and allowed substitution positions
-2. generate a small directed library
+1. define the phenothiazine scaffold and GenMol generation constraints
+2. generate a small initial phenothiazine library with GenMol
 3. compute descriptors
-4. run one surrogate model
-5. produce a Pareto-ranked shortlist
-6. validate workflow behavior on a few known phenothiazines
+4. run one surrogate model focused on synthesizability and solubility
+5. critique the top shortlist with web/literature search
+6. write the evidence into the KG
+7. validate workflow behavior on a few known phenothiazines
 
 If that works, the project is already scientifically useful even before full automation.
 
@@ -564,8 +574,10 @@ If that works, the project is already scientifically useful even before full aut
 ## Concrete answer to the user's request
 
 A **similar multi-agent approach without LangGraph** should be implemented as a **modular staged pipeline** with specialist agents and a plain Python orchestrator. The UROP plan strongly suggests the workflow should center on:
-- directed phenothiazine scaffold decoration
+- GenMol-based phenothiazine derivative generation
+- primary scoring on synthesizability and solubility
 - surrogate model benchmarking and scoring
+- critique-agent evidence gathering for top candidates
 - Pareto front analysis
 - DFT validation of top candidates
 - calibration against known phenothiazines

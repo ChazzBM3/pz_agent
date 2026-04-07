@@ -1,18 +1,37 @@
 from __future__ import annotations
 
-from typing import Any
+
+def build_candidate_queries(candidate: dict, search_fields: list[str] | None = None) -> list[str]:
+    fields = search_fields or ["phenothiazine", "solubility", "synthesizability", "derivative"]
+    joined = " ".join(fields)
+    return [
+        f"{candidate['id']} {joined}",
+        f"{candidate['id']} phenothiazine literature",
+        f"phenothiazine derivative {joined}",
+    ]
 
 
-def attach_critique_placeholders(shortlist: list[dict[str, Any]], enable_web_search: bool, max_candidates: int) -> list[dict[str, Any]]:
-    notes: list[dict[str, Any]] = []
+def attach_critique_placeholders(
+    shortlist: list[dict],
+    enable_web_search: bool,
+    max_candidates: int,
+    search_fields: list[str] | None = None,
+) -> list[dict]:
+    notes: list[dict] = []
     for item in shortlist[:max_candidates]:
         notes.append(
             {
                 "candidate_id": item["id"],
                 "web_search_enabled": enable_web_search,
-                "status": "placeholder",
-                "recommended_query": f"{item['id']} phenothiazine redox potential stability literature",
-                "summary": "Placeholder critique summary; replace with actual web search and evidence extraction.",
+                "status": "pending_web_search" if enable_web_search else "disabled",
+                "queries": build_candidate_queries(item, search_fields=search_fields),
+                "summary": "Awaiting web evidence collection for top candidate.",
+                "evidence": [],
+                "signals": {
+                    "supports_solubility": None,
+                    "supports_synthesizability": None,
+                    "warns_instability": None,
+                },
             }
         )
     return notes

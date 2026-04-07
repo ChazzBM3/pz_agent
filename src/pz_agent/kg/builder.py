@@ -28,5 +28,9 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         note_id = f"search::{note['candidate_id']}"
         nodes.append({"id": note_id, "type": "LiteratureClaim", "attrs": note})
         edges.append({"source": note['candidate_id'], "target": note_id, "type": "MENTIONED_IN_SEARCH"})
+        for idx, query in enumerate(note.get("queries", [])):
+            query_id = f"query::{note['candidate_id']}::{idx}"
+            nodes.append({"id": query_id, "type": "LiteraturePaper", "attrs": {"query": query, "status": note.get("status")}})
+            edges.append({"source": note_id, "target": query_id, "type": "SUPPORTED_BY"})
 
     return {"nodes": nodes, "edges": edges}

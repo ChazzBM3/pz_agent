@@ -1,5 +1,17 @@
 project:
   name: phenothiazine-screen
+generation:
+  engine: genmol
+  mode: phenothiazine_derivative_generation
+  prompts:
+    objective: generate phenothiazine derivatives suitable for downstream screening
+screening:
+  primary_objectives:
+    - synthesizability
+    - solubility
+  secondary_objectives:
+    - novelty
+    - diversity
 pipeline:
   stages:
     - library_designer
@@ -9,6 +21,7 @@ pipeline:
     - knowledge_graph
     - ranker
     - critique
+    - knowledge_graph
     - reporter
     - dft_handoff
 kg:
@@ -17,3 +30,8 @@ kg:
 critique:
   enable_web_search: true
   max_candidates: 10
+  search_fields:
+    - phenothiazine
+    - solubility
+    - synthesizability
+    - derivative
