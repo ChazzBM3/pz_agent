@@ -18,7 +18,8 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         edges.append({"source": batch_id, "target": run_id, "type": "GENERATED_IN_RUN"})
 
     for item in state.library_clean or []:
-        nodes.append({"id": item["id"], "type": "Molecule", "attrs": item})
+        attrs = dict(item)
+        nodes.append({"id": item["id"], "type": "Molecule", "attrs": attrs})
         edges.append({"source": item["id"], "target": run_id, "type": "GENERATED_IN_RUN"})
         if state.generation_registry:
             edges.append({"source": item["id"], "target": "generation_batch::0", "type": "GENERATED_BY_BATCH"})

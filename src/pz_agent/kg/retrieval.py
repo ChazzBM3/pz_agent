@@ -4,10 +4,18 @@ from __future__ import annotations
 def build_candidate_queries(candidate: dict, search_fields: list[str] | None = None) -> list[str]:
     fields = search_fields or ["phenothiazine", "solubility", "synthesizability", "derivative"]
     joined = " ".join(fields)
+    identity = candidate.get("identity", {})
+    tokens = [
+        candidate.get("id"),
+        identity.get("name"),
+        identity.get("canonical_smiles"),
+        identity.get("scaffold"),
+    ]
+    token_text = " ".join(token for token in tokens if token)
     return [
-        f"{candidate['id']} {joined}",
-        f"{candidate['id']} phenothiazine literature",
-        f"phenothiazine derivative {joined}",
+        f"{token_text} {joined}".strip(),
+        f"{token_text} phenothiazine literature".strip(),
+        f"phenothiazine derivative {joined}".strip(),
     ]
 
 
