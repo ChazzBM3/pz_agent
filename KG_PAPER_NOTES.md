@@ -1,82 +1,67 @@
 # KG_PAPER_NOTES.md
 
-## What I could reliably extract
+## Linked paper takeaways
 
-The local PDF parser did not yield clean text from `kg1.pdf`, `kg2.pdf`, and `kg3.pdf`, but it did reveal enough metadata and structure to be useful:
+### 1. SciAgents
+Link: <https://advanced.onlinelibrary.wiley.com/doi/full/10.1002/adma.202413523>
 
-- `kg1.pdf` includes DOI metadata pointing to **10.1002/adma.202413523**.
-- Web search confirms this is the **SciAgents** paper:
-  - *SciAgents: Automating scientific discovery through multi-agent intelligent graph reasoning*
-- `kg2.pdf` clearly contains embedded figure/image assets and page-linked graphics.
-- `kg3.pdf` also appears image/PDF-object heavy rather than plain-text extractable through the current reader.
+Web search confirms this is the SciAgents paper.
+Core design signals:
+- ontological knowledge graphs
+- multi-agent scientific reasoning
+- paper-derived graph construction
+- graph-guided hypothesis generation
 
-## Literature signals worth borrowing
+### 2. Agentic Deep Graph Reasoning Yields Self-Organizing Knowledge Networks
+Link: <https://arxiv.org/html/2502.13025v1>
 
-### 1. SciAgents pattern
-From search results around `10.1002/adma.202413523`:
-- combines **ontological knowledge graphs** with **multi-agent reasoning**
-- uses scientific-paper-derived graph structure for hypothesis generation
-- treats graph reasoning as more than document retrieval
+Readable content was available.
+Key ideas from the abstract/introduction:
+- iterative graph expansion
+- feedback-driven graph refinement
+- bridge nodes and hub formation
+- self-organizing graph structure
+- graph-native reasoning rather than one-shot extraction
 
-### 2. Scholarly knowledge graph literature
-The broader KG literature repeatedly supports:
-- provenance-aware scholarly entities
-- graph storage for linked evidence, methods, datasets, and claims
-- graph representations that support visual artifacts and figure references, not just raw text
+This strongly supports an iterative KG update pattern for pz_agent.
 
-### 3. Chemistry KG construction literature
-The CEAR-style direction supports:
-- extracting chemistry entities and relations from literature
-- grounding graph statements in papers
-- keeping links back to source literature rather than storing only interpreted summaries
+### 3. ScienceDirect KG paper
+Link: <https://www.sciencedirect.com/science/article/pii/S1570826824000313>
 
-## Design takeaway for pz_agent
+Readable extraction was blocked by the site, but the user-provided paper is still relevant enough to motivate a broader scholarly-KG design.
 
-The KG for this project should include both:
-- **text evidence**
-  - snippets
-  - claims
-  - paper metadata
-  - extracted assertions
-- **media evidence**
-  - figure references
-  - plot references
-  - local generated plots
-  - external figure/image provenance when available
+## Concrete implications for pz_agent
 
-## Proposed media-aware KG additions
+The KG should be:
+- provenance-aware
+- iterative
+- able to accumulate evidence each screening round
+- able to carry bridge concepts across runs
+- multi-modal (text + plots/images)
 
-### New entity type
-- `MediaArtifact`
+## Borrowed design principles
 
-### New relation
-- `HAS_MEDIA_EVIDENCE`
+1. **Iterative refinement**
+   - critique updates the graph every cycle
+   - the graph is not static metadata
 
-### Example media artifact payload
-```json
-{
-  "id": "media::pz_001::0",
-  "kind": "plot_or_figure",
-  "caption": "Solubility ranking plot for candidate pz_001",
-  "source_url": null,
-  "image_path": "artifacts/plots/pz_001_solubility.png",
-  "media_type": "plot",
-  "provenance": {
-    "source_type": "generated_plot",
-    "confidence": 1.0
-  }
-}
-```
+2. **Bridge node concept**
+   - track motifs or substituents that connect otherwise separate candidate clusters
+   - useful for identifying promising scaffold modifications
+
+3. **Hub concept tracking**
+   - track frequently supported motifs, models, or property trends
+   - useful for surfacing repeated positive or negative signals
+
+4. **Multimodal evidence**
+   - store text snippets
+   - store local generated plots
+   - store figure references from papers when available
 
 ## Recommendation
 
-Use the KG as a **multi-modal scientific memory**:
-- molecules
-- predictions
-- literature evidence
-- critique summaries
-- DFT results
-- generated plots/images
-- literature figure references
-
-That is a better fit for this project than plain text long-term memory alone.
+For phenothiazine screening, use the KG as a living campaign memory with:
+- candidate nodes
+- literature-claim nodes
+- media-artifact nodes
+- bridge/hub analysis later as a graph analytics layer

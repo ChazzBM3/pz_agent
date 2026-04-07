@@ -46,11 +46,12 @@ def synthesize_evidence_from_queries(notes: list[dict]) -> list[dict]:
             evidence.append(
                 {
                     "id": f"evidence::{note['candidate_id']}::{idx}",
-                    "kind": "web_result_placeholder",
+                    "kind": "web_result_stub",
                     "query": query,
-                    "title": f"Placeholder literature hit for {note['candidate_id']}",
+                    "title": f"Stub literature hit for {note['candidate_id']}",
                     "url": None,
-                    "snippet": "Replace with actual title/url/snippet gathered from web search.",
+                    "snippet": "Replace with actual title/url/snippet from web_search tool integration.",
+                    "match_type": "unknown",
                     "provenance": {
                         "source_type": "web_search",
                         "query": query,
@@ -62,14 +63,14 @@ def synthesize_evidence_from_queries(notes: list[dict]) -> list[dict]:
             media_evidence.append(
                 {
                     "id": f"media::{note['candidate_id']}::{idx}",
-                    "kind": "plot_or_figure_placeholder",
+                    "kind": "plot_or_figure_stub",
                     "query": query,
-                    "caption": "Placeholder for figure/plot/image reference tied to this evidence item.",
+                    "caption": "Stub figure/plot reference for this evidence item.",
                     "source_url": None,
                     "image_path": None,
                     "media_type": "plot",
                     "provenance": {
-                        "source_type": "literature_figure",
+                        "source_type": "literature_figure_or_generated_plot",
                         "query": query,
                         "confidence": None,
                     },
@@ -77,6 +78,14 @@ def synthesize_evidence_from_queries(notes: list[dict]) -> list[dict]:
             )
         note["evidence"] = evidence
         note["media_evidence"] = media_evidence
-        note["summary"] = "Structured critique bundle includes text-evidence placeholders and image/plot placeholders for KG ingestion."
-        note["status"] = "evidence_stubbed" if note.get("web_search_enabled") else note.get("status")
+        note["summary"] = "Structured critique bundle includes text-evidence stubs, media stubs, and graph-ready provenance."
+        if note.get("web_search_enabled"):
+            note["status"] = "ready_for_live_web_ingestion"
+        note["signals"] = {
+            "supports_solubility": None,
+            "supports_synthesizability": None,
+            "warns_instability": None,
+            "exact_match_hits": 0,
+            "analog_match_hits": 0,
+        }
     return notes

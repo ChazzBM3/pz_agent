@@ -17,5 +17,9 @@ class KnowledgeGraphAgent(BaseAgent):
         graph = build_graph_snapshot(state)
         write_json(kg_path, graph)
         state.knowledge_graph_path = kg_path
+        media_registry = []
+        for note in state.critique_notes or []:
+            media_registry.extend(note.get("media_evidence", []))
+        state.media_registry = media_registry
         state.log(f"Knowledge graph updated at {kg_path}")
         return state
