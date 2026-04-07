@@ -14,6 +14,7 @@ screening:
     - novelty
     - diversity
   use_external_scores: false
+  shortlist_size: 3
 pipeline:
   stages:
     - library_designer

@@ -13,6 +13,7 @@ class RankerAgent(BaseAgent):
         ranked = compute_placeholder_pareto(list(state.predictions or []))
         ranked = diversify_placeholder(ranked)
         state.ranked = ranked
-        state.shortlist = list((state.ranked or [])[: min(3, len(state.ranked or []))])
-        state.log("Ranker produced placeholder shortlist emphasizing synthesizability and solubility")
+        shortlist_size = int(self.config.get("screening", {}).get("shortlist_size", 3))
+        state.shortlist = list((state.ranked or [])[: min(shortlist_size, len(state.ranked or []))])
+        state.log("Ranker produced weighted shortlist using synthesizability and solubility")
         return state
