@@ -76,6 +76,51 @@ def _evidence_relation(hit: dict, note: dict) -> str:
     return "ANALOG_OF"
 
 
+def rerank_from_enriched_critique(run_dir: str | Path) -> Path:
+    run_dir = Path(run_dir)
+    report_path = run_dir / "report.json"
+    critique_path = run_dir / "critique_notes.enriched.json"
+    out_path = run_dir / "report.literature_reranked.json"
+
+    report = read_json(report_path)
+    critique_notes = read_json(critique_path)
+    note_map = {note["candidate_id"]: note for note in critique_notes}
+
+    reranked = []
+    for row in report.get("ranked", []):
+        item = dict(row)
+        note = note_map.get(item["id"])
+        signals = (note or {}).get("signals", {})
+        base = item.get("predicted_priority")
+        if base is not None:
+            bonus = 0.0
+            if signals.get("supports_solubility"):
+                bonus += 0.05
+            if signals.get("supports_synthesizability"):
+                bonus += 0.05
+            analog_hits = int(signals.get("analog_match_hits", 0) or 0)
+            bonus += min(0.05, analog_hits * 0.002)
+            if signals.get("warns_instability"):
+                bonus -= 0.08
+            item["predicted_priority_literature_adjusted"] = float(base) + bonus
+            item["literature_adjustment"] = bonus
+        reranked.append(item)
+
+    reranked.sort(
+        key=lambda x: (
+            -1.0 if x.get("predicted_priority_literature_adjusted") is None else -float(x["predicted_priority_literature_adjusted"]),
+            x.get("id", ""),
+        )
+    )
+
+    report["ranked"] = reranked
+    report["shortlist"] = reranked[: len(report.get("shortlist", [])) or 3]
+    report["enrichment_mode"] = "literature_reranked_from_enriched_critique"
+    report["critique_notes"] = critique_notes
+    write_json(out_path, report)
+    return out_path
+
+
 def rebuild_graph_and_report_from_enriched(run_dir: str | Path) -> tuple[Path, Path]:
     run_dir = Path(run_dir)
     critique_path = run_dir / "critique_notes.enriched.json"
