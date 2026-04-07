@@ -27,6 +27,7 @@ def attach_critique_placeholders(
                 "queries": build_candidate_queries(item, search_fields=search_fields),
                 "summary": "Awaiting web evidence collection for top candidate.",
                 "evidence": [],
+                "media_evidence": [],
                 "signals": {
                     "supports_solubility": None,
                     "supports_synthesizability": None,
@@ -34,4 +35,48 @@ def attach_critique_placeholders(
                 },
             }
         )
+    return notes
+
+
+def synthesize_evidence_from_queries(notes: list[dict]) -> list[dict]:
+    for note in notes:
+        evidence = []
+        media_evidence = []
+        for idx, query in enumerate(note.get("queries", [])):
+            evidence.append(
+                {
+                    "id": f"evidence::{note['candidate_id']}::{idx}",
+                    "kind": "web_result_placeholder",
+                    "query": query,
+                    "title": f"Placeholder literature hit for {note['candidate_id']}",
+                    "url": None,
+                    "snippet": "Replace with actual title/url/snippet gathered from web search.",
+                    "provenance": {
+                        "source_type": "web_search",
+                        "query": query,
+                        "confidence": None,
+                        "evidence_level": "unknown",
+                    },
+                }
+            )
+            media_evidence.append(
+                {
+                    "id": f"media::{note['candidate_id']}::{idx}",
+                    "kind": "plot_or_figure_placeholder",
+                    "query": query,
+                    "caption": "Placeholder for figure/plot/image reference tied to this evidence item.",
+                    "source_url": None,
+                    "image_path": None,
+                    "media_type": "plot",
+                    "provenance": {
+                        "source_type": "literature_figure",
+                        "query": query,
+                        "confidence": None,
+                    },
+                }
+            )
+        note["evidence"] = evidence
+        note["media_evidence"] = media_evidence
+        note["summary"] = "Structured critique bundle includes text-evidence placeholders and image/plot placeholders for KG ingestion."
+        note["status"] = "evidence_stubbed" if note.get("web_search_enabled") else note.get("status")
     return notes

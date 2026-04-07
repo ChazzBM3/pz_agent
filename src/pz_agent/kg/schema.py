@@ -11,6 +11,7 @@ ENTITY_TYPES = [
     "SurrogateModel",
     "LiteraturePaper",
     "LiteratureClaim",
+    "MediaArtifact",
     "Run",
 ]
 
@@ -26,4 +27,5 @@ RELATION_TYPES = [
     "SIMILAR_TO",
     "GENERATED_IN_RUN",
     "MENTIONED_IN_SEARCH",
+    "HAS_MEDIA_EVIDENCE",
 ]

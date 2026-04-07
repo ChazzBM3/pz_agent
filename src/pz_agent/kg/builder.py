@@ -32,5 +32,9 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
             query_id = f"query::{note['candidate_id']}::{idx}"
             nodes.append({"id": query_id, "type": "LiteraturePaper", "attrs": {"query": query, "status": note.get("status")}})
             edges.append({"source": note_id, "target": query_id, "type": "SUPPORTED_BY"})
+        for media in note.get("media_evidence", []):
+            media_id = media["id"]
+            nodes.append({"id": media_id, "type": "MediaArtifact", "attrs": media})
+            edges.append({"source": note_id, "target": media_id, "type": "HAS_MEDIA_EVIDENCE"})
 
     return {"nodes": nodes, "edges": edges}
