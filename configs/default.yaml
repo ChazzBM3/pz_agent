@@ -13,6 +13,7 @@ screening:
   secondary_objectives:
     - novelty
     - diversity
+  use_external_scores: false
 pipeline:
   stages:
     - library_designer

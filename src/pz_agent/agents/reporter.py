@@ -15,6 +15,14 @@ class ReporterAgent(BaseAgent):
             "summary": "Placeholder report with evidence-aware artifacts",
             "ranked": state.ranked or [],
             "shortlist": state.shortlist or [],
+            "predictions": state.predictions or [],
+            "prediction_provenance_summary": [
+                {
+                    "id": pred["id"],
+                    "prediction_provenance": pred.get("prediction_provenance", {}),
+                }
+                for pred in (state.predictions or [])
+            ],
             "critique_notes": state.critique_notes or [],
             "evidence_report": str(evidence_report_path),
         }

@@ -44,4 +44,14 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
             nodes.append({"id": media_id, "type": "MediaArtifact", "attrs": media})
             edges.append({"source": note_id, "target": media_id, "type": "HAS_MEDIA_EVIDENCE"})
 
-    return {"nodes": nodes, "edges": edges}
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "prediction_provenance_summary": [
+            {
+                "id": pred["id"],
+                "prediction_provenance": pred.get("prediction_provenance", {}),
+            }
+            for pred in (state.predictions or [])
+        ],
+    }
