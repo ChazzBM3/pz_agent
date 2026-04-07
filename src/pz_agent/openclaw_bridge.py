@@ -71,14 +71,85 @@ def rebuild_graph_and_report_from_enriched(run_dir: str | Path) -> tuple[Path, P
     base_graph = read_json(run_dir / "knowledge_graph.json")
     base_report = read_json(run_dir / "report.json")
 
-    enriched_graph = dict(base_graph)
-    enriched_graph["enriched_from"] = str(critique_path)
-    enriched_graph["critique_notes"] = critique_notes
+    nodes = list(base_graph.get("nodes", []))
+    edges = list(base_graph.get("edges", []))
+    existing_ids = {node["id"] for node in nodes}
+
+    def add_node(node: dict) -> None:
+        if node["id"] not in existing_ids:
+            nodes.append(node)
+            existing_ids.add(node["id"])
+
+    for note in critique_notes:
+        candidate_id = note["candidate_id"]
+        claim_id = f"search::{candidate_id}::enriched"
+        add_node({
+            "id": claim_id,
+            "type": "LiteratureClaim",
+            "attrs": {
+                "candidate_id": candidate_id,
+                "status": note.get("status"),
+                "summary": note.get("summary"),
+                "signals": note.get("signals", {}),
+                "search_backend": note.get("search_backend"),
+            },
+        })
+        edges.append({"source": candidate_id, "target": claim_id, "type": "MENTIONED_IN_SEARCH"})
+
+        for q_idx, bundle in enumerate(note.get("live_evidence", [])):
+            query_node_id = f"enriched_query::{candidate_id}::{q_idx}"
+            add_node({
+                "id": query_node_id,
+                "type": "LiteraturePaper",
+                "attrs": {
+                    "query": bundle.get("query"),
+                    "candidate_id": candidate_id,
+                    "kind": "search_query_bundle",
+                },
+            })
+            edges.append({"source": claim_id, "target": query_node_id, "type": "SUPPORTED_BY"})
+
+            for h_idx, hit in enumerate(bundle.get("hits", [])):
+                paper_id = f"paper::{candidate_id}::{q_idx}::{h_idx}"
+                evidence_id = f"evidence_hit::{candidate_id}::{q_idx}::{h_idx}"
+                add_node({
+                    "id": paper_id,
+                    "type": "LiteraturePaper",
+                    "attrs": {
+                        "title": hit.get("title"),
+                        "url": hit.get("url"),
+                        "snippet": hit.get("snippet"),
+                        "source": hit.get("source"),
+                    },
+                })
+                add_node({
+                    "id": evidence_id,
+                    "type": "EvidenceHit",
+                    "attrs": {
+                        "query": bundle.get("query"),
+                        "candidate_id": candidate_id,
+                        "match_type": hit.get("match_type"),
+                        "confidence": hit.get("confidence"),
+                    },
+                })
+                edges.append({"source": query_node_id, "target": paper_id, "type": "SUPPORTED_BY"})
+                edges.append({"source": claim_id, "target": evidence_id, "type": "HAS_EVIDENCE_HIT"})
+                edges.append({"source": evidence_id, "target": paper_id, "type": "SUPPORTED_BY"})
+                relation = "EXACT_MATCH_OF" if hit.get("match_type") == "exact" else "ANALOG_OF"
+                edges.append({"source": evidence_id, "target": candidate_id, "type": relation})
+
+    enriched_graph = {
+        "nodes": nodes,
+        "edges": edges,
+        "enriched_from": str(critique_path),
+        "mode": "normalized_live_evidence",
+    }
 
     enriched_report = dict(base_report)
-    enriched_report["summary"] = "Enriched report with live web search evidence"
+    enriched_report["summary"] = "Enriched report with normalized live web search evidence"
     enriched_report["critique_notes"] = critique_notes
     enriched_report["knowledge_graph"] = str(knowledge_graph_path)
+    enriched_report["enrichment_mode"] = "normalized_live_evidence"
 
     write_json(knowledge_graph_path, enriched_graph)
     write_json(report_path, enriched_report)

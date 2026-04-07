@@ -8,16 +8,34 @@ The codebase now supports:
 - critique bundles with text evidence stubs
 - multimodal KG nodes for image/plot/media artifacts
 - evidence-aware report generation with placeholder plot artifacts
+- live web-search enrichment artifacts
+- normalized enriched KG rebuild with first-class literature/evidence nodes
+
+## Current KG layers
+
+### Base KG
+- run
+- molecule
+- prediction
+- stub critique claim
+- stub query nodes
+- stub media nodes
+
+### Enriched KG
+- enriched claim nodes
+- query-bundle nodes
+- paper nodes per live search hit
+- evidence-hit nodes per live search hit
+- explicit `ANALOG_OF` / `EXACT_MATCH_OF` edges
 
 ## Next coding step
 
-The next step should be live tool integration for critique ingestion:
-- call `web_search` for candidate queries
-- normalize hits into exact-match vs analog-match evidence
-- attach URLs/titles/snippets to evidence nodes
+The next step should be improving semantic quality:
+- deduplicate papers across candidates
+- classify evidence into support vs contradiction
+- attach local/generated plot paths as media nodes in enriched graph
 - generate actual plots with matplotlib or plotly
-- store those plots in `artifacts/plots/`
-- attach plot paths as `MediaArtifact` nodes
+- replace placeholder molecules with real GenMol outputs
 
 ## Why it is not fully live yet
 
