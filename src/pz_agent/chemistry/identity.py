@@ -17,6 +17,9 @@ class MoleculeIdentity:
     decoration_summary: str | None = None
     substituent_count: int | None = None
     decoration_tokens: list[str] | None = None
+    substituent_fragments: list[str] | None = None
+    attachment_summary: list[str] | None = None
+    electronic_bias: str | None = None
     match_tokens: list[str] | None = None
 
     def to_dict(self) -> dict[str, Any]:

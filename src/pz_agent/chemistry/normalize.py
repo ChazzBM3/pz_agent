@@ -19,6 +19,9 @@ except Exception:
 PHENOTHIAZINE_QUERY_HINT = "phenothiazine derivative"
 PHENOTHIAZINE_CORE_ASSUMPTION = "phenothiazine"
 
+EDG_TOKENS = {"N", "O"}
+EWG_TOKENS = {"F", "Cl", "Br", "I", "C#N", "C(=O)"}
+
 
 def _derive_scaffold(mol) -> str | None:
     if not RDKIT_AVAILABLE or mol is None:
@@ -32,16 +35,32 @@ def _derive_scaffold(mol) -> str | None:
         return None
 
 
-def _estimate_decoration_summary(canonical_smiles: str | None) -> tuple[str | None, int | None, list[str]]:
+def _estimate_decoration_summary(canonical_smiles: str | None) -> tuple[str | None, int | None, list[str], list[str], str | None]:
     if not canonical_smiles:
-        return None, None, []
-    hetero_tokens = []
+        return None, None, [], [], None
+    detected = []
     for token in ["N", "O", "S", "F", "Cl", "Br", "I", "C#N", "C(=O)"]:
         if token in canonical_smiles:
-            hetero_tokens.append(token)
-    substituent_count = len(hetero_tokens)
-    summary = "none_detected" if not hetero_tokens else "+".join(sorted(set(hetero_tokens)))
-    return summary, substituent_count, sorted(set(hetero_tokens))
+            detected.append(token)
+    unique_tokens = sorted(set(detected))
+    substituent_count = len(unique_tokens)
+    summary = "none_detected" if not unique_tokens else "+".join(unique_tokens)
+    fragments = [f"frag:{token}" for token in unique_tokens]
+    edg_count = len([t for t in unique_tokens if t in EDG_TOKENS])
+    ewg_count = len([t for t in unique_tokens if t in EWG_TOKENS])
+    if edg_count > ewg_count:
+        bias = "electron_donating_skew"
+    elif ewg_count > edg_count:
+        bias = "electron_withdrawing_skew"
+    elif unique_tokens:
+        bias = "mixed"
+    else:
+        bias = None
+    return summary, substituent_count, unique_tokens, fragments, bias
+
+
+def _attachment_summary(unique_tokens: list[str]) -> list[str]:
+    return [f"phenothiazine_core+{token}" for token in unique_tokens]
 
 
 def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
@@ -66,7 +85,8 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
     else:
         canonical_smiles = input_smiles
 
-    decoration_summary, substituent_count, decoration_tokens = _estimate_decoration_summary(canonical_smiles)
+    decoration_summary, substituent_count, decoration_tokens, substituent_fragments, electronic_bias = _estimate_decoration_summary(canonical_smiles)
+    attachment_summary = _attachment_summary(decoration_tokens)
 
     identity = MoleculeIdentity(
         input_smiles=input_smiles,
@@ -80,6 +100,9 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
         decoration_summary=decoration_summary,
         substituent_count=substituent_count,
         decoration_tokens=decoration_tokens,
+        substituent_fragments=substituent_fragments,
+        attachment_summary=attachment_summary,
+        electronic_bias=electronic_bias,
         match_tokens=[
             token
             for token in [
@@ -87,7 +110,10 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
                 canonical_smiles,
                 scaffold,
                 decoration_summary,
+                electronic_bias,
                 *decoration_tokens,
+                *substituent_fragments,
+                *attachment_summary,
                 PHENOTHIAZINE_QUERY_HINT,
             ]
             if token

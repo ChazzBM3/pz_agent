@@ -10,13 +10,15 @@ def build_candidate_queries(candidate: dict, search_fields: list[str] | None = N
         identity.get("name"),
         identity.get("scaffold"),
         identity.get("decoration_summary"),
+        identity.get("electronic_bias"),
         *(identity.get("decoration_tokens") or []),
     ]
     token_text = " ".join(token for token in tokens if token)
+    attachment_text = " ".join(identity.get("attachment_summary") or [])
     return [
         f"{token_text} {joined}".strip(),
-        f"{token_text} phenothiazine literature".strip(),
-        f"phenothiazine derivative {identity.get('decoration_summary') or ''} {joined}".strip(),
+        f"{token_text} {attachment_text} phenothiazine literature".strip(),
+        f"phenothiazine derivative {identity.get('decoration_summary') or ''} {identity.get('electronic_bias') or ''} {joined}".strip(),
     ]
 
 
