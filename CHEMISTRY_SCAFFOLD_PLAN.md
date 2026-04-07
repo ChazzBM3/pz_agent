@@ -6,19 +6,21 @@ Add a chemistry identity and normalization layer so molecules have stable identi
 
 ## Implemented pieces
 - `MoleculeIdentity` schema
-- normalization module with optional RDKit support
+- normalization module with RDKit support
+- Murcko scaffold extraction when RDKit is available
 - simple match classifier scaffold
 
 ## Current behavior
 - if RDKit is available:
   - canonical SMILES is generated
   - InChI and InChIKey are attempted
+  - Murcko scaffold is derived when possible
 - if RDKit is unavailable:
   - raw SMILES is preserved as canonical placeholder
-- scaffold is currently set to a phenothiazine hint placeholder
+- a phenothiazine query hint is still retained for broader literature search support
 
 ## Next steps
-- use RDKit Murcko scaffold or substructure logic
-- add better exact/analog classification
-- use normalized identity in literature query generation
+- use substructure logic for phenothiazine-core detection
+- add better exact/analog classification using structure-aware comparisons
+- use normalized identity in literature query generation and enriched reranking
 - propagate identity fields into enriched KG relations

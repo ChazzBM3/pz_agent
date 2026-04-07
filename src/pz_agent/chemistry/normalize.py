@@ -7,14 +7,29 @@ from pz_agent.chemistry.identity import MoleculeIdentity
 try:
     from rdkit import Chem
     from rdkit.Chem import inchi
+    from rdkit.Chem.Scaffolds import MurckoScaffold
     RDKIT_AVAILABLE = True
 except Exception:
     Chem = None
     inchi = None
+    MurckoScaffold = None
     RDKIT_AVAILABLE = False
 
 
-PHENOTHIAZINE_SCAFFOLD_HINT = "phenothiazine"
+PHENOTHIAZINE_QUERY_HINT = "phenothiazine derivative"
+
+
+def _derive_scaffold(mol) -> str | None:
+    if not RDKIT_AVAILABLE or mol is None:
+        return None
+    try:
+        scaffold_mol = MurckoScaffold.GetScaffoldForMol(mol)
+        if scaffold_mol is None:
+            return None
+        return Chem.MolToSmiles(scaffold_mol, canonical=True)
+    except Exception:
+        return None
+
 
 
 def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
@@ -35,27 +50,26 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
             except Exception:
                 inchi_value = None
                 inchikey = None
-            scaffold = PHENOTHIAZINE_SCAFFOLD_HINT
+            scaffold = _derive_scaffold(mol)
     else:
         canonical_smiles = input_smiles
-        if input_smiles:
-            scaffold = PHENOTHIAZINE_SCAFFOLD_HINT
 
     identity = MoleculeIdentity(
         input_smiles=input_smiles,
         canonical_smiles=canonical_smiles,
         inchi=inchi_value,
         inchikey=inchikey,
-        scaffold=scaffold,
+        scaffold=scaffold or PHENOTHIAZINE_QUERY_HINT,
         name=name,
         source_name=name,
-        match_tokens=[token for token in [name, canonical_smiles, scaffold] if token],
+        match_tokens=[token for token in [name, canonical_smiles, scaffold, PHENOTHIAZINE_QUERY_HINT] if token],
     )
 
     enriched = dict(record)
     enriched["identity"] = identity.to_dict()
     enriched["rdkit_available"] = RDKIT_AVAILABLE
     return enriched
+
 
 
 def normalize_library(records: list[dict[str, Any]]) -> list[dict[str, Any]]:

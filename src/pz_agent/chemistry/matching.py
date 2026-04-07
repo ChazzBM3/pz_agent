@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 
+
 def classify_match(candidate: dict[str, Any], evidence_text: str | None) -> str:
     identity = candidate.get("identity", {})
     evidence_text = (evidence_text or "").lower()
@@ -17,4 +18,6 @@ def classify_match(candidate: dict[str, Any], evidence_text: str | None) -> str:
         return "exact"
     if scaffold and scaffold in evidence_text:
         return "analog"
-    return "family"
+    if "phenothiazine" in evidence_text:
+        return "family"
+    return "unknown"
