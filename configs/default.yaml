@@ -35,3 +35,7 @@ critique:
     - solubility
     - synthesizability
     - derivative
+search:
+  backend: stub
+  count: 5
+  production_backend: planned_scholarly_api
