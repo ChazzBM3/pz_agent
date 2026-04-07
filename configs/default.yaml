@@ -24,6 +24,7 @@ pipeline:
     - knowledge_graph
     - ranker
     - critique
+    - critique_reranker
     - knowledge_graph
     - reporter
     - dft_handoff

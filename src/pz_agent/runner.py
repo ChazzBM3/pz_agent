@@ -12,6 +12,7 @@ from pz_agent.agents.benchmark import BenchmarkAgent
 from pz_agent.agents.knowledge_graph import KnowledgeGraphAgent
 from pz_agent.agents.ranker import RankerAgent
 from pz_agent.agents.critique import CritiqueAgent
+from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
 from pz_agent.agents.reporter import ReporterAgent
 from pz_agent.agents.dft_handoff import DFTHandoffAgent
 
@@ -24,6 +25,7 @@ STAGE_MAP = {
     "knowledge_graph": KnowledgeGraphAgent,
     "ranker": RankerAgent,
     "critique": CritiqueAgent,
+    "critique_reranker": CritiqueRerankerAgent,
     "reporter": ReporterAgent,
     "dft_handoff": DFTHandoffAgent,
 }
