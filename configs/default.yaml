@@ -1,0 +1,19 @@
+project:
+  name: phenothiazine-screen
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - reporter
+    - dft_handoff
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: true
+  max_candidates: 10

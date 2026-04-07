@@ -1,0 +1,13 @@
+scaffold:
+  name: phenothiazine
+  allowed_sites:
+    - R1
+    - R2
+    - R3
+substituents:
+  examples:
+    - methyl
+    - methoxy
+    - fluoro
+    - cyano
+    - amino

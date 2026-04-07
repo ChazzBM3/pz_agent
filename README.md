@@ -9,3 +9,13 @@ This repo captures:
 - candidate deliverables and evaluation criteria
 
 See `PLAN.md` for the full plan.
+
+## Current scaffold
+
+The repo now includes a minimal Python package scaffold for:
+- staged pipeline execution
+- placeholder specialist agents
+- a knowledge-graph builder
+- a critique agent that can be extended to web-search top candidates and write findings into the KG
+
+Next step: replace placeholders with chemistry-aware implementations.
