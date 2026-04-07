@@ -8,14 +8,15 @@ def build_candidate_queries(candidate: dict, search_fields: list[str] | None = N
     tokens = [
         candidate.get("id"),
         identity.get("name"),
-        identity.get("canonical_smiles"),
         identity.get("scaffold"),
+        identity.get("decoration_summary"),
+        *(identity.get("decoration_tokens") or []),
     ]
     token_text = " ".join(token for token in tokens if token)
     return [
         f"{token_text} {joined}".strip(),
         f"{token_text} phenothiazine literature".strip(),
-        f"phenothiazine derivative {joined}".strip(),
+        f"phenothiazine derivative {identity.get('decoration_summary') or ''} {joined}".strip(),
     ]
 
 

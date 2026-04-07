@@ -17,6 +17,7 @@ except Exception:
 
 
 PHENOTHIAZINE_QUERY_HINT = "phenothiazine derivative"
+PHENOTHIAZINE_CORE_ASSUMPTION = "phenothiazine"
 
 
 def _derive_scaffold(mol) -> str | None:
@@ -30,6 +31,17 @@ def _derive_scaffold(mol) -> str | None:
     except Exception:
         return None
 
+
+def _estimate_decoration_summary(canonical_smiles: str | None) -> tuple[str | None, int | None, list[str]]:
+    if not canonical_smiles:
+        return None, None, []
+    hetero_tokens = []
+    for token in ["N", "O", "S", "F", "Cl", "Br", "I", "C#N", "C(=O)"]:
+        if token in canonical_smiles:
+            hetero_tokens.append(token)
+    substituent_count = len(hetero_tokens)
+    summary = "none_detected" if not hetero_tokens else "+".join(sorted(set(hetero_tokens)))
+    return summary, substituent_count, sorted(set(hetero_tokens))
 
 
 def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
@@ -54,6 +66,8 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
     else:
         canonical_smiles = input_smiles
 
+    decoration_summary, substituent_count, decoration_tokens = _estimate_decoration_summary(canonical_smiles)
+
     identity = MoleculeIdentity(
         input_smiles=input_smiles,
         canonical_smiles=canonical_smiles,
@@ -62,14 +76,28 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
         scaffold=scaffold or PHENOTHIAZINE_QUERY_HINT,
         name=name,
         source_name=name,
-        match_tokens=[token for token in [name, canonical_smiles, scaffold, PHENOTHIAZINE_QUERY_HINT] if token],
+        core_assumption=PHENOTHIAZINE_CORE_ASSUMPTION,
+        decoration_summary=decoration_summary,
+        substituent_count=substituent_count,
+        decoration_tokens=decoration_tokens,
+        match_tokens=[
+            token
+            for token in [
+                name,
+                canonical_smiles,
+                scaffold,
+                decoration_summary,
+                *decoration_tokens,
+                PHENOTHIAZINE_QUERY_HINT,
+            ]
+            if token
+        ],
     )
 
     enriched = dict(record)
     enriched["identity"] = identity.to_dict()
     enriched["rdkit_available"] = RDKIT_AVAILABLE
     return enriched
-
 
 
 def normalize_library(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
