@@ -1,0 +1,314 @@
+[
+  {
+    "candidate_id": "pz_001",
+    "web_search_enabled": true,
+    "status": "search_enriched",
+    "queries": [
+      "pz_001 phenothiazine solubility synthesizability derivative",
+      "pz_001 phenothiazine literature",
+      "phenothiazine derivative phenothiazine solubility synthesizability derivative"
+    ],
+    "summary": "Live OpenClaw web search enrichment captured analog-level phenothiazine literature around solubility and synthesis; no exact match for placeholder candidate id.",
+    "signals": {
+      "supports_solubility": true,
+      "supports_synthesizability": true,
+      "warns_instability": null,
+      "exact_match_hits": 0,
+      "analog_match_hits": 15
+    },
+    "search_backend": "openclaw_web_search",
+    "live_evidence": [
+      {
+        "query": "pz_001 phenothiazine solubility synthesizability derivative",
+        "hits": [
+          {
+            "title": "Phenothiazines solution complexity - Determination of",
+            "url": "https://www.sciencedirect.com/science/article/pii/S0928098716302676",
+            "snippet": "The aim of the present study was to characterize aqueous solubility-pH behavior of several poorly-soluble CNS-acting phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.66
+          },
+          {
+            "title": "Synthetic Routes and Bioactivity Profiles of the Phenothiazine ...",
+            "url": "https://www.mdpi.com/2673-401X/6/4/46",
+            "snippet": "This review offers a focused overview of the strategies used to build and modify phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.75
+          },
+          {
+            "title": "PDF Technical Support Center: Enhancing Phenothiazine Derivative Solubility ...",
+            "url": "https://pdf.benchchem.com/1677/Technical_Support_Center_Enhancing_Phenothiazine_Derivative_Solubility_for_In_Vitro_Assays.pdf",
+            "snippet": "Troubleshooting guides and FAQs related to the solubility of phenothiazine derivatives in in vitro assays.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.42
+          },
+          {
+            "title": "PDF acs_JE_je-2011-001649 1..4 - digital.library.unt.edu",
+            "url": "https://digital.library.unt.edu/ark:/67531/metadc287991/m2/1/high_res_d/Acree%20Pub%20548.pdf",
+            "snippet": "Different factors influence the solubility in a medium; phenothiazine and derivatives are widely used in pharmacotherapy.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.52
+          },
+          {
+            "title": "Phenothiazines solution complexity - Determination of pKa and ...",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/27449396/",
+            "snippet": "The pH-dependent solubility of six phenothiazine derivatives was determined.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.71
+          }
+        ]
+      },
+      {
+        "query": "pz_001 phenothiazine literature",
+        "hits": [
+          {
+            "title": "Phenothiazine - StatPearls - NCBI Bookshelf",
+            "url": "https://www.ncbi.nlm.nih.gov/sites/books/NBK556113/",
+            "snippet": "Phenothiazines are a class of first-generation heterocyclic anti-psychotic medications.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.48
+          },
+          {
+            "title": "Exploring the therapeutic potential of phenothiazine derivatives in ...",
+            "url": "https://www.sciencedirect.com/science/article/pii/S2211715624002613",
+            "snippet": "A comprehensive review focusing on synthesis techniques and biological activities of phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.67
+          },
+          {
+            "title": "Synthetic Routes and Bioactivity Profiles of the Phenothiazine ...",
+            "url": "https://www.mdpi.com/2673-401X/6/4/46",
+            "snippet": "Focused overview of strategies used to build and modify phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.77
+          },
+          {
+            "title": "PDF Possible Biological and Clinical Applications of Phenothiazines",
+            "url": "https://ar.iiarjournals.org/content/anticanres/37/11/5983.full.pdf",
+            "snippet": "Review of biological and clinical applications of phenothiazines.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.35
+          },
+          {
+            "title": "Phenothiazines and their Evolving Roles in Clinical Practice: A ...",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9680852/",
+            "snippet": "Phenothiazines are a diverse class of drugs with multiple clinical roles.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.44
+          }
+        ]
+      },
+      {
+        "query": "phenothiazine derivative phenothiazine solubility synthesizability derivative",
+        "hits": [
+          {
+            "title": "Synthetic Routes and Bioactivity Profiles of the Phenothiazine ...",
+            "url": "https://www.mdpi.com/2673-401X/6/4/46",
+            "snippet": "Review of classical and modern synthetic strategies for phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.79
+          },
+          {
+            "title": "Phenothiazine derivatives - synthesis, characterization, and ...",
+            "url": "https://www.sciencedirect.com/science/article/pii/S0167732219309365",
+            "snippet": "Phenothiazine derivatives with various substituents were synthesized and characterized.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.73
+          },
+          {
+            "title": "PDF A Comparative Guide to the Performance of Phenothiazine Derivatives in ...",
+            "url": "https://pdf.benchchem.com/1298/A_Comparative_Guide_to_the_Performance_of_Phenothiazine_Derivatives_in_Various_Solvents.pdf",
+            "snippet": "Solubility of phenothiazine derivatives is a crucial factor in formulation and delivery.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.39
+          },
+          {
+            "title": "Synthetic Routes and Bioactivity Profiles of The Phenothiazine",
+            "url": "https://www.researchgate.net/publication/394446730_Synthetic_Routes_and_Bioactivity_Profiles_of_The_Phenothiazine",
+            "snippet": "Review focusing on synthesis of phenothiazine derivatives employing novel synthetic strategies.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.41
+          },
+          {
+            "title": "Synthesis and Spectroscopic Characterization of Selected Phenothiazines ...",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9653876/",
+            "snippet": "Discusses synthesis and structural features of selected phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.51
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate_id": "pz_002",
+    "web_search_enabled": true,
+    "status": "search_enriched",
+    "queries": [
+      "pz_002 phenothiazine solubility synthesizability derivative",
+      "pz_002 phenothiazine literature",
+      "phenothiazine derivative phenothiazine solubility synthesizability derivative"
+    ],
+    "summary": "Live OpenClaw web search enrichment captured analog-level phenothiazine literature around solubility and synthesis; no exact match for placeholder candidate id.",
+    "signals": {
+      "supports_solubility": true,
+      "supports_synthesizability": true,
+      "warns_instability": null,
+      "exact_match_hits": 0,
+      "analog_match_hits": 15
+    },
+    "search_backend": "openclaw_web_search",
+    "live_evidence": [
+      {
+        "query": "pz_002 phenothiazine solubility synthesizability derivative",
+        "hits": [
+          {
+            "title": "Phenothiazine derivatives - synthesis, characterization, and ...",
+            "url": "https://www.sciencedirect.com/science/article/pii/S0167732219309365",
+            "snippet": "Phenothiazine derivatives with various electron donating and withdrawing groups at 7-position were tested.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.71
+          },
+          {
+            "title": "Synthetic Routes and Bioactivity Profiles of the Phenothiazine ...",
+            "url": "https://www.mdpi.com/2673-401X/6/4/46",
+            "snippet": "Overview of strategies used to build and modify phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.78
+          },
+          {
+            "title": "Large variability and complexity of isothermal solubility for a series ...",
+            "url": "https://pubs.rsc.org/en/content/articlepdf/2022/ma/d2ma00598k",
+            "snippet": "QSPR used to examine solubility trends for a set of thirty phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.83
+          },
+          {
+            "title": "PDF A Comparative Guide to the Performance of Phenothiazine Derivatives in ...",
+            "url": "https://pdf.benchchem.com/1298/A_Comparative_Guide_to_the_Performance_of_Phenothiazine_Derivatives_in_Various_Solvents.pdf",
+            "snippet": "Solubility of phenothiazine derivatives is a crucial factor in formulation and delivery.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.39
+          },
+          {
+            "title": "Synthesis of new phenothiazine derivatives: Molecular docking ...",
+            "url": "https://onlinelibrary.wiley.com/doi/full/10.1002/ardp.202400281",
+            "snippet": "Eight new phenothiazine derivatives were synthesized and assessed.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.68
+          }
+        ]
+      },
+      {
+        "query": "pz_002 phenothiazine literature",
+        "hits": [
+          {
+            "title": "Exploring the therapeutic potential of phenothiazine derivatives in ...",
+            "url": "https://www.sciencedirect.com/science/article/pii/S2211715624002613",
+            "snippet": "Review of synthesis techniques and biological activities of phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.66
+          },
+          {
+            "title": "Phenothiazine - StatPearls - NCBI Bookshelf",
+            "url": "https://www.ncbi.nlm.nih.gov/sites/books/NBK556113/",
+            "snippet": "Phenothiazines are a class of first-generation heterocyclic antipsychotic medications.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.47
+          },
+          {
+            "title": "Synthetic Routes and Bioactivity Profiles of the Phenothiazine ...",
+            "url": "https://www.mdpi.com/2673-401X/6/4/46",
+            "snippet": "Focused overview of strategies used to build and modify phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.78
+          },
+          {
+            "title": "Synthesis of new phenothiazine derivatives: Molecular docking ...",
+            "url": "https://onlinelibrary.wiley.com/doi/full/10.1002/ardp.202400281",
+            "snippet": "Phenothiazine and related compounds have been extensively studied as potential therapeutic approaches.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.69
+          },
+          {
+            "title": "Phenothiazines and their Evolving Roles in Clinical Practice: A ...",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9680852/",
+            "snippet": "Phenothiazines are a diverse class of drugs used in multiple conditions.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.45
+          }
+        ]
+      },
+      {
+        "query": "phenothiazine derivative phenothiazine solubility synthesizability derivative",
+        "hits": [
+          {
+            "title": "Synthetic Routes and Bioactivity Profiles of the Phenothiazine ...",
+            "url": "https://www.mdpi.com/2673-401X/6/4/46",
+            "snippet": "Review of classical and modern synthetic strategies for phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.79
+          },
+          {
+            "title": "Phenothiazine derivatives - synthesis, characterization, and ...",
+            "url": "https://www.sciencedirect.com/science/article/pii/S0167732219309365",
+            "snippet": "Phenothiazine derivatives with various substituents were synthesized and characterized.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.73
+          },
+          {
+            "title": "PDF A Comparative Guide to the Performance of Phenothiazine Derivatives in ...",
+            "url": "https://pdf.benchchem.com/1298/A_Comparative_Guide_to_the_Performance_of_Phenothiazine_Derivatives_in_Various_Solvents.pdf",
+            "snippet": "Solubility of phenothiazine derivatives is a crucial factor in formulation and delivery.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.39
+          },
+          {
+            "title": "Synthetic Routes and Bioactivity Profiles of The Phenothiazine",
+            "url": "https://www.researchgate.net/publication/394446730_Synthetic_Routes_and_Bioactivity_Profiles_of_The_Phenothiazine",
+            "snippet": "Review focusing on synthesis of phenothiazine derivatives employing novel synthetic strategies.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.41
+          },
+          {
+            "title": "Synthesis and Spectroscopic Characterization of Selected Phenothiazines ...",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9653876/",
+            "snippet": "Discusses synthesis and structural features of selected phenothiazine derivatives.",
+            "source": "openclaw_web_search",
+            "match_type": "analog",
+            "confidence": 0.51
+          }
+        ]
+      }
+    ]
+  }
+]
