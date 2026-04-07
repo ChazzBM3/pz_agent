@@ -9,13 +9,17 @@ This repo captures:
 - candidate deliverables and evaluation criteria
 
 See `PLAN.md` for the full plan.
+See `PROJECT_SUMMARY.md` for a concise project + repo status summary.
 
 ## Current scaffold
 
-The repo now includes a minimal Python package scaffold for:
+The repo now includes a Python package scaffold for:
 - staged pipeline execution
-- placeholder specialist agents
+- external GenMol import
+- chemistry normalization with RDKit support
+- synthesizeability / solubility scoring scaffolds
+- weighted and literature-aware reranking
 - a knowledge-graph builder
-- a critique agent that can be extended to web-search top candidates and write findings into the KG
+- enriched critique / literature workflows
 
-Next step: replace placeholders with chemistry-aware implementations.
+Next step: replace heuristics and placeholders with stronger chemistry-aware matching and real production scoring.
