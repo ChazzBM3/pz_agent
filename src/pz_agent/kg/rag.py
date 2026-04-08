@@ -77,9 +77,32 @@ def get_evidence_hits_for_candidate(graph_path: Path | None, candidate_id: str, 
         return []
     neighborhood = get_candidate_neighborhood(graph, candidate_id, hop_limit=hop_limit)
     hits = []
+    exact_hit_ids: set[str] = set()
+    analog_hit_ids: set[str] = set()
+
+    for edge in neighborhood.get("edges", []):
+        if edge.get("target") != candidate_id:
+            continue
+        source = edge.get("source")
+        if not source:
+            continue
+        if edge.get("type") == "EXACT_MATCH_OF":
+            exact_hit_ids.add(source)
+        elif edge.get("type") in {"ANALOG_OF", "SIMILAR_TO"}:
+            analog_hit_ids.add(source)
+
     for node in neighborhood.get("nodes", []):
-        if node.get("type") == "EvidenceHit":
-            hits.append(node)
+        if node.get("type") != "EvidenceHit":
+            continue
+        item = dict(node)
+        attrs = dict(item.get("attrs", {}))
+        node_id = item.get("id")
+        if node_id in exact_hit_ids:
+            attrs["match_type"] = attrs.get("match_type") or "exact"
+        elif node_id in analog_hit_ids:
+            attrs["match_type"] = attrs.get("match_type") or "analog"
+        item["attrs"] = attrs
+        hits.append(item)
     hits.sort(key=lambda x: x.get("id", ""))
     return hits
 

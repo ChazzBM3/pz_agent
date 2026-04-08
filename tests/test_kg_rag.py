@@ -140,3 +140,31 @@ def test_support_summary_property_filter_excludes_nonmatching_claims(tmp_path: P
     summary = summarize_support_contradiction(graph_path, "cand_1", property_name="solubility")
 
     assert summary["contradictions"] == 0
+
+
+def test_evidence_match_type_is_inferred_from_exact_match_edges(tmp_path: Path) -> None:
+    graph = {
+        "nodes": [
+            {"id": "cand_exact", "type": "Molecule", "attrs": {"id": "cand_exact"}},
+            {
+                "id": "evidence::cand_exact::0",
+                "type": "EvidenceHit",
+                "attrs": {
+                    "query": "cand_exact oxidation potential phenothiazine",
+                    "confidence": 0.9,
+                },
+            },
+        ],
+        "edges": [
+            {"source": "evidence::cand_exact::0", "target": "cand_exact", "type": "EXACT_MATCH_OF"},
+        ],
+    }
+    graph_path = tmp_path / "graph.json"
+    write_json(graph_path, graph)
+
+    hits = get_evidence_hits_for_candidate(graph_path, "cand_exact")
+    summary = summarize_support_contradiction(graph_path, "cand_exact")
+
+    assert hits[0]["attrs"]["match_type"] == "exact"
+    assert summary["exact_match_hits"] == 1
+    assert summary["support_score"] >= 0.9
