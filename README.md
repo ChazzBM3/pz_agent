@@ -11,6 +11,17 @@ This repo captures:
 See `PLAN.md` for the full plan.
 See `PROJECT_SUMMARY.md` for a concise project + repo status summary.
 
+## Development
+
+Create or activate the repo virtualenv, then install editable with dev extras:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+pytest -q
+```
+
 ## Current scaffold
 
 The repo now includes a Python package scaffold for:
