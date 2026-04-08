@@ -3,6 +3,32 @@ from __future__ import annotations
 from typing import Any
 
 
+D3TALES_TIER_1 = {
+    "oxidation_potential",
+    "reduction_potential",
+    "groundState.solvation_energy",
+    "hole_reorganization_energy",
+    "electron_reorganization_energy",
+}
+
+D3TALES_TIER_2 = {
+    "adiabatic_ionization_energy",
+    "adiabatic_electron_affinity",
+    "groundState.homo",
+    "groundState.lumo",
+    "groundState.homo_lumo_gap",
+    "omega",
+    "groundState.dipole_moment",
+}
+
+D3TALES_TIER_3 = {
+    "sa_score",
+    "molecular_weight",
+    "number_of_atoms",
+    "groundState.globular_volume",
+}
+
+
 
 def compute_priority_score(row: dict[str, Any], synth_weight: float = 0.55, sol_weight: float = 0.45) -> float | None:
     synth = row.get("predicted_synthesizability")
@@ -44,6 +70,35 @@ def compute_decoration_adjustment(row: dict[str, Any]) -> tuple[float, list[str]
 
 
 
+def compute_measurement_hierarchy_adjustment(measurement_summary: dict[str, Any] | None) -> tuple[float, list[str]]:
+    if not measurement_summary:
+        return 0.0, []
+
+    properties = set(measurement_summary.get("properties", []) or [])
+    bonus = 0.0
+    rationale: list[str] = []
+
+    tier_1_hits = sorted(properties & D3TALES_TIER_1)
+    tier_2_hits = sorted(properties & D3TALES_TIER_2)
+    tier_3_hits = sorted(properties & D3TALES_TIER_3)
+
+    if tier_1_hits:
+        tier_1_bonus = min(0.18, 0.03 * len(tier_1_hits))
+        bonus += tier_1_bonus
+        rationale.append(f"d3tales_tier1_bonus={tier_1_bonus:.3f}:{','.join(tier_1_hits)}")
+    if tier_2_hits:
+        tier_2_bonus = min(0.08, 0.01 * len(tier_2_hits))
+        bonus += tier_2_bonus
+        rationale.append(f"d3tales_tier2_bonus={tier_2_bonus:.3f}:{','.join(tier_2_hits)}")
+    if tier_3_hits:
+        tier_3_bonus = min(0.03, 0.005 * len(tier_3_hits))
+        bonus += tier_3_bonus
+        rationale.append(f"d3tales_tier3_bonus={tier_3_bonus:.3f}:{','.join(tier_3_hits)}")
+
+    return bonus, rationale
+
+
+
 def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, Any] | None) -> dict[str, Any]:
     item = dict(row)
     base = item.get("predicted_priority")
@@ -65,6 +120,8 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
     analog_hits = int(signals.get("analog_match_hits", 0) or 0)
     support_score = float(signals.get("support_score", 0.0) or 0.0)
     contradiction_score = float(signals.get("contradiction_score", 0.0) or 0.0)
+    measurement_count = int(signals.get("measurement_count", 0) or 0)
+    property_count = int(signals.get("property_count", 0) or 0)
 
     if exact_hits > 0:
         exact_bonus = min(0.08, exact_hits * 0.01)
@@ -82,6 +139,20 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
         contradiction_penalty = min(0.10, contradiction_score * 0.01)
         bonus -= contradiction_penalty
         rationale.append(f"kg_contradiction_penalty={contradiction_penalty:.3f}")
+    if measurement_count > 0:
+        measurement_bonus = min(0.06, measurement_count * 0.002)
+        bonus += measurement_bonus
+        rationale.append(f"measurement_coverage_bonus={measurement_bonus:.3f}")
+    if property_count > 0:
+        property_bonus = min(0.04, property_count * 0.003)
+        bonus += property_bonus
+        rationale.append(f"property_coverage_bonus={property_bonus:.3f}")
+
+    measurement_summary = critique_note.get("measurement_context") or item.get("ranking_rationale", {}).get("measurement_summary")
+    hierarchy_bonus, hierarchy_rationale = compute_measurement_hierarchy_adjustment(measurement_summary)
+    bonus += hierarchy_bonus
+    rationale.extend(hierarchy_rationale)
+
     if signals.get("warns_instability"):
         bonus -= 0.08
         rationale.append("instability_warning_penalty")

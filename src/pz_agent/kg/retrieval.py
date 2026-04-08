@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pz_agent.kg.rag import retrieve_context
+from pz_agent.kg.rag import retrieve_context, summarize_property_coverage
 from pz_agent.kg.schema_v2 import RetrievalQuery
 
 
@@ -49,6 +49,7 @@ def attach_critique_placeholders(
             properties_of_interest=list(search_fields or []),
         )
         kg_context = retrieve_context(graph_path, retrieval_query)
+        property_coverage = summarize_property_coverage(graph_path, item["id"])
         notes.append(
             {
                 "candidate_id": item["id"],
@@ -59,6 +60,7 @@ def attach_critique_placeholders(
                 "evidence": [],
                 "media_evidence": [],
                 "kg_context": kg_context.to_dict(),
+                "measurement_context": property_coverage,
                 "signals": {
                     "supports_solubility": None,
                     "supports_synthesizability": None,
@@ -67,6 +69,8 @@ def attach_critique_placeholders(
                     "analog_match_hits": kg_context.analog_match_hits,
                     "support_score": kg_context.support_score,
                     "contradiction_score": kg_context.contradiction_score,
+                    "measurement_count": int(property_coverage.get("measurement_count", 0)),
+                    "property_count": int(property_coverage.get("property_count", 0)),
                 },
             }
         )
@@ -114,8 +118,11 @@ def synthesize_evidence_from_queries(notes: list[dict]) -> list[dict]:
         note["evidence"] = evidence
         note["media_evidence"] = media_evidence
         kg_context = note.get("kg_context", {})
+        measurement_context = note.get("measurement_context", {})
         open_questions = kg_context.get("open_questions", [])
         note["summary"] = "Structured critique bundle includes KG-derived context, text-evidence stubs, media stubs, and graph-ready provenance."
+        if measurement_context.get("measurement_count", 0):
+            note["summary"] += f" Measured properties available: {measurement_context.get('property_count', 0)} across {measurement_context.get('measurement_count', 0)} records."
         if open_questions:
             note["summary"] += " Open questions: " + " | ".join(open_questions[:3])
         if note.get("web_search_enabled"):
@@ -128,5 +135,7 @@ def synthesize_evidence_from_queries(notes: list[dict]) -> list[dict]:
             "analog_match_hits": int(note.get("signals", {}).get("analog_match_hits", 0)),
             "support_score": float(note.get("signals", {}).get("support_score", 0.0)),
             "contradiction_score": float(note.get("signals", {}).get("contradiction_score", 0.0)),
+            "measurement_count": int(note.get("signals", {}).get("measurement_count", 0)),
+            "property_count": int(note.get("signals", {}).get("property_count", 0)),
         }
     return notes

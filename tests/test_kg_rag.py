@@ -3,7 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from pz_agent.io import write_json
-from pz_agent.kg.rag import get_claims_for_molecule, get_evidence_hits_for_candidate, summarize_support_contradiction
+from pz_agent.kg.rag import (
+    get_claims_for_molecule,
+    get_evidence_hits_for_candidate,
+    get_measurements_for_molecule,
+    summarize_property_coverage,
+    summarize_support_contradiction,
+)
 
 
 SAMPLE_GRAPH = {
@@ -75,6 +81,35 @@ def test_support_summary(tmp_path: Path) -> None:
     assert summary["exact_match_hits"] >= 1
     assert summary["analog_match_hits"] >= 2
     assert summary["support_score"] > 0
+
+
+def test_measurement_retrieval_and_property_coverage(tmp_path: Path) -> None:
+    graph = dict(SAMPLE_GRAPH)
+    graph["nodes"] = list(SAMPLE_GRAPH["nodes"]) + [
+        {
+            "id": "measurement::cand_1::omega",
+            "type": "Measurement",
+            "attrs": {
+                "record_id": "cand_1",
+                "property_name": "omega",
+                "value": 0.17,
+            },
+        }
+    ]
+    graph["edges"] = list(SAMPLE_GRAPH["edges"]) + [
+        {"source": "measurement::cand_1::omega", "target": "cand_1", "type": "MEASURED_FOR"},
+        {"source": "measurement::cand_1::omega", "target": "property::omega", "type": "HAS_PROPERTY"},
+    ]
+    graph_path = tmp_path / "graph.json"
+    write_json(graph_path, graph)
+
+    measurements = get_measurements_for_molecule(graph_path, "cand_1")
+    coverage = summarize_property_coverage(graph_path, "cand_1")
+
+    assert len(measurements) == 1
+    assert coverage["measurement_count"] == 1
+    assert coverage["property_count"] == 1
+    assert coverage["properties"] == ["omega"]
 
 
 def test_support_summary_property_filter_excludes_nonmatching_claims(tmp_path: Path) -> None:

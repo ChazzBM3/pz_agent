@@ -90,12 +90,15 @@ class RetrievedContext:
     claim_count: int = 0
     evidence_count: int = 0
     papers_count: int = 0
+    measurement_count: int = 0
+    property_count: int = 0
     neighborhood_node_count: int = 0
     neighborhood_edge_count: int = 0
     exact_match_claims: list[dict] = field(default_factory=list)
     analog_claims: list[dict] = field(default_factory=list)
     contradictory_claims: list[dict] = field(default_factory=list)
     property_evidence: list[dict] = field(default_factory=list)
+    measurement_summary: list[dict] = field(default_factory=list)
     provenance_summary: list[dict] = field(default_factory=list)
     open_questions: list[str] = field(default_factory=list)
     query_hints: list[str] = field(default_factory=list)
@@ -110,12 +113,15 @@ class RetrievedContext:
             "claim_count": self.claim_count,
             "evidence_count": self.evidence_count,
             "papers_count": self.papers_count,
+            "measurement_count": self.measurement_count,
+            "property_count": self.property_count,
             "neighborhood_node_count": self.neighborhood_node_count,
             "neighborhood_edge_count": self.neighborhood_edge_count,
             "exact_match_claims": self.exact_match_claims,
             "analog_claims": self.analog_claims,
             "contradictory_claims": self.contradictory_claims,
             "property_evidence": self.property_evidence,
+            "measurement_summary": self.measurement_summary,
             "provenance_summary": self.provenance_summary,
             "open_questions": self.open_questions,
             "query_hints": self.query_hints,

@@ -85,6 +85,98 @@ def get_evidence_hits_for_candidate(graph_path: Path | None, candidate_id: str, 
 
 
 
+def get_measurements_for_molecule(graph_path: Path | None, candidate_id: str, hop_limit: int = 2) -> list[dict[str, Any]]:
+    graph = _load_graph(graph_path)
+    if graph is None:
+        return []
+    neighborhood = get_candidate_neighborhood(graph, candidate_id, hop_limit=hop_limit)
+    measurements = []
+    for node in neighborhood.get("nodes", []):
+        if node.get("type") == "Measurement":
+            measurements.append(node)
+    measurements.sort(key=lambda x: x.get("id", ""))
+    return measurements
+
+
+
+def get_measurements_for_property(graph_path: Path | None, property_name: str) -> list[dict[str, Any]]:
+    graph = _load_graph(graph_path)
+    if graph is None:
+        return []
+    target_property_id = f"property::{property_name}"
+    nodes, adjacency = _index_graph(graph)
+    measurements = []
+    for edge in graph.get("edges", []):
+        if edge.get("type") == "HAS_PROPERTY" and edge.get("target") == target_property_id:
+            measurement_id = edge.get("source")
+            node = nodes.get(measurement_id)
+            if node and node.get("type") == "Measurement":
+                measurements.append(node)
+    measurements.sort(key=lambda x: x.get("id", ""))
+    return measurements
+
+
+
+def summarize_property_coverage(graph_path: Path | None, candidate_id: str) -> dict[str, Any]:
+    measurements = get_measurements_for_molecule(graph_path, candidate_id)
+    property_names: list[str] = []
+    populated_measurements = []
+    for node in measurements:
+        attrs = node.get("attrs", {})
+        property_name = attrs.get("property_name")
+        if property_name:
+            property_names.append(property_name)
+        if attrs.get("value") is not None:
+            populated_measurements.append(
+                {
+                    "property_name": property_name,
+                    "value": attrs.get("value"),
+                }
+            )
+    unique_properties = sorted(set(property_names))
+    return {
+        "candidate_id": candidate_id,
+        "measurement_count": len(measurements),
+        "property_count": len(unique_properties),
+        "properties": unique_properties,
+        "populated_measurements": populated_measurements,
+    }
+
+
+
+def get_measurement_for_molecule_property(
+    graph_path: Path | None,
+    candidate_id: str,
+    property_name: str,
+) -> dict[str, Any] | None:
+    measurements = get_measurements_for_molecule(graph_path, candidate_id)
+    for node in measurements:
+        attrs = node.get("attrs", {})
+        if attrs.get("property_name") == property_name:
+            return node
+    return None
+
+
+
+def summarize_candidate_property_value(
+    graph_path: Path | None,
+    candidate_id: str,
+    property_name: str,
+) -> dict[str, Any] | None:
+    measurement = get_measurement_for_molecule_property(graph_path, candidate_id, property_name)
+    if measurement is None:
+        return None
+    attrs = measurement.get("attrs", {})
+    return {
+        "candidate_id": candidate_id,
+        "property_name": property_name,
+        "value": attrs.get("value"),
+        "source_group": attrs.get("source_group"),
+        "provenance": attrs.get("provenance"),
+    }
+
+
+
 def summarize_support_contradiction(
     graph_path: Path | None,
     candidate_id: str,
@@ -161,6 +253,8 @@ def retrieve_context(graph_path: Path | None, query: RetrievalQuery) -> Retrieve
     papers = []
     claims = []
     evidence_hits = []
+    measurements = []
+    property_names: set[str] = set()
     for node in nodes:
         node_type = node.get("type")
         attrs = node.get("attrs", {})
@@ -170,10 +264,16 @@ def retrieve_context(graph_path: Path | None, query: RetrievalQuery) -> Retrieve
             claims.append(node)
         elif node_type == "EvidenceHit":
             evidence_hits.append(node)
+        elif node_type == "Measurement":
+            measurements.append(node)
+            if attrs.get("property_name"):
+                property_names.add(str(attrs.get("property_name")))
 
     context.papers_count = len(papers)
     context.claim_count = len(claims)
     context.evidence_count = len(evidence_hits)
+    context.measurement_count = len(measurements)
+    context.property_count = len(property_names)
 
     for claim in claims[: query.max_claims]:
         attrs = claim.get("attrs", {})
@@ -220,6 +320,19 @@ def retrieve_context(graph_path: Path | None, query: RetrievalQuery) -> Retrieve
         if provenance:
             context.provenance_summary.append(provenance)
 
+    for measurement in measurements[: query.max_evidence]:
+        attrs = measurement.get("attrs", {})
+        context.measurement_summary.append(
+            {
+                "id": measurement.get("id"),
+                "property_name": attrs.get("property_name"),
+                "value": attrs.get("value"),
+            }
+        )
+        provenance = attrs.get("provenance")
+        if provenance:
+            context.provenance_summary.append(provenance)
+
     if query.properties_of_interest:
         context.query_hints.extend(
             [
@@ -230,6 +343,8 @@ def retrieve_context(graph_path: Path | None, query: RetrievalQuery) -> Retrieve
 
     if context.claim_count == 0:
         context.open_questions.append("No prior claims found for this candidate neighborhood.")
+    if context.measurement_count > 0:
+        context.query_hints.append(f"{query.candidate_id} measured properties available")
     if context.exact_match_hits == 0:
         context.open_questions.append("No exact-match literature evidence found yet; rely on analog reasoning.")
     if context.analog_match_hits == 0:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pz_agent.agents.base import BaseAgent
 from pz_agent.analysis.diversity import diversify_placeholder
 from pz_agent.analysis.pareto import apply_literature_adjustment, compute_decoration_adjustment
-from pz_agent.kg.rag import summarize_support_contradiction
+from pz_agent.kg.rag import summarize_property_coverage, summarize_support_contradiction
 from pz_agent.state import RunState
 
 
@@ -24,6 +24,7 @@ class CritiqueRerankerAgent(BaseAgent):
             if note is not None:
                 note.setdefault("signals", {})
                 kg_summary = summarize_support_contradiction(state.knowledge_graph_path, row["id"])
+                measurement_summary = summarize_property_coverage(state.knowledge_graph_path, row["id"])
                 note["signals"]["exact_match_hits"] = max(
                     int(note["signals"].get("exact_match_hits", 0) or 0),
                     int(kg_summary.get("exact_match_hits", 0) or 0),
@@ -40,8 +41,18 @@ class CritiqueRerankerAgent(BaseAgent):
                     float(note["signals"].get("contradiction_score", 0.0) or 0.0),
                     float(kg_summary.get("contradiction_score", 0.0) or 0.0),
                 )
+                note["signals"]["measurement_count"] = max(
+                    int(note["signals"].get("measurement_count", 0) or 0),
+                    int(measurement_summary.get("measurement_count", 0) or 0),
+                )
+                note["signals"]["property_count"] = max(
+                    int(note["signals"].get("property_count", 0) or 0),
+                    int(measurement_summary.get("property_count", 0) or 0),
+                )
                 item.setdefault("ranking_rationale", {})
                 item["ranking_rationale"]["kg_summary"] = kg_summary
+                item["ranking_rationale"]["measurement_summary"] = measurement_summary
+                note["measurement_context"] = measurement_summary
             reranked.append(apply_literature_adjustment(item, note))
         reranked.sort(
             key=lambda x: (
