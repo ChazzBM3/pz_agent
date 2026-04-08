@@ -60,11 +60,28 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
     if signals.get("supports_synthesizability"):
         bonus += 0.05
         rationale.append("literature_supports_synthesizability")
+
+    exact_hits = int(signals.get("exact_match_hits", 0) or 0)
     analog_hits = int(signals.get("analog_match_hits", 0) or 0)
+    support_score = float(signals.get("support_score", 0.0) or 0.0)
+    contradiction_score = float(signals.get("contradiction_score", 0.0) or 0.0)
+
+    if exact_hits > 0:
+        exact_bonus = min(0.08, exact_hits * 0.01)
+        bonus += exact_bonus
+        rationale.append(f"exact_hits_bonus={exact_bonus:.3f}")
     if analog_hits > 0:
         analog_bonus = min(0.05, analog_hits * 0.002)
         bonus += analog_bonus
         rationale.append(f"analog_hits_bonus={analog_bonus:.3f}")
+    if support_score > 0:
+        support_bonus = min(0.08, support_score * 0.005)
+        bonus += support_bonus
+        rationale.append(f"kg_support_bonus={support_bonus:.3f}")
+    if contradiction_score > 0:
+        contradiction_penalty = min(0.10, contradiction_score * 0.01)
+        bonus -= contradiction_penalty
+        rationale.append(f"kg_contradiction_penalty={contradiction_penalty:.3f}")
     if signals.get("warns_instability"):
         bonus -= 0.08
         rationale.append("instability_warning_penalty")

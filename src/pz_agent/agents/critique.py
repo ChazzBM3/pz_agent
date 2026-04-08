@@ -16,9 +16,10 @@ class CritiqueAgent(BaseAgent):
             enable_web_search=bool(self.config.get("critique", {}).get("enable_web_search", True)),
             max_candidates=int(self.config.get("critique", {}).get("max_candidates", 10)),
             search_fields=search_fields,
+            graph_path=state.knowledge_graph_path,
         )
         critique_notes = synthesize_evidence_from_queries(critique_notes)
         state.critique_notes = critique_notes
         write_json(state.run_dir / "critique_notes.json", critique_notes)
-        state.log("Critique agent prepared candidate evidence bundles with text and image/plot placeholders")
+        state.log("Critique agent prepared candidate evidence bundles with KG-derived context, targeted queries, and text/image placeholders")
         return state
