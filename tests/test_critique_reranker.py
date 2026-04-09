@@ -65,3 +65,22 @@ def test_critique_reranker_uses_kg_summary(tmp_path: Path) -> None:
     row = updated.ranked[0]
     assert row["predicted_priority_literature_adjusted"] > 0.5
     assert row["ranking_rationale"]["kg_summary"]["exact_match_hits"] >= 1
+
+
+def test_critique_reranker_preserves_base_priority_without_note(tmp_path: Path) -> None:
+    state = RunState(config={"screening": {"shortlist_size": 3}}, run_dir=tmp_path)
+    state.ranked = [
+        {
+            "id": "cand_2",
+            "predicted_priority": 0.61,
+            "identity": {},
+        }
+    ]
+    state.critique_notes = []
+
+    agent = CritiqueRerankerAgent(config=state.config)
+    updated = agent.run(state)
+
+    row = updated.ranked[0]
+    assert row["predicted_priority_literature_adjusted"] == 0.61
+    assert row["literature_adjustment"] == 0.0

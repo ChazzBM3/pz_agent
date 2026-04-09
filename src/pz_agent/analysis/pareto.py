@@ -143,7 +143,18 @@ def compute_tier_1_value_adjustment(
 def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, Any] | None) -> dict[str, Any]:
     item = dict(row)
     base = item.get("predicted_priority")
-    if base is None or not critique_note:
+    if base is None:
+        item.setdefault("literature_adjustment", 0.0)
+        item.setdefault("predicted_priority_literature_adjusted", None)
+        item.setdefault("ranking_rationale", {})
+        item["ranking_rationale"].setdefault("literature_adjustment", [])
+        return item
+
+    if not critique_note:
+        item["literature_adjustment"] = 0.0
+        item["predicted_priority_literature_adjusted"] = base
+        item.setdefault("ranking_rationale", {})
+        item["ranking_rationale"].setdefault("literature_adjustment", [])
         return item
 
     signals = critique_note.get("signals", {})
