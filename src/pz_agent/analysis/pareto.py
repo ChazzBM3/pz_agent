@@ -158,8 +158,18 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
         return item
 
     signals = critique_note.get("signals", {})
+    evidence_tier = str(critique_note.get("evidence_tier") or "candidate")
     bonus = 0.0
-    rationale: list[str] = []
+    rationale: list[str] = [f"evidence_tier={evidence_tier}"]
+
+    if evidence_tier in {"scaffold", "general_review"}:
+        signals = dict(signals)
+        signals["supports_solubility"] = False
+        signals["supports_synthesizability"] = False
+        signals["exact_match_hits"] = 0
+        signals["analog_match_hits"] = 0
+        signals["property_aligned_hits"] = 0
+        signals["support_score"] = min(float(signals.get("support_score", 0.0) or 0.0), 0.2)
 
     if signals.get("supports_solubility"):
         bonus += 0.05
@@ -172,6 +182,7 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
     analog_hits = int(signals.get("analog_match_hits", 0) or 0)
     broad_scaffold_hits = int(signals.get("broad_scaffold_hits", 0) or 0)
     property_aligned_hits = int(signals.get("property_aligned_hits", 0) or 0)
+    review_hits = int(signals.get("review_hits", 0) or 0)
     support_score = float(signals.get("support_score", 0.0) or 0.0)
     contradiction_score = float(signals.get("contradiction_score", 0.0) or 0.0)
     measurement_count = int(signals.get("measurement_count", 0) or 0)
@@ -197,6 +208,10 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
         support_bonus = min(0.05, support_score * 0.003)
         bonus += support_bonus
         rationale.append(f"kg_support_bonus={support_bonus:.3f}")
+    if review_hits > 0:
+        review_penalty = min(0.02, review_hits * 0.002)
+        bonus -= review_penalty
+        rationale.append(f"generic_review_penalty={review_penalty:.3f}")
     if contradiction_score > 0:
         contradiction_penalty = min(0.10, contradiction_score * 0.01)
         bonus -= contradiction_penalty

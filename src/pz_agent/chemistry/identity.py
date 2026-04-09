@@ -13,6 +13,7 @@ class MoleculeIdentity:
     scaffold: str | None = None
     name: str | None = None
     source_name: str | None = None
+    iupac_name: str | None = None
     core_assumption: str | None = None
     decoration_summary: str | None = None
     substituent_count: int | None = None

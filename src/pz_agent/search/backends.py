@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 from urllib.request import urlopen
 
 from pz_agent.search.base import SearchBackend, SearchHit
@@ -65,7 +65,7 @@ class OpenAlexSearchBackend:
     name = "openalex"
 
     def search(self, query: str, count: int = 5) -> list[SearchHit]:
-        per_page = max(1, min(int(count), 25))
+        per_page = max(1, min(max(int(count) * 3, 10), 50))
         url = (
             "https://api.openalex.org/works?search="
             f"{quote_plus(query)}&per-page={per_page}&select=display_name,doi,id,primary_location,abstract_inverted_index,publication_year"
@@ -73,7 +73,7 @@ class OpenAlexSearchBackend:
         with urlopen(url, timeout=20) as response:
             payload = json.loads(response.read().decode("utf-8"))
 
-        hits: list[SearchHit] = []
+        ranked_hits: list[tuple[float, SearchHit]] = []
         for item in payload.get("results", []):
             title = item.get("display_name")
             doi = item.get("doi")
@@ -84,17 +84,18 @@ class OpenAlexSearchBackend:
             if not snippet:
                 year = item.get("publication_year")
                 snippet = f"OpenAlex scholarly record{f' ({year})' if year else ''}."
-            hits.append(
-                SearchHit(
-                    title=title,
-                    url=landing_page,
-                    snippet=snippet,
-                    source=self.name,
-                    confidence=None,
-                    match_type="unknown",
-                )
+            hit = SearchHit(
+                title=title,
+                url=landing_page,
+                snippet=snippet,
+                source=self.name,
+                confidence=None,
+                match_type="unknown",
             )
-        return hits
+            ranked_hits.append((_score_openalex_hit(query, hit), hit))
+
+        ranked_hits.sort(key=lambda pair: pair[0], reverse=True)
+        return [hit for _, hit in ranked_hits[:count]]
 
 
 class PlannedScholarlySearchBackend:
@@ -102,6 +103,24 @@ class PlannedScholarlySearchBackend:
 
     def search(self, query: str, count: int = 5) -> list[SearchHit]:
         raise NotImplementedError("Production scholarly search backend is planned but not configured yet.")
+
+
+def _score_openalex_hit(query: str, hit: SearchHit) -> float:
+    query_text = query.lower()
+    hit_text = " ".join(part for part in [hit.title or "", hit.snippet or "", hit.url or ""] if part).lower()
+    score = 0.0
+    for token in ["solubility", "soluble", "synthesis", "synthetic", "redox", "oxidation", "reduction", "electrochemical", "phenothiazine"]:
+        if token in query_text and token in hit_text:
+            score += 1.0
+    for token in ["cl", "br", "f", "i", "c#n", "c(=o)"]:
+        if token in query_text and token in hit_text:
+            score += 1.5
+    if any(token in hit_text for token in ["review", "perspective", "overview", "platform", "editor"]):
+        score -= 1.0
+    host = (urlparse(hit.url).netloc or "").lower() if hit.url else ""
+    if any(domain in host for domain in ["acs", "wiley", "sciencedirect", "nature", "pubmed", "doi.org"]):
+        score += 0.3
+    return score
 
 
 def _openalex_abstract_to_text(abstract_index: dict) -> str | None:

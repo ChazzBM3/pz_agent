@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from pz_agent.chemistry.identity import MoleculeIdentity
+from pz_agent.chemistry.naming import smiles_to_iupac_name
 
 try:
     from rdkit import Chem
@@ -87,6 +88,7 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
 
     decoration_summary, substituent_count, decoration_tokens, substituent_fragments, electronic_bias = _estimate_decoration_summary(canonical_smiles)
     attachment_summary = _attachment_summary(decoration_tokens)
+    iupac_name = smiles_to_iupac_name(input_smiles)
 
     identity = MoleculeIdentity(
         input_smiles=input_smiles,
@@ -96,6 +98,7 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
         scaffold=scaffold or PHENOTHIAZINE_QUERY_HINT,
         name=name,
         source_name=name,
+        iupac_name=iupac_name,
         core_assumption=PHENOTHIAZINE_CORE_ASSUMPTION,
         decoration_summary=decoration_summary,
         substituent_count=substituent_count,
@@ -109,6 +112,7 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
                 name,
                 canonical_smiles,
                 scaffold,
+                iupac_name,
                 decoration_summary,
                 electronic_bias,
                 *decoration_tokens,

@@ -15,8 +15,9 @@ class SurrogateScreenAgent(BaseAgent):
         for item in (state.library_clean or []):
             pred = model.predict(item)
             state.predictions.append({
-                "id": item["id"],
+                **item,
                 **pred,
+                "id": item["id"],
             })
         mode = "external score import" if use_external_scores else "internal stub scoring"
         state.log(f"Surrogate screen generated synthesizability and solubility predictions using {mode}")

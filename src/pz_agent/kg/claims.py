@@ -28,13 +28,16 @@ def build_search_query_node(candidate_id: str, index: int, query: str, status: s
 
 def infer_claim_semantics(note: dict[str, Any]) -> list[dict[str, Any]]:
     signals = note.get("signals", {})
+    evidence_tier = str(note.get("evidence_tier") or "candidate")
+    subject_type = "scaffold" if evidence_tier in {"scaffold", "general_review"} else "molecule"
     semantics: list[dict[str, Any]] = [
         {
             "key": "candidate_evidence",
-            "subject_type": "molecule",
+            "subject_type": subject_type,
             "predicate": "candidate_evidence",
             "polarity": "support",
             "property_name": None,
+            "evidence_tier": evidence_tier,
         }
     ]
     if signals.get("supports_solubility"):
@@ -45,6 +48,7 @@ def infer_claim_semantics(note: dict[str, Any]) -> list[dict[str, Any]]:
                 "predicate": "supports_property",
                 "polarity": "support",
                 "property_name": "solubility",
+                "evidence_tier": evidence_tier,
             }
         )
     if signals.get("supports_synthesizability"):
@@ -55,6 +59,7 @@ def infer_claim_semantics(note: dict[str, Any]) -> list[dict[str, Any]]:
                 "predicate": "supports_property",
                 "polarity": "support",
                 "property_name": "synthesizability",
+                "evidence_tier": evidence_tier,
             }
         )
     if signals.get("warns_instability"):
@@ -65,6 +70,7 @@ def infer_claim_semantics(note: dict[str, Any]) -> list[dict[str, Any]]:
                 "predicate": "warns_instability",
                 "polarity": "contradiction",
                 "property_name": "instability",
+                "evidence_tier": evidence_tier,
             }
         )
     return semantics

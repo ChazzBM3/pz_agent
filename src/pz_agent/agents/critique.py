@@ -16,6 +16,9 @@ PROPERTY_KEYWORDS = {
     "electrochemistry": ["redox", "oxidation", "reduction", "electrochemical", "voltammetry", "solvation", "reorganization"],
 }
 
+REVIEW_HINTS = ("review", "progress", "perspective", "overview")
+BACKGROUND_HINTS = ("platform", "editor", "visualization", "analysis platform")
+
 CHEMISTRY_KEYWORDS = {
     "phenothiazine",
     "molecule",
@@ -28,6 +31,9 @@ CHEMISTRY_KEYWORDS = {
     "reorganization",
     "electrochem",
     "electrochemical",
+    "voltammetry",
+    "battery",
+    "electrolyte",
     "synthesis",
     "synthetic",
     "chemistry",
@@ -62,6 +68,35 @@ BLOCKED_HOST_FRAGMENTS = (
     "simit",
 )
 
+POSITIVE_RELEVANCE_TERMS = (
+    "phenothiaz",
+    "redox",
+    "oxidation",
+    "reduction",
+    "electrochem",
+    "electrochemical",
+    "voltammetry",
+    "battery",
+    "electrolyte",
+    "solubility",
+    "nonaqueous",
+    "flow battery",
+)
+
+NEGATIVE_RELEVANCE_TERMS = (
+    "antimicrobial",
+    "leishmania",
+    "liver disease",
+    "dna",
+    "oligodeoxynucleotide",
+    "bioimaging",
+    "hydrogel",
+    "chemosensor",
+    "enzyme",
+    "cyp1a",
+    "chagas",
+)
+
 
 def _classify_match_type(note: dict, title: str | None, snippet: str | None, url: str | None) -> str:
     identity = note.get("identity", {}) or {}
@@ -79,15 +114,56 @@ def _classify_match_type(note: dict, title: str | None, snippet: str | None, url
 
 
 
+def _relevance_score(title: str | None, snippet: str | None, url: str | None) -> float:
+    host = (urlparse(url).netloc or "").lower() if url else ""
+    text = " ".join(part for part in [title or "", snippet or "", host] if part).lower()
+    score = 0.0
+    if "phenothiaz" in text:
+        score += 3.0
+    for term in POSITIVE_RELEVANCE_TERMS:
+        if term in text:
+            score += 1.0
+    for term in NEGATIVE_RELEVANCE_TERMS:
+        if term in text:
+            score -= 2.0
+    if any(trusted in host for trusted in TRUSTED_CHEMISTRY_HOSTS):
+        score += 0.5
+    if _is_review_or_background_hit(title, snippet):
+        score -= 0.5
+    return score
+
+
+
 def _is_relevant_chemistry_result(title: str | None, snippet: str | None, url: str | None) -> bool:
     host = (urlparse(url).netloc or "").lower() if url else ""
     if any(fragment in host for fragment in BLOCKED_HOST_FRAGMENTS):
         return False
     text = " ".join(part for part in [title or "", snippet or "", host] if part).lower()
     keyword_hits = sum(1 for keyword in CHEMISTRY_KEYWORDS if keyword in text)
+    has_core = "phenothiaz" in text
+    has_property_context = any(token in text for token in ["redox", "oxidation", "reduction", "electrochem", "electrochemical", "solubility", "electrolyte", "battery", "voltammetry"])
     if any(trusted in host for trusted in TRUSTED_CHEMISTRY_HOSTS):
+        return _relevance_score(title, snippet, url) >= 2.0 and (has_core or (has_property_context and keyword_hits >= 3))
+    return _relevance_score(title, snippet, url) >= 3.0 and has_core and (has_property_context or keyword_hits >= 3)
+
+
+def _is_review_or_background_hit(title: str | None, snippet: str | None) -> bool:
+    text = " ".join(part for part in [title or "", snippet or ""] if part).lower()
+    if any(token in text for token in BACKGROUND_HINTS):
         return True
-    return keyword_hits >= 2
+    return any(token in text for token in REVIEW_HINTS)
+
+
+def _infer_evidence_tier(signals: dict) -> str:
+    if int(signals.get("exact_match_hits", 0) or 0) > 0:
+        return "candidate"
+    if int(signals.get("analog_match_hits", 0) or 0) > 0 or int(signals.get("property_aligned_hits", 0) or 0) > 0:
+        return "analog"
+    if int(signals.get("review_hits", 0) or 0) > 0:
+        return "general_review"
+    if int(signals.get("broad_scaffold_hits", 0) or 0) > 0:
+        return "scaffold"
+    return "candidate"
 
 
 def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
@@ -101,33 +177,40 @@ def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
     warns_instability = bool(signals.get("warns_instability"))
     broad_scaffold_hits = int(signals.get("broad_scaffold_hits", 0) or 0)
     property_aligned_hits = int(signals.get("property_aligned_hits", 0) or 0)
+    review_hits = int(signals.get("review_hits", 0) or 0)
 
     for item in evidence:
+        title = str(item.get("title") or "")
+        snippet = str(item.get("snippet") or "")
         match_type = item.get("match_type")
-        text = " ".join([str(item.get("title") or ""), str(item.get("snippet") or "")]).lower()
+        text = " ".join([title, snippet]).lower()
         has_solubility = any(keyword in text for keyword in PROPERTY_KEYWORDS["solubility"])
         has_synth = any(keyword in text for keyword in PROPERTY_KEYWORDS["synthesizability"])
         has_echem = any(keyword in text for keyword in PROPERTY_KEYWORDS["electrochemistry"])
         property_aligned = has_solubility or has_synth or has_echem
+        is_review = _is_review_or_background_hit(title, snippet)
+
+        if is_review:
+            review_hits += 1
 
         if match_type == "exact":
             exact_hits += 1
-            support_score += 1.0 if property_aligned else 0.35
+            support_score += 0.8 if property_aligned else 0.25
         elif match_type == "analog":
             analog_hits += 1
-            support_score += 0.5 if property_aligned else 0.15
+            support_score += 0.35 if property_aligned else 0.08
         elif "phenothiazine" in text:
             broad_scaffold_hits += 1
-            support_score += 0.02
+            support_score += 0.01 if is_review else 0.02
 
-        if property_aligned:
+        if property_aligned and not is_review:
             property_aligned_hits += 1
-        if has_solubility:
+        if has_solubility and not is_review:
             supports_solubility = True
-            support_score += 0.08
-        if has_synth:
+            support_score += 0.06
+        if has_synth and not is_review:
             supports_synth = True
-            support_score += 0.08
+            support_score += 0.06
         if any(keyword in text for keyword in PROPERTY_KEYWORDS["instability"]):
             warns_instability = True
             contradiction_score += 0.5
@@ -141,6 +224,7 @@ def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
             "analog_match_hits": int(signals.get("analog_match_hits", 0) or 0) + analog_hits,
             "broad_scaffold_hits": broad_scaffold_hits,
             "property_aligned_hits": property_aligned_hits,
+            "review_hits": review_hits,
             "support_score": support_score,
             "contradiction_score": contradiction_score,
         }
@@ -176,6 +260,7 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
                     "url": hit.url,
                     "snippet": hit.snippet,
                     "match_type": match_type,
+                    "relevance_score": _relevance_score(hit.title, hit.snippet, hit.url),
                     "provenance": {
                         "source_type": backend.name,
                         "query": query,
@@ -200,9 +285,11 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
                 },
             }
         )
+    evidence.sort(key=lambda item: float(item.get("relevance_score", 0.0)), reverse=True)
     note["evidence"] = evidence
     note["media_evidence"] = media_evidence
     note["signals"] = _summarize_live_signals(note, evidence)
+    note["evidence_tier"] = _infer_evidence_tier(note["signals"])
     note["status"] = "live_web_results" if evidence else "live_web_no_results"
     note["summary"] = f"Live web critique collected {len(evidence)} evidence hits via {backend.name}."
     return note

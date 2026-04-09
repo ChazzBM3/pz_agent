@@ -86,10 +86,17 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
 
     for note in state.critique_notes or []:
         claim_nodes = build_claim_nodes(note)
+        evidence_tier = str(note.get("evidence_tier") or "candidate")
+        scaffold_name = str((note.get("identity") or {}).get("scaffold") or "").strip()
         for claim_node in claim_nodes:
             note_id = claim_node["id"]
             add_node(claim_node)
-            add_edge(note_id, note['candidate_id'], "ABOUT_MOLECULE")
+            if evidence_tier in {"scaffold", "general_review"} and scaffold_name:
+                scaffold_id = f"scaffold::{scaffold_name}"
+                add_node({"id": scaffold_id, "type": "Scaffold", "attrs": {"name": scaffold_name}})
+                add_edge(note_id, scaffold_id, "ABOUT_SCAFFOLD")
+            else:
+                add_edge(note_id, note['candidate_id'], "ABOUT_MOLECULE")
 
             property_name = claim_node.get("attrs", {}).get("property_name")
             if property_name:
@@ -123,16 +130,21 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                 add_edge(note_id, query_id, "HAS_QUERY")
 
             for evidence in note.get("evidence", []):
-                evidence_node = build_evidence_hit_node(evidence)
+                evidence_payload = dict(evidence)
+                evidence_payload.setdefault("evidence_tier", evidence_tier)
+                evidence_node = build_evidence_hit_node(evidence_payload)
                 evidence_id = evidence_node["id"]
                 add_node(evidence_node)
                 add_edge(note_id, evidence_id, "HAS_EVIDENCE_HIT")
-                paper_node = build_paper_node_from_evidence(evidence)
+                paper_node = build_paper_node_from_evidence(evidence_payload)
                 paper_id = paper_node["id"]
                 add_node(paper_node)
                 add_edge(evidence_id, paper_id, "SUPPORTED_BY")
-                match_type = evidence.get("match_type")
-                if match_type == "exact":
+                match_type = evidence_payload.get("match_type")
+                if evidence_tier in {"scaffold", "general_review"} and scaffold_name:
+                    scaffold_id = f"scaffold::{scaffold_name}"
+                    add_edge(evidence_id, scaffold_id, "ABOUT_SCAFFOLD")
+                elif match_type == "exact":
                     add_edge(evidence_id, note["candidate_id"], "EXACT_MATCH_OF")
                 elif match_type in {"analog", "family"}:
                     add_edge(evidence_id, note["candidate_id"], "ANALOG_OF")

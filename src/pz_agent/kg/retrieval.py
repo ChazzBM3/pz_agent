@@ -22,6 +22,30 @@ def _clean_token(token: str | None) -> str:
     return re.sub(r"\s+", " ", str(token)).strip()
 
 
+def _literature_scaffold_name(identity: dict) -> str:
+    scaffold = _clean_token(identity.get("scaffold"))
+    if scaffold and any(ch.isdigit() for ch in scaffold):
+        return "phenothiazine"
+    return scaffold or "phenothiazine"
+
+
+
+def _token_to_literature_term(token: str) -> str:
+    mapping = {
+        "O": "methoxy OR alkoxy",
+        "N": "amino OR dialkylamino",
+        "S": "thioether OR sulfur-substituted",
+        "F": "fluoro",
+        "Cl": "chloro",
+        "Br": "bromo",
+        "I": "iodo",
+        "C#N": "cyano",
+        "C(=O)": "carbonyl OR acyl",
+    }
+    return mapping.get(token, token)
+
+
+
 def build_candidate_queries(
     candidate: dict,
     search_fields: list[str] | None = None,
@@ -29,16 +53,25 @@ def build_candidate_queries(
 ) -> list[str]:
     fields = search_fields or ["phenothiazine", "solubility", "synthesizability", "derivative"]
     identity = candidate.get("identity", {})
-    scaffold = _clean_token(identity.get("scaffold") or "phenothiazine")
+    scaffold = _literature_scaffold_name(identity)
     decoration_summary = _clean_token(identity.get("decoration_summary"))
     electronic_bias = _clean_token(identity.get("electronic_bias"))
     attachment_text = _clean_token(" ".join(identity.get("attachment_summary") or []))
+    raw_decoration_tokens = [_clean_token(token) for token in (identity.get("decoration_tokens") or []) if _clean_token(token)]
+    decoration_tokens = [_token_to_literature_term(token) for token in raw_decoration_tokens[:3]]
+    substituent_fragments = [
+        _clean_token(fragment.replace("frag:", "substituted "))
+        for fragment in (identity.get("substituent_fragments") or [])
+        if _clean_token(fragment)
+    ]
     candidate_name = _clean_token(identity.get("name"))
+    iupac_name = _clean_token(identity.get("iupac_name"))
     candidate_id = _clean_token(candidate.get("id"))
 
     public_name = candidate_name if candidate_name and not _looks_like_registry_id(candidate_name) else ""
     public_id = candidate_id if candidate_id and not _looks_like_registry_id(candidate_id) else ""
     public_token_text = " ".join(token for token in [public_name, public_id] if token)
+    nomenclature_token = iupac_name if iupac_name and "phenothiaz" in iupac_name.lower() else ""
 
     property_terms = []
     for field in fields:
@@ -48,17 +81,41 @@ def build_candidate_queries(
     broad_property_clause = " OR ".join(property_terms) if property_terms else "oxidation potential OR reduction potential"
     scholarly_property_clause = " OR ".join(term for term in property_terms if "phenothiazine" not in term.lower()) or broad_property_clause
 
-    motif_bits = [bit for bit in [decoration_summary, electronic_bias, attachment_text] if bit]
+    bias_phrase = {
+        "electron_donating_skew": "electron donating substituents",
+        "electron_withdrawing_skew": "electron withdrawing substituents",
+        "mixed": "mixed donor acceptor substituents",
+    }.get(electronic_bias, electronic_bias)
+
+    normalized_decoration_summary = decoration_summary.replace("+", " ") if decoration_summary else ""
+    motif_bits = [
+        bit
+        for bit in [
+            normalized_decoration_summary,
+            bias_phrase,
+            " ".join(decoration_tokens[:2]),
+            " ".join(substituent_fragments[:2]),
+        ]
+        if bit and bit != "none_detected"
+    ]
     motif_clause = " ".join(motif_bits)
 
-    queries = [
-        f'"{scaffold}" ({broad_property_clause}) chemistry',
-        f'"{scaffold}" derivative synthesis redox',
-        f'{SCHOLARLY_SITE_HINT} "{scaffold}" ({scholarly_property_clause})',
-    ]
+    queries = []
     if motif_clause:
         queries.append(f'"{scaffold}" {motif_clause} ({broad_property_clause})')
         queries.append(f'{SCHOLARLY_SITE_HINT} "{scaffold}" {motif_clause}')
+    if decoration_tokens:
+        token_clause = " ".join(decoration_tokens[:2])
+        queries.append(f'"{scaffold}" {token_clause} redox solubility synthesis')
+    queries.extend(
+        [
+            f'"{scaffold}" derivative synthesis redox',
+            f'"{scaffold}" ({broad_property_clause}) chemistry',
+            f'{SCHOLARLY_SITE_HINT} "{scaffold}" ({scholarly_property_clause})',
+        ]
+    )
+    if nomenclature_token:
+        queries.append(f'"{nomenclature_token}" redox solubility synthesis')
     if public_token_text:
         queries.append(f'"{public_token_text}" "{scaffold}" chemistry')
 
@@ -70,7 +127,14 @@ def build_candidate_queries(
             continue
         if cleaned_hint not in queries:
             queries.append(cleaned_hint)
-    return queries
+
+    deduped = []
+    seen = set()
+    for query in queries:
+        if query not in seen:
+            deduped.append(query)
+            seen.add(query)
+    return deduped[:4]
 
 
 def attach_critique_placeholders(
