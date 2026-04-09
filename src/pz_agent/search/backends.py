@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from pz_agent.search.base import SearchBackend, SearchHit
 
+try:
+    from duckduckgo_search import DDGS
+    DDGS_AVAILABLE = True
+except Exception:
+    DDGS = None
+    DDGS_AVAILABLE = False
+
 
 class StubSearchBackend:
     name = "stub"
@@ -20,6 +27,28 @@ class StubSearchBackend:
         ]
 
 
+class DuckDuckGoSearchBackend:
+    name = "duckduckgo"
+
+    def search(self, query: str, count: int = 5) -> list[SearchHit]:
+        if not DDGS_AVAILABLE:
+            raise RuntimeError("duckduckgo_search is not installed")
+        hits: list[SearchHit] = []
+        with DDGS() as ddgs:
+            for item in ddgs.text(query, max_results=count):
+                hits.append(
+                    SearchHit(
+                        title=item.get("title"),
+                        url=item.get("href"),
+                        snippet=item.get("body"),
+                        source=self.name,
+                        confidence=None,
+                        match_type="unknown",
+                    )
+                )
+        return hits
+
+
 class PlannedScholarlySearchBackend:
     name = "planned_scholarly_api"
 
@@ -28,6 +57,8 @@ class PlannedScholarlySearchBackend:
 
 
 def get_search_backend(name: str) -> SearchBackend:
+    if name == "duckduckgo":
+        return DuckDuckGoSearchBackend()
     if name == "planned_scholarly_api":
         return PlannedScholarlySearchBackend()
     return StubSearchBackend()
