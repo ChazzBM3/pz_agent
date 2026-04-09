@@ -10,6 +10,7 @@ from pz_agent.kg.claims import (
     build_paper_node_from_evidence,
     build_property_node,
     build_search_query_node,
+    stable_node_id,
 )
 from pz_agent.kg.merge import append_graph_update
 from pz_agent.state import RunState
@@ -54,6 +55,31 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         pred_id = f"pred::{pred['id']}::{pred.get('model', 'unknown')}"
         add_node({"id": pred_id, "type": "Prediction", "attrs": pred})
         add_edge(pred['id'], pred_id, "PREDICTED_PROPERTY")
+
+    for item in state.library_clean or []:
+        measurements = item.get("measurements") or {}
+        provenance = item.get("provenance") or {}
+        for property_name, value in measurements.items():
+            if value is None:
+                continue
+            measurement_id = stable_node_id("measurement", item["id"], property_name)
+            add_node(
+                {
+                    "id": measurement_id,
+                    "type": "Measurement",
+                    "attrs": {
+                        "record_id": item["id"],
+                        "property_name": property_name,
+                        "value": value,
+                        "source_group": item.get("identity", {}).get("source_group"),
+                        "provenance": provenance,
+                    },
+                }
+            )
+            property_node = build_property_node(property_name)
+            add_node(property_node)
+            add_edge(measurement_id, item["id"], "MEASURED_FOR")
+            add_edge(measurement_id, property_node["id"], "HAS_PROPERTY")
 
     for item in state.dft_queue or []:
         add_edge(item["id"], run_id, "SELECTED_FOR_DFT")
