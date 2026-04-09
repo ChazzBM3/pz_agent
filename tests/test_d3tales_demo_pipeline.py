@@ -5,7 +5,7 @@ from pathlib import Path
 from pz_agent.runner import run_pipeline
 
 
-CSV_TEXT = """_id,smiles,source_group,sa_score,oxidation_potential,reduction_potential,groundState.solvation_energy,hole_reorganization_energy,electron_reorganization_energy\nrec_a,c1ccccc1,demo,1.2,1.4,0.7,-0.8,0.2,0.3\nrec_b,c1ccncc1,demo,2.1,0.4,0.2,0.1,1.1,1.2\n"""
+CSV_TEXT = """_id,smiles,source_group,sa_score,oxidation_potential,reduction_potential,groundState.solvation_energy,hole_reorganization_energy,electron_reorganization_energy\nrec_a,c1ccc2c(c1)Sc1ccccc1S2,demo,1.2,1.4,0.7,-0.8,0.2,0.3\nrec_b,CCN1c2ccccc2Sc2ccccc21,demo,2.1,0.4,0.2,0.1,1.1,1.2\nother,c1ccccc1,demo,1.0,2.0,1.5,-0.1,0.1,0.1\n"""
 
 
 def test_d3tales_demo_pipeline_exercises_measurement_aware_reranking(tmp_path: Path) -> None:
@@ -21,6 +21,7 @@ generation:
   engine: d3tales_csv
   d3tales_csv_path: {csv_path}
   d3tales_limit: 2
+  d3tales_phenothiazine_only: true
   prompts:
     objective: test demo
 screening:
@@ -57,6 +58,7 @@ search:
 
     assert state.library_raw is not None
     assert len(state.library_raw) == 2
+    assert [item["id"] for item in state.library_raw] == ["rec_a", "rec_b"]
     assert state.ranked is not None
     assert state.ranked[0]["id"] == "rec_a"
     assert state.ranked[0]["predicted_priority_literature_adjusted"] > state.ranked[1]["predicted_priority_literature_adjusted"]

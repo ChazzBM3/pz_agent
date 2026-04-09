@@ -5,6 +5,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator
 
+try:
+    from rdkit import Chem
+    from rdkit.Chem.Scaffolds import MurckoScaffold
+    RDKIT_AVAILABLE = True
+except Exception:
+    Chem = None
+    MurckoScaffold = None
+    RDKIT_AVAILABLE = False
+
 
 IDENTITY_FIELDS = {"_id", "smiles", "source_group"}
 MEASUREMENT_FIELDS = {
@@ -84,13 +93,44 @@ def _normalize_row(row: dict[str, str]) -> D3TaLESRecord | None:
 
 
 
-def load_d3tales_csv(path: str | Path, limit: int | None = None) -> list[D3TaLESRecord]:
+def _murcko_scaffold_smiles(smiles: str) -> str | None:
+    if not RDKIT_AVAILABLE:
+        return None
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    scaffold_mol = MurckoScaffold.GetScaffoldForMol(mol)
+    if scaffold_mol is None:
+        return None
+    return Chem.MolToSmiles(scaffold_mol, canonical=True)
+
+
+
+def is_phenothiazine_like_record(record: D3TaLESRecord) -> bool:
+    scaffold = _murcko_scaffold_smiles(record.smiles)
+    if scaffold is None:
+        token_text = f"{record.smiles} {record.record_id} {record.source_group or ''}".lower()
+        return "phenothiaz" in token_text
+    return scaffold in {
+        "c1ccc2c(c1)Sc1ccccc1S2",
+        "c1ccc2c(c1)Nc1ccccc1S2",
+    }
+
+
+
+def load_d3tales_csv(
+    path: str | Path,
+    limit: int | None = None,
+    phenothiazine_only: bool = False,
+) -> list[D3TaLESRecord]:
     records: list[D3TaLESRecord] = []
     with Path(path).open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
             record = _normalize_row(row)
             if record is None:
+                continue
+            if phenothiazine_only and not is_phenothiazine_like_record(record):
                 continue
             records.append(record)
             if limit is not None and len(records) >= limit:

@@ -16,6 +16,7 @@ class LibraryDesignerAgent(BaseAgent):
         source_path = generation_config.get("external_genmol_path")
         d3tales_csv_path = generation_config.get("d3tales_csv_path")
         d3tales_limit = generation_config.get("d3tales_limit")
+        d3tales_phenothiazine_only = bool(generation_config.get("d3tales_phenothiazine_only", False))
 
         metadata = {
             "mode": context["strategy"],
@@ -23,7 +24,11 @@ class LibraryDesignerAgent(BaseAgent):
         }
 
         if d3tales_csv_path:
-            records = load_d3tales_csv(d3tales_csv_path, limit=d3tales_limit)
+            records = load_d3tales_csv(
+                d3tales_csv_path,
+                limit=d3tales_limit,
+                phenothiazine_only=d3tales_phenothiazine_only,
+            )
             state.library_raw = [record.to_candidate() for record in records]
             state.generation_registry = [
                 {
@@ -33,6 +38,7 @@ class LibraryDesignerAgent(BaseAgent):
                     "metadata": {
                         **metadata,
                         "source_kind": "real_measurement_demo",
+                        "phenothiazine_only": d3tales_phenothiazine_only,
                     },
                 }
             ]

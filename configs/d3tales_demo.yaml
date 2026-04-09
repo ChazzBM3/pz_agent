@@ -6,6 +6,7 @@ generation:
   external_genmol_path: null
   d3tales_csv_path: data/d3tales.csv
   d3tales_limit: 8
+  d3tales_phenothiazine_only: true
   prompts:
     objective: rank real D3TaLES molecules with KG-backed measurement-aware reranking
 screening:
