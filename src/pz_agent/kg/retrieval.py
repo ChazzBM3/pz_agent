@@ -1,9 +1,25 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from pz_agent.kg.rag import retrieve_context, summarize_property_coverage
 from pz_agent.kg.schema_v2 import RetrievalQuery
+
+
+SCHOLARLY_SITE_HINT = "(site:pubs.acs.org OR site:sciencedirect.com OR site:wiley.com OR site:pubmed.ncbi.nlm.nih.gov OR site:doi.org)"
+
+
+def _looks_like_registry_id(token: str | None) -> bool:
+    if not token:
+        return False
+    return bool(re.fullmatch(r"[A-Z0-9]{5,}", token.strip()))
+
+
+def _clean_token(token: str | None) -> str:
+    if not token:
+        return ""
+    return re.sub(r"\s+", " ", str(token)).strip()
 
 
 def build_candidate_queries(
@@ -12,26 +28,46 @@ def build_candidate_queries(
     query_hints: list[str] | None = None,
 ) -> list[str]:
     fields = search_fields or ["phenothiazine", "solubility", "synthesizability", "derivative"]
-    joined = " ".join(fields)
     identity = candidate.get("identity", {})
-    tokens = [
-        candidate.get("id"),
-        identity.get("name"),
-        identity.get("scaffold"),
-        identity.get("decoration_summary"),
-        identity.get("electronic_bias"),
-        *(identity.get("decoration_tokens") or []),
-    ]
-    token_text = " ".join(token for token in tokens if token)
-    attachment_text = " ".join(identity.get("attachment_summary") or [])
+    scaffold = _clean_token(identity.get("scaffold") or "phenothiazine")
+    decoration_summary = _clean_token(identity.get("decoration_summary"))
+    electronic_bias = _clean_token(identity.get("electronic_bias"))
+    attachment_text = _clean_token(" ".join(identity.get("attachment_summary") or []))
+    candidate_name = _clean_token(identity.get("name"))
+    candidate_id = _clean_token(candidate.get("id"))
+
+    public_name = candidate_name if candidate_name and not _looks_like_registry_id(candidate_name) else ""
+    public_id = candidate_id if candidate_id and not _looks_like_registry_id(candidate_id) else ""
+    public_token_text = " ".join(token for token in [public_name, public_id] if token)
+
+    property_terms = []
+    for field in fields:
+        field = _clean_token(field)
+        if field and field not in property_terms:
+            property_terms.append(field)
+    property_clause = " OR ".join(property_terms) if property_terms else "oxidation potential OR reduction potential"
+
+    motif_bits = [bit for bit in [scaffold, decoration_summary, electronic_bias, attachment_text] if bit]
+    motif_clause = " ".join(motif_bits)
+
     queries = [
-        f"{token_text} {joined}".strip(),
-        f"{token_text} {attachment_text} phenothiazine literature".strip(),
-        f"phenothiazine derivative {identity.get('decoration_summary') or ''} {identity.get('electronic_bias') or ''} {joined}".strip(),
+        f'{SCHOLARLY_SITE_HINT} "{scaffold}" ({property_clause})',
+        f'{SCHOLARLY_SITE_HINT} "{scaffold}" derivative synthesis redox',
     ]
+    if motif_clause:
+        queries.append(f'{SCHOLARLY_SITE_HINT} "{scaffold}" {motif_clause} ({property_clause})')
+    if public_token_text:
+        queries.append(f'{SCHOLARLY_SITE_HINT} "{public_token_text}" "{scaffold}" chemistry')
+
     for hint in query_hints or []:
-        if hint and hint not in queries:
-            queries.append(hint)
+        cleaned_hint = _clean_token(hint)
+        if not cleaned_hint:
+            continue
+        if _looks_like_registry_id(cleaned_hint.split()[0]):
+            continue
+        constrained_hint = f"{SCHOLARLY_SITE_HINT} {cleaned_hint}"
+        if constrained_hint not in queries:
+            queries.append(constrained_hint)
     return queries
 
 

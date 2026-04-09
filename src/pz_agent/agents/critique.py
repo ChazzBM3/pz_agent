@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 from pz_agent.agents.base import BaseAgent
 from pz_agent.io import write_json
 from pz_agent.kg.retrieval import attach_critique_placeholders, synthesize_evidence_from_queries
@@ -12,6 +14,52 @@ PROPERTY_KEYWORDS = {
     "synthesizability": ["synthesis", "synthetic", "synthesizability", "prepared", "route"],
     "instability": ["unstable", "instability", "decomposition", "degrade"],
 }
+
+CHEMISTRY_KEYWORDS = {
+    "phenothiazine",
+    "molecule",
+    "molecular",
+    "compound",
+    "redox",
+    "oxidation",
+    "reduction",
+    "solvation",
+    "reorganization",
+    "electrochem",
+    "electrochemical",
+    "synthesis",
+    "synthetic",
+    "chemistry",
+    "journal",
+    "doi",
+}
+
+TRUSTED_CHEMISTRY_HOSTS = (
+    "pubs.acs.org",
+    "sciencedirect.com",
+    "wiley.com",
+    "pubmed.ncbi.nlm.nih.gov",
+    "doi.org",
+    "chemrxiv.org",
+    "pubchem.ncbi.nlm.nih.gov",
+    "scifinder",
+)
+
+BLOCKED_HOST_FRAGMENTS = (
+    "google.",
+    "ikea.",
+    "babypark.",
+    "beliani.",
+    "bol.com",
+    "beslist.",
+    "claude.ai",
+    "chatgpt.com",
+    "commentcamarche.com",
+    "drugs.com",
+    "rxlist.com",
+    "medicinenet.com",
+    "simit",
+)
 
 
 def _classify_match_type(note: dict, title: str | None, snippet: str | None, url: str | None) -> str:
@@ -28,6 +76,17 @@ def _classify_match_type(note: dict, title: str | None, snippet: str | None, url
         return "analog"
     return "unknown"
 
+
+
+def _is_relevant_chemistry_result(title: str | None, snippet: str | None, url: str | None) -> bool:
+    host = (urlparse(url).netloc or "").lower() if url else ""
+    if any(fragment in host for fragment in BLOCKED_HOST_FRAGMENTS):
+        return False
+    text = " ".join(part for part in [title or "", snippet or "", host] if part).lower()
+    keyword_hits = sum(1 for keyword in CHEMISTRY_KEYWORDS if keyword in text)
+    if any(trusted in host for trusted in TRUSTED_CHEMISTRY_HOSTS):
+        return True
+    return keyword_hits >= 2
 
 
 def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
@@ -85,6 +144,8 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
         except Exception:
             hits = []
         for hit_idx, hit in enumerate(hits):
+            if not _is_relevant_chemistry_result(hit.title, hit.snippet, hit.url):
+                continue
             match_type = _classify_match_type(note, hit.title, hit.snippet, hit.url)
             evidence.append(
                 {

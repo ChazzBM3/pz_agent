@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from pz_agent.search.base import SearchBackend, SearchHit
 
+DDGS_IMPORT_SOURCE = None
+
 try:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
+    DDGS_IMPORT_SOURCE = "ddgs"
     DDGS_AVAILABLE = True
 except Exception:
-    DDGS = None
-    DDGS_AVAILABLE = False
+    try:
+        from duckduckgo_search import DDGS
+        DDGS_IMPORT_SOURCE = "duckduckgo_search"
+        DDGS_AVAILABLE = True
+    except Exception:
+        DDGS = None
+        DDGS_AVAILABLE = False
 
 
 class StubSearchBackend:
@@ -32,7 +40,7 @@ class DuckDuckGoSearchBackend:
 
     def search(self, query: str, count: int = 5) -> list[SearchHit]:
         if not DDGS_AVAILABLE:
-            raise RuntimeError("duckduckgo_search is not installed")
+            raise RuntimeError("Neither ddgs nor duckduckgo_search is installed")
         hits: list[SearchHit] = []
         with DDGS() as ddgs:
             for item in ddgs.text(query, max_results=count):

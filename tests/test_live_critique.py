@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pz_agent.agents.critique import CritiqueAgent, _classify_match_type, _summarize_live_signals
+from pz_agent.agents.critique import (
+    CritiqueAgent,
+    _classify_match_type,
+    _is_relevant_chemistry_result,
+    _summarize_live_signals,
+)
 from pz_agent.state import RunState
 
 
@@ -76,6 +81,24 @@ def test_classify_match_type_detects_exact_and_analog() -> None:
     assert _classify_match_type(note, "cand_1 phenothiazine result", None, None) == "exact"
     assert _classify_match_type(note, "phenothiazine derivative study", None, None) == "analog"
     assert _classify_match_type(note, "unrelated benzene result", None, None) == "unknown"
+
+
+def test_is_relevant_chemistry_result_filters_obvious_junk() -> None:
+    assert _is_relevant_chemistry_result(
+        "Phenothiazine redox properties in solution",
+        "Electrochemical oxidation and reduction measurements for a phenothiazine compound.",
+        "https://pubs.acs.org/doi/10.1021/example",
+    ) is True
+    assert _is_relevant_chemistry_result(
+        "Google",
+        "Search the world's information",
+        "https://www.google.com/",
+    ) is False
+    assert _is_relevant_chemistry_result(
+        "Dérivé VP sur carte grise",
+        "Forum automobile unrelated to chemistry",
+        "https://droit-finances.commentcamarche.com/forum/affich-7774901",
+    ) is False
 
 
 def test_summarize_live_signals_detects_property_support_and_warnings() -> None:
