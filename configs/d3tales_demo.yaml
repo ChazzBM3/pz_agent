@@ -44,6 +44,6 @@ critique:
     - solvation_energy
     - reorganization_energy
 search:
-  backend: stub
+  backend: openalex
   count: 5
-  production_backend: planned_scholarly_api
+  production_backend: openalex

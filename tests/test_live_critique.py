@@ -8,6 +8,8 @@ from pz_agent.agents.critique import (
     _is_relevant_chemistry_result,
     _summarize_live_signals,
 )
+from pz_agent.kg.retrieval import build_candidate_queries
+from pz_agent.search.backends import OpenAlexSearchBackend, _openalex_abstract_to_text
 from pz_agent.state import RunState
 
 
@@ -101,6 +103,68 @@ def test_is_relevant_chemistry_result_filters_obvious_junk() -> None:
     ) is False
 
 
+def test_build_candidate_queries_avoids_opaque_ids_and_keeps_broad_queries() -> None:
+    queries = build_candidate_queries(
+        {
+            "id": "05MNXL",
+            "identity": {
+                "name": "05MNXL",
+                "scaffold": "phenothiazine",
+                "decoration_summary": "methoxy substitution",
+            },
+        },
+        search_fields=["phenothiazine", "oxidation_potential", "reduction_potential"],
+        query_hints=["05MNXL measured properties available", "phenothiazine analog redox literature"],
+    )
+
+    assert all("05MNXL" not in query for query in queries)
+    assert any('"phenothiazine"' in query and "chemistry" in query for query in queries)
+    assert any("site:pubs.acs.org" in query for query in queries)
+    assert any("methoxy substitution" in query for query in queries)
+
+
+def test_openalex_abstract_to_text_reconstructs_text() -> None:
+    text = _openalex_abstract_to_text({"Phenothiazine": [0], "redox": [1], "study": [2]})
+    assert text == "Phenothiazine redox study"
+
+
+def test_openalex_backend_parses_results(monkeypatch) -> None:
+    payload = {
+        "results": [
+            {
+                "display_name": "Phenothiazine redox properties",
+                "doi": "https://doi.org/10.1000/example",
+                "id": "https://openalex.org/W123",
+                "publication_year": 2024,
+                "primary_location": {"landing_page_url": "https://doi.org/10.1000/example"},
+                "abstract_inverted_index": {"Phenothiazine": [0], "redox": [1], "properties": [2]},
+            }
+        ]
+    }
+
+    class _FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            import json
+            return json.dumps(payload).encode("utf-8")
+
+    def _fake_urlopen(url, timeout=20):
+        assert "api.openalex.org/works?search=" in url
+        return _FakeResponse()
+
+    monkeypatch.setattr("pz_agent.search.backends.urlopen", _fake_urlopen)
+    hits = OpenAlexSearchBackend().search("phenothiazine redox", count=3)
+    assert len(hits) == 1
+    assert hits[0].title == "Phenothiazine redox properties"
+    assert hits[0].url == "https://doi.org/10.1000/example"
+    assert "Phenothiazine redox properties" in hits[0].snippet
+
+
 def test_summarize_live_signals_detects_property_support_and_warnings() -> None:
     note = {"signals": {"support_score": 0.0, "contradiction_score": 0.0}}
     evidence = [
@@ -114,6 +178,11 @@ def test_summarize_live_signals_detects_property_support_and_warnings() -> None:
             "snippet": "The compound shows decomposition under air.",
             "match_type": "exact",
         },
+        {
+            "title": "Phenothiazine review",
+            "snippet": "General phenothiazine background without measured property discussion.",
+            "match_type": "unknown",
+        },
     ]
 
     signals = _summarize_live_signals(note, evidence)
@@ -123,3 +192,6 @@ def test_summarize_live_signals_detects_property_support_and_warnings() -> None:
     assert signals["warns_instability"] is True
     assert signals["exact_match_hits"] >= 1
     assert signals["analog_match_hits"] >= 1
+    assert signals["broad_scaffold_hits"] >= 1
+    assert signals["property_aligned_hits"] >= 1
+    assert signals["support_score"] < 2.0

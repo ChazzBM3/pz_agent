@@ -13,6 +13,7 @@ PROPERTY_KEYWORDS = {
     "solubility": ["solubility", "soluble"],
     "synthesizability": ["synthesis", "synthetic", "synthesizability", "prepared", "route"],
     "instability": ["unstable", "instability", "decomposition", "degrade"],
+    "electrochemistry": ["redox", "oxidation", "reduction", "electrochemical", "voltammetry", "solvation", "reorganization"],
 }
 
 CHEMISTRY_KEYWORDS = {
@@ -98,23 +99,35 @@ def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
     supports_solubility = bool(signals.get("supports_solubility"))
     supports_synth = bool(signals.get("supports_synthesizability"))
     warns_instability = bool(signals.get("warns_instability"))
+    broad_scaffold_hits = int(signals.get("broad_scaffold_hits", 0) or 0)
+    property_aligned_hits = int(signals.get("property_aligned_hits", 0) or 0)
 
     for item in evidence:
         match_type = item.get("match_type")
+        text = " ".join([str(item.get("title") or ""), str(item.get("snippet") or "")]).lower()
+        has_solubility = any(keyword in text for keyword in PROPERTY_KEYWORDS["solubility"])
+        has_synth = any(keyword in text for keyword in PROPERTY_KEYWORDS["synthesizability"])
+        has_echem = any(keyword in text for keyword in PROPERTY_KEYWORDS["electrochemistry"])
+        property_aligned = has_solubility or has_synth or has_echem
+
         if match_type == "exact":
             exact_hits += 1
-            support_score += 1.0
+            support_score += 1.0 if property_aligned else 0.35
         elif match_type == "analog":
             analog_hits += 1
-            support_score += 0.5
+            support_score += 0.5 if property_aligned else 0.15
+        elif "phenothiazine" in text:
+            broad_scaffold_hits += 1
+            support_score += 0.02
 
-        text = " ".join([str(item.get("title") or ""), str(item.get("snippet") or "")]).lower()
-        if any(keyword in text for keyword in PROPERTY_KEYWORDS["solubility"]):
+        if property_aligned:
+            property_aligned_hits += 1
+        if has_solubility:
             supports_solubility = True
-            support_score += 0.25
-        if any(keyword in text for keyword in PROPERTY_KEYWORDS["synthesizability"]):
+            support_score += 0.08
+        if has_synth:
             supports_synth = True
-            support_score += 0.25
+            support_score += 0.08
         if any(keyword in text for keyword in PROPERTY_KEYWORDS["instability"]):
             warns_instability = True
             contradiction_score += 0.5
@@ -126,6 +139,8 @@ def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
             "warns_instability": warns_instability,
             "exact_match_hits": int(signals.get("exact_match_hits", 0) or 0) + exact_hits,
             "analog_match_hits": int(signals.get("analog_match_hits", 0) or 0) + analog_hits,
+            "broad_scaffold_hits": broad_scaffold_hits,
+            "property_aligned_hits": property_aligned_hits,
             "support_score": support_score,
             "contradiction_score": contradiction_score,
         }
@@ -137,6 +152,7 @@ def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
 def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
     backend = get_search_backend(backend_name)
     evidence = []
+    seen_urls: set[str] = set()
     media_evidence = []
     for idx, query in enumerate(note.get("queries", [])):
         try:
@@ -146,6 +162,10 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
         for hit_idx, hit in enumerate(hits):
             if not _is_relevant_chemistry_result(hit.title, hit.snippet, hit.url):
                 continue
+            url_key = str(hit.url or hit.title or f"{idx}:{hit_idx}")
+            if url_key in seen_urls:
+                continue
+            seen_urls.add(url_key)
             match_type = _classify_match_type(note, hit.title, hit.snippet, hit.url)
             evidence.append(
                 {

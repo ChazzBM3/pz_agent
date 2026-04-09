@@ -42,32 +42,34 @@ def build_candidate_queries(
 
     property_terms = []
     for field in fields:
-        field = _clean_token(field)
+        field = _clean_token(field).replace("_", " ")
         if field and field not in property_terms:
             property_terms.append(field)
-    property_clause = " OR ".join(property_terms) if property_terms else "oxidation potential OR reduction potential"
+    broad_property_clause = " OR ".join(property_terms) if property_terms else "oxidation potential OR reduction potential"
+    scholarly_property_clause = " OR ".join(term for term in property_terms if "phenothiazine" not in term.lower()) or broad_property_clause
 
-    motif_bits = [bit for bit in [scaffold, decoration_summary, electronic_bias, attachment_text] if bit]
+    motif_bits = [bit for bit in [decoration_summary, electronic_bias, attachment_text] if bit]
     motif_clause = " ".join(motif_bits)
 
     queries = [
-        f'{SCHOLARLY_SITE_HINT} "{scaffold}" ({property_clause})',
-        f'{SCHOLARLY_SITE_HINT} "{scaffold}" derivative synthesis redox',
+        f'"{scaffold}" ({broad_property_clause}) chemistry',
+        f'"{scaffold}" derivative synthesis redox',
+        f'{SCHOLARLY_SITE_HINT} "{scaffold}" ({scholarly_property_clause})',
     ]
     if motif_clause:
-        queries.append(f'{SCHOLARLY_SITE_HINT} "{scaffold}" {motif_clause} ({property_clause})')
+        queries.append(f'"{scaffold}" {motif_clause} ({broad_property_clause})')
+        queries.append(f'{SCHOLARLY_SITE_HINT} "{scaffold}" {motif_clause}')
     if public_token_text:
-        queries.append(f'{SCHOLARLY_SITE_HINT} "{public_token_text}" "{scaffold}" chemistry')
+        queries.append(f'"{public_token_text}" "{scaffold}" chemistry')
 
     for hint in query_hints or []:
-        cleaned_hint = _clean_token(hint)
+        cleaned_hint = _clean_token(hint).replace("_", " ")
         if not cleaned_hint:
             continue
         if _looks_like_registry_id(cleaned_hint.split()[0]):
             continue
-        constrained_hint = f"{SCHOLARLY_SITE_HINT} {cleaned_hint}"
-        if constrained_hint not in queries:
-            queries.append(constrained_hint)
+        if cleaned_hint not in queries:
+            queries.append(cleaned_hint)
     return queries
 
 

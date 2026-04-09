@@ -170,21 +170,31 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
 
     exact_hits = int(signals.get("exact_match_hits", 0) or 0)
     analog_hits = int(signals.get("analog_match_hits", 0) or 0)
+    broad_scaffold_hits = int(signals.get("broad_scaffold_hits", 0) or 0)
+    property_aligned_hits = int(signals.get("property_aligned_hits", 0) or 0)
     support_score = float(signals.get("support_score", 0.0) or 0.0)
     contradiction_score = float(signals.get("contradiction_score", 0.0) or 0.0)
     measurement_count = int(signals.get("measurement_count", 0) or 0)
     property_count = int(signals.get("property_count", 0) or 0)
 
     if exact_hits > 0:
-        exact_bonus = min(0.08, exact_hits * 0.01)
+        exact_bonus = min(0.08, exact_hits * 0.012)
         bonus += exact_bonus
         rationale.append(f"exact_hits_bonus={exact_bonus:.3f}")
     if analog_hits > 0:
-        analog_bonus = min(0.05, analog_hits * 0.002)
+        analog_bonus = min(0.04, analog_hits * 0.003)
         bonus += analog_bonus
         rationale.append(f"analog_hits_bonus={analog_bonus:.3f}")
+    if broad_scaffold_hits > 0:
+        scaffold_bonus = min(0.01, broad_scaffold_hits * 0.0005)
+        bonus += scaffold_bonus
+        rationale.append(f"broad_scaffold_bonus={scaffold_bonus:.3f}")
+    if property_aligned_hits > 0:
+        property_alignment_bonus = min(0.04, property_aligned_hits * 0.004)
+        bonus += property_alignment_bonus
+        rationale.append(f"property_aligned_hits_bonus={property_alignment_bonus:.3f}")
     if support_score > 0:
-        support_bonus = min(0.08, support_score * 0.005)
+        support_bonus = min(0.05, support_score * 0.003)
         bonus += support_bonus
         rationale.append(f"kg_support_bonus={support_bonus:.3f}")
     if contradiction_score > 0:
