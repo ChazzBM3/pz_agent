@@ -14,6 +14,7 @@ from pz_agent.agents.critique import (
 from pz_agent.kg.retrieval import build_candidate_queries
 from pz_agent.search.backends import OpenAlexSearchBackend, _openalex_abstract_to_text, _score_openalex_hit
 from pz_agent.chemistry.naming import smiles_to_iupac_name
+from pz_agent.chemistry.normalize import normalize_molecule_identity
 from pz_agent.state import RunState
 
 
@@ -173,6 +174,29 @@ def test_smiles_to_iupac_name_uses_cache(monkeypatch, tmp_path: Path) -> None:
     assert name1 == '10-methylphenothiazine'
     assert name2 == '10-methylphenothiazine'
     assert calls['n'] == 1
+
+
+
+def test_normalize_molecule_identity_uses_rdkit_substituent_features() -> None:
+    enriched = normalize_molecule_identity({'smiles': 'CCN1c2ccc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)ccc21'})
+    identity = enriched['identity']
+    assert identity['decoration_summary'] == 'CF3'
+    assert identity['substitution_pattern'] in {'di_substituted', 'poly_substituted'}
+    assert any('trifluoromethyl' in frag for frag in identity['substituent_fragments'])
+    assert identity['positional_tokens']
+    assert any('position' in token or token in {'ortho', 'meta', 'para', 'alpha', 'beta'} for token in identity['positional_tokens'])
+    assert identity['molecular_formula'] == 'C16H11F6NS'
+
+
+
+def test_build_candidate_queries_uses_iupac_bits_to_separate_cf3_variants() -> None:
+    mono = normalize_molecule_identity({'smiles': 'CCN1c2ccccc2Sc2ccc(C(F)(F)F)cc21', 'id': '05TRCY'})
+    bis_ = normalize_molecule_identity({'smiles': 'CCN1c2ccc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)ccc21', 'id': '05BCMO'})
+    mono_q = build_candidate_queries(mono)
+    bis_q = build_candidate_queries(bis_)
+    assert mono_q != bis_q
+    assert any('2' in q and 'trifluoromethyl' in q for q in mono_q)
+    assert any('3,7' in q and 'bis(trifluoromethyl)' in q for q in bis_q)
 
 
 

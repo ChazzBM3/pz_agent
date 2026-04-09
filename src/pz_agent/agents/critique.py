@@ -87,6 +87,7 @@ NEGATIVE_RELEVANCE_TERMS = (
     "antimicrobial",
     "leishmania",
     "liver disease",
+    "mycobacterium",
     "dna",
     "oligodeoxynucleotide",
     "bioimaging",
@@ -142,9 +143,10 @@ def _is_relevant_chemistry_result(title: str | None, snippet: str | None, url: s
     keyword_hits = sum(1 for keyword in CHEMISTRY_KEYWORDS if keyword in text)
     has_core = "phenothiaz" in text
     has_property_context = any(token in text for token in ["redox", "oxidation", "reduction", "electrochem", "electrochemical", "solubility", "electrolyte", "battery", "voltammetry"])
+    score = _relevance_score(title, snippet, url)
     if any(trusted in host for trusted in TRUSTED_CHEMISTRY_HOSTS):
-        return _relevance_score(title, snippet, url) >= 2.0 and (has_core or (has_property_context and keyword_hits >= 3))
-    return _relevance_score(title, snippet, url) >= 3.0 and has_core and (has_property_context or keyword_hits >= 3)
+        return score >= 4.5 and has_core and has_property_context
+    return score >= 5.0 and has_core and has_property_context and keyword_hits >= 3
 
 
 def _is_review_or_background_hit(title: str | None, snippet: str | None) -> bool:

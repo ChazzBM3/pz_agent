@@ -46,6 +46,19 @@ def _token_to_literature_term(token: str) -> str:
 
 
 
+def _iupac_query_bits(iupac_name: str) -> list[str]:
+    text = iupac_name.lower()
+    bits: list[str] = []
+    if "trifluoromethyl" in text:
+        bits.append("trifluoromethyl")
+    if "bis(trifluoromethyl)" in text:
+        bits.append("bis(trifluoromethyl)")
+    position_tokens = re.findall(r"\b\d+(?:,\d+)?\b", text)
+    bits.extend(position_tokens[:2])
+    return bits
+
+
+
 def build_candidate_queries(
     candidate: dict,
     search_fields: list[str] | None = None,
@@ -57,6 +70,12 @@ def build_candidate_queries(
     decoration_summary = _clean_token(identity.get("decoration_summary"))
     electronic_bias = _clean_token(identity.get("electronic_bias"))
     attachment_text = _clean_token(" ".join(identity.get("attachment_summary") or []))
+    substitution_pattern = _clean_token(identity.get("substitution_pattern"))
+    positional_tokens = [
+        _clean_token(token)
+        for token in (identity.get("positional_tokens") or [])
+        if _clean_token(token) and not _clean_token(token).startswith("position ")
+    ]
     raw_decoration_tokens = [_clean_token(token) for token in (identity.get("decoration_tokens") or []) if _clean_token(token)]
     decoration_tokens = [_token_to_literature_term(token) for token in raw_decoration_tokens[:3]]
     substituent_fragments = [
@@ -66,12 +85,14 @@ def build_candidate_queries(
     ]
     candidate_name = _clean_token(identity.get("name"))
     iupac_name = _clean_token(identity.get("iupac_name"))
+    molecular_formula = _clean_token(identity.get("molecular_formula"))
     candidate_id = _clean_token(candidate.get("id"))
 
     public_name = candidate_name if candidate_name and not _looks_like_registry_id(candidate_name) else ""
     public_id = candidate_id if candidate_id and not _looks_like_registry_id(candidate_id) else ""
     public_token_text = " ".join(token for token in [public_name, public_id] if token)
     nomenclature_token = iupac_name if iupac_name and "phenothiaz" in iupac_name.lower() else ""
+    iupac_bits = _iupac_query_bits(nomenclature_token) if nomenclature_token else []
 
     property_terms = []
     for field in fields:
@@ -92,15 +113,21 @@ def build_candidate_queries(
         bit
         for bit in [
             normalized_decoration_summary,
+            substitution_pattern.replace('_', ' ') if substitution_pattern else '',
             bias_phrase,
             " ".join(decoration_tokens[:2]),
             " ".join(substituent_fragments[:2]),
+            " ".join(positional_tokens[:3]),
         ]
         if bit and bit != "none_detected"
     ]
     motif_clause = " ".join(motif_bits)
 
     queries = []
+    if nomenclature_token:
+        queries.append(f'"{nomenclature_token}" redox solubility synthesis')
+        if iupac_bits:
+            queries.append(f'"{scaffold}" "{' '.join(iupac_bits)}" redox')
     if motif_clause:
         queries.append(f'"{scaffold}" {motif_clause} ({broad_property_clause})')
         queries.append(f'{SCHOLARLY_SITE_HINT} "{scaffold}" {motif_clause}')
@@ -114,8 +141,8 @@ def build_candidate_queries(
             f'{SCHOLARLY_SITE_HINT} "{scaffold}" ({scholarly_property_clause})',
         ]
     )
-    if nomenclature_token:
-        queries.append(f'"{nomenclature_token}" redox solubility synthesis')
+    if molecular_formula and len(molecular_formula) <= 20:
+        queries.append(f'"{scaffold}" "{molecular_formula}" redox')
     if public_token_text:
         queries.append(f'"{public_token_text}" "{scaffold}" chemistry')
 

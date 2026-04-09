@@ -22,6 +22,33 @@ pip install -e '.[dev]'
 pytest -q
 ```
 
+## RDKit environment note
+
+This project expects RDKit to be available inside the repo virtualenv.
+Use the venv interpreter for repo scripts and pipeline runs:
+
+```bash
+.venv/bin/python -m pz_agent.cli run configs/d3tales_demo.yaml --run-dir artifacts/run
+```
+
+If you use the system `python3` instead, RDKit may appear missing even when it is installed in `.venv`.
+
+Quick check:
+
+```bash
+.venv/bin/python - <<'PY'
+from pz_agent.chemistry.normalize import RDKIT_AVAILABLE
+print(RDKIT_AVAILABLE)
+PY
+```
+
+If RDKit is not installed in the venv, reinstall project dependencies from the activated venv:
+
+```bash
+source .venv/bin/activate
+pip install -e '.[dev]'
+```
+
 ## Current scaffold
 
 The repo now includes a Python package scaffold for:
