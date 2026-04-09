@@ -200,6 +200,20 @@ def summarize_candidate_property_value(
 
 
 
+def summarize_candidate_property_values(
+    graph_path: Path | None,
+    candidate_id: str,
+    property_names: list[str],
+) -> dict[str, dict[str, Any]]:
+    values: dict[str, dict[str, Any]] = {}
+    for property_name in property_names:
+        summary = summarize_candidate_property_value(graph_path, candidate_id, property_name)
+        if summary is not None:
+            values[property_name] = summary
+    return values
+
+
+
 def summarize_support_contradiction(
     graph_path: Path | None,
     candidate_id: str,

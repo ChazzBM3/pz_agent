@@ -3,7 +3,11 @@ from __future__ import annotations
 from pz_agent.agents.base import BaseAgent
 from pz_agent.analysis.diversity import diversify_placeholder
 from pz_agent.analysis.pareto import apply_literature_adjustment, compute_decoration_adjustment
-from pz_agent.kg.rag import summarize_property_coverage, summarize_support_contradiction
+from pz_agent.kg.rag import (
+    summarize_candidate_property_values,
+    summarize_property_coverage,
+    summarize_support_contradiction,
+)
 from pz_agent.state import RunState
 
 
@@ -25,6 +29,17 @@ class CritiqueRerankerAgent(BaseAgent):
                 note.setdefault("signals", {})
                 kg_summary = summarize_support_contradiction(state.knowledge_graph_path, row["id"])
                 measurement_summary = summarize_property_coverage(state.knowledge_graph_path, row["id"])
+                measurement_values = summarize_candidate_property_values(
+                    state.knowledge_graph_path,
+                    row["id"],
+                    [
+                        "oxidation_potential",
+                        "reduction_potential",
+                        "groundState.solvation_energy",
+                        "hole_reorganization_energy",
+                        "electron_reorganization_energy",
+                    ],
+                )
                 note["signals"]["exact_match_hits"] = max(
                     int(note["signals"].get("exact_match_hits", 0) or 0),
                     int(kg_summary.get("exact_match_hits", 0) or 0),
@@ -52,7 +67,9 @@ class CritiqueRerankerAgent(BaseAgent):
                 item.setdefault("ranking_rationale", {})
                 item["ranking_rationale"]["kg_summary"] = kg_summary
                 item["ranking_rationale"]["measurement_summary"] = measurement_summary
+                item["ranking_rationale"]["measurement_values"] = measurement_values
                 note["measurement_context"] = measurement_summary
+                note["measurement_values"] = measurement_values
             reranked.append(apply_literature_adjustment(item, note))
         reranked.sort(
             key=lambda x: (

@@ -11,6 +11,14 @@ D3TALES_TIER_1 = {
     "electron_reorganization_energy",
 }
 
+D3TALES_TIER_1_DIRECTIONS = {
+    "oxidation_potential": "high",
+    "reduction_potential": "high",
+    "groundState.solvation_energy": "low",
+    "hole_reorganization_energy": "low",
+    "electron_reorganization_energy": "low",
+}
+
 D3TALES_TIER_2 = {
     "adiabatic_ionization_energy",
     "adiabatic_electron_affinity",
@@ -99,6 +107,39 @@ def compute_measurement_hierarchy_adjustment(measurement_summary: dict[str, Any]
 
 
 
+def compute_tier_1_value_adjustment(
+    measurement_values: dict[str, dict[str, Any]] | None,
+) -> tuple[float, list[str]]:
+    if not measurement_values:
+        return 0.0, []
+
+    bonus = 0.0
+    rationale: list[str] = []
+
+    for property_name, direction in D3TALES_TIER_1_DIRECTIONS.items():
+        summary = measurement_values.get(property_name)
+        if not summary:
+            continue
+        raw_value = summary.get("value")
+        if raw_value is None:
+            continue
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError):
+            continue
+
+        if direction == "high":
+            property_bonus = max(-0.04, min(0.04, value * 0.02))
+        else:
+            property_bonus = max(-0.04, min(0.04, -value * 0.02))
+
+        bonus += property_bonus
+        rationale.append(f"tier1_value_adjustment:{property_name}={property_bonus:.3f}:value={value:.3f}")
+
+    return bonus, rationale
+
+
+
 def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, Any] | None) -> dict[str, Any]:
     item = dict(row)
     base = item.get("predicted_priority")
@@ -152,6 +193,11 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
     hierarchy_bonus, hierarchy_rationale = compute_measurement_hierarchy_adjustment(measurement_summary)
     bonus += hierarchy_bonus
     rationale.extend(hierarchy_rationale)
+
+    measurement_values = critique_note.get("measurement_values") or item.get("ranking_rationale", {}).get("measurement_values")
+    value_bonus, value_rationale = compute_tier_1_value_adjustment(measurement_values)
+    bonus += value_bonus
+    rationale.extend(value_rationale)
 
     if signals.get("warns_instability"):
         bonus -= 0.08
