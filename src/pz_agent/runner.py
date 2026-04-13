@@ -7,6 +7,7 @@ from pz_agent.agents.critique import CritiqueAgent
 from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
 from pz_agent.agents.dft_handoff import DFTHandoffAgent
 from pz_agent.agents.document_fetch import DocumentFetchAgent
+from pz_agent.agents.figure_corpus import FigureCorpusAgent
 from pz_agent.agents.knowledge_graph import KnowledgeGraphAgent
 from pz_agent.agents.library_designer import LibraryDesignerAgent
 from pz_agent.agents.page_corpus import PageCorpusAgent
@@ -31,6 +32,7 @@ STAGE_MAP = {
     "scholarly_retrieval": ScholarlyRetrievalAgent,
     "page_corpus": PageCorpusAgent,
     "document_fetch": DocumentFetchAgent,
+    "figure_corpus": FigureCorpusAgent,
     "visual_identity": VisualIdentityAgent,
     "surrogate_screen": SurrogateScreenAgent,
     "benchmark": BenchmarkAgent,
@@ -70,6 +72,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "scholarly_registry_count": len(state.scholarly_registry or []),
             "page_registry_count": len(state.page_registry or []),
             "document_registry_count": len(state.document_registry or []),
+            "figure_registry_count": len(state.figure_registry or []),
         },
     )
 

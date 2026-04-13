@@ -24,6 +24,7 @@ pipeline:
     - scholarly_retrieval
     - page_corpus
     - document_fetch
+    - figure_corpus
     - surrogate_screen
     - benchmark
     - knowledge_graph
@@ -67,6 +68,9 @@ page_corpus:
 document_fetch:
   enabled: true
   artifacts_dir: artifacts/page_assets
+figure_corpus:
+  enabled: true
+  artifacts_dir: artifacts/figure_assets
 search:
   backend: stub
   count: 5
