@@ -36,5 +36,6 @@ class FigureCorpusAgent(BaseAgent):
         state.library_clean = updated_candidates
         state.figure_registry = figure_registry
         write_json(state.run_dir / "figure_corpus.json", figure_registry)
-        state.log(f"Figure corpus scaffold assembled for {len(figure_registry)} candidates")
+        extracted_count = sum(1 for bundle in figure_registry for fig in (bundle.get("figures") or []) if fig.get("crop_status") == "extracted")
+        state.log(f"Figure corpus assembled for {len(figure_registry)} candidates, extracted {extracted_count} figure assets")
         return state
