@@ -45,7 +45,7 @@ def test_macro_critique_agent_emits_decisions(monkeypatch, tmp_path: Path) -> No
         lambda notes: [{**notes[0], "signals": {"support_score": 0.4, "contradiction_score": 0.0}, "evidence": []}],
     )
 
-    state = RunState(config={"critique": {"enable_web_search": False}}, run_dir=tmp_path, shortlist=[{"id": "cand_1"}], multimodal_registry=[])
+    state = RunState(config={"critique": {"enable_web_search": False}}, run_dir=tmp_path, shortlist=[{"id": "cand_1"}], multimodal_registry=[], dossier_registry=[{"candidate_id": "cand_1", "bridge_hypothesis": {"template_id": "qn_to_pt_generic_redox_transfer", "transfer_confidence": 0.95, "target_family": "chem_pt::phenothiazine"}}])
     updated = CritiqueAgent(config=state.config).run(state)
     assert updated.critique_notes is not None
     assert updated.critique_notes[0]["decision"] in {"approve", "revise", "reject", "simulate-next"}

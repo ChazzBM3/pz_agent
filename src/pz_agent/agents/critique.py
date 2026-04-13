@@ -426,15 +426,20 @@ class CritiqueAgent(BaseAgent):
             note["evidence_tier"] = _infer_evidence_tier(signals)
             support = float(signals.get("support_score", 0.0) or 0.0)
             contradiction = float(signals.get("contradiction_score", 0.0) or 0.0)
+            bridge_confidence = float(bridge_hypothesis.get("transfer_confidence", 0.0) or 0.0)
+            bridge_failure_mode = bridge_hypothesis.get("expected_failure_mode")
+            bridge_failure_rationale = bridge_hypothesis.get("failure_rationale")
+            bridge_uncertain = bool(bridge_hypothesis.get("template_id")) and bridge_confidence < 0.75
+            bridge_risk = bool(bridge_failure_mode or bridge_failure_rationale)
             if contradiction >= 0.8:
                 decision = "reject"
                 next_tier = None
-            elif support >= 0.8:
+            elif support >= 0.8 and not bridge_uncertain:
                 decision = "approve"
                 next_tier = None
-            elif support >= 0.35:
+            elif support >= 0.35 or bridge_uncertain:
                 decision = "simulate-next"
-                next_tier = 1 if signals.get("multimodal_support_score", 0.0) else 2
+                next_tier = 2 if bridge_risk else (1 if signals.get("multimodal_support_score", 0.0) else 2)
             else:
                 decision = "revise"
                 next_tier = 1
@@ -446,6 +451,8 @@ class CritiqueAgent(BaseAgent):
                 note.setdefault("analysis_hooks", {})
                 note["analysis_hooks"]["bridge_template_id"] = bridge_hypothesis.get("template_id")
                 note["analysis_hooks"]["bridge_failure_rationale"] = bridge_hypothesis.get("failure_rationale")
+                note["analysis_hooks"]["bridge_confidence"] = bridge_confidence
+                note["analysis_hooks"]["bridge_decision_bias"] = "simulate" if bridge_uncertain else "retain"
             belief_status = "supported" if decision == "approve" else ("contradicted" if decision == "reject" else ("testing" if decision == "simulate-next" else "open"))
             belief_confidence = max(0.1, min(1.0, support - contradiction + 0.5))
             belief_registry.append({
@@ -458,6 +465,8 @@ class CritiqueAgent(BaseAgent):
                 "unresolved_uncertainties": [
                     "simulation_needed" if decision == "simulate-next" else None,
                     "contradiction_present" if contradiction > 0 else None,
+                    "bridge_transfer_uncertain" if bridge_uncertain else None,
+                    "bridge_failure_mode_risk" if bridge_risk else None,
                 ],
             })
             bridge_registry.append({
@@ -476,7 +485,8 @@ class CritiqueAgent(BaseAgent):
                 simulation_requests.append({
                     "candidate_id": note.get("candidate_id"),
                     "requested_tier": next_tier,
-                    "reason": "critique_uncertainty_resolution",
+                    "reason": "bridge_uncertainty_resolution" if bridge_uncertain else "critique_uncertainty_resolution",
+                    "scientific_question": bridge_hypothesis.get("transferred_property") or "uncertainty_resolution",
                 })
             enriched_notes.append(note)
 
