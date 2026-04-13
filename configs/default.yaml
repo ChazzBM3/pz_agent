@@ -55,6 +55,11 @@ patent_retrieval:
 scholarly_retrieval:
   enabled: true
   count: 5
+  mode: broad
+  max_queries: 6
+  exact_query_budget: 1
+  analog_query_budget: 3
+  exploratory_query_budget: 2
 search:
   backend: stub
   count: 5

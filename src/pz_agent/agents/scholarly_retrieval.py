@@ -17,12 +17,25 @@ class ScholarlyRetrievalAgent(BaseAgent):
             return state
 
         count = int(cfg.get("count", 5))
+        mode = str(cfg.get("mode", "balanced"))
+        max_queries = int(cfg.get("max_queries", 6))
+        exact_query_budget = cfg.get("exact_query_budget")
+        analog_query_budget = cfg.get("analog_query_budget")
+        exploratory_query_budget = cfg.get("exploratory_query_budget")
         candidates = state.library_clean or []
         scholarly_registry: list[dict] = []
         updated_candidates: list[dict] = []
 
         for candidate in candidates:
-            scholarly_bundle = retrieve_openalex_evidence_for_candidate(candidate, count=count)
+            scholarly_bundle = retrieve_openalex_evidence_for_candidate(
+                candidate,
+                count=count,
+                mode=mode,
+                max_queries=max_queries,
+                exact_query_budget=exact_query_budget,
+                analog_query_budget=analog_query_budget,
+                exploratory_query_budget=exploratory_query_budget,
+            )
             enriched = dict(candidate)
             enriched["scholarly_retrieval"] = scholarly_bundle
             updated_candidates.append(enriched)

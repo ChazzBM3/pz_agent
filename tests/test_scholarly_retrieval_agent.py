@@ -10,7 +10,7 @@ from pz_agent.state import RunState
 def test_scholarly_retrieval_agent_writes_artifact(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         "pz_agent.agents.scholarly_retrieval.retrieve_openalex_evidence_for_candidate",
-        lambda candidate, count=5: {
+        lambda candidate, count=5, mode="balanced", max_queries=6, exact_query_budget=None, analog_query_budget=None, exploratory_query_budget=None: {
             "queries": ["foo chemistry"],
             "openalex": [],
             "errors": [],

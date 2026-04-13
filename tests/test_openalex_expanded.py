@@ -15,10 +15,28 @@ def test_build_openalex_queries_uses_structure_and_patent_context() -> None:
         "structure_expansion": {"synonyms": ["Syn A"]},
         "patent_retrieval": {"queries": ["\"Syn A\" patent", "\"phenothiazine\" compound patent"]},
     }
-    queries = build_openalex_queries(candidate)
+    queries = build_openalex_queries(candidate, mode="balanced")
     assert any("10-ethyl-2-(trifluoromethyl)phenothiazine" in q for q in queries)
     assert any("Syn A" in q for q in queries)
     assert any("chemistry" in q for q in queries)
+
+
+
+def test_build_openalex_queries_mode_changes_budget_shape() -> None:
+    candidate = {
+        "identity": {
+            "iupac_name": "10-ethylphenothiazine",
+            "core_assumption": "phenothiazine",
+            "substitution_pattern": "mono_substituted",
+        },
+        "structure_expansion": {"synonyms": ["Syn A", "Syn B"]},
+        "patent_retrieval": {"queries": ["\"phenothiazine\" compound patent"]},
+    }
+    broad = build_openalex_queries(candidate, mode="broad")
+    strict = build_openalex_queries(candidate, mode="strict")
+    assert broad != strict
+    assert any("analog" in q or "flow battery" in q for q in broad)
+    assert sum("10-ethylphenothiazine" in q or "Syn " in q for q in strict) >= 1
 
 
 
@@ -34,6 +52,7 @@ def test_retrieve_openalex_evidence_for_candidate_collects_hits(monkeypatch) -> 
         "structure_expansion": {"synonyms": []},
         "patent_retrieval": {"queries": []},
     }
-    result = retrieve_openalex_evidence_for_candidate(candidate)
+    result = retrieve_openalex_evidence_for_candidate(candidate, mode="broad", max_queries=4)
     assert result["status"] == "ok"
+    assert result["mode"] == "broad"
     assert result["openalex"][0]["hits"][0]["title"]
