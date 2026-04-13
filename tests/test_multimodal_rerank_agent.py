@@ -10,7 +10,7 @@ from pz_agent.state import RunState
 def test_multimodal_rerank_agent_writes_artifact(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         "pz_agent.agents.multimodal_rerank.assemble_multimodal_rerank_for_candidate",
-        lambda candidate: {
+        lambda candidate, invoke_live=True, model="gemini-2.5-flash", timeout=120: {
             "candidate_id": candidate.get("id"),
             "bundle_count": 1,
             "bundles": [
@@ -20,13 +20,13 @@ def test_multimodal_rerank_agent_writes_artifact(monkeypatch, tmp_path: Path) ->
                     "gemma_judgment": None,
                 }
             ],
-            "backend": "gemma_planned",
+            "backend": "gemma_live",
             "status": "ok",
         },
     )
 
     state = RunState(
-        config={"multimodal_rerank": {"enabled": True}},
+        config={"multimodal_rerank": {"enabled": True, "invoke_live": True, "model": "gemini-2.5-flash", "timeout": 120}},
         run_dir=tmp_path,
         library_clean=[{"id": "cand_1", "page_image_retrieval": {"targets": []}, "document_fetch": {"documents": []}, "identity": {}}],
     )

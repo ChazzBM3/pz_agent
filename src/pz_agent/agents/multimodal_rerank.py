@@ -16,14 +16,18 @@ class MultimodalRerankAgent(BaseAgent):
             state.log("Multimodal rerank bundle assembly skipped (disabled)")
             return state
 
+        invoke_live = bool(cfg.get("invoke_live", True))
+        model = str(cfg.get("model", "gemini-2.5-flash"))
+        timeout = int(cfg.get("timeout", 120) or 120)
+
         rerank_registry: list[dict] = []
         updated_candidates: list[dict] = []
 
         for candidate in state.library_clean or []:
-            rerank_bundle = assemble_multimodal_rerank_for_candidate(candidate)
+            rerank_bundle = assemble_multimodal_rerank_for_candidate(candidate, invoke_live=invoke_live, model=model, timeout=timeout)
             for bundle in rerank_bundle.get("bundles") or []:
                 response_text = bundle.get("gemma_response")
-                if isinstance(response_text, str) and response_text.strip():
+                if bundle.get("gemma_judgment") is None and isinstance(response_text, str) and response_text.strip():
                     bundle["gemma_judgment"] = parse_gemma_multimodal_response(response_text)
             enriched = dict(candidate)
             enriched["multimodal_rerank"] = rerank_bundle

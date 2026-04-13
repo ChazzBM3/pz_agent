@@ -84,6 +84,9 @@ page_image_retrieval:
   top_k: 5
 multimodal_rerank:
   enabled: true
+  invoke_live: true
+  model: gemini-2.5-flash
+  timeout: 120
 search:
   backend: stub
   count: 5
