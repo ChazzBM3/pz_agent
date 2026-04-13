@@ -11,6 +11,7 @@ from pz_agent.agents.library_designer import LibraryDesignerAgent
 from pz_agent.agents.patent_retrieval import PatentRetrievalAgent
 from pz_agent.agents.ranker import RankerAgent
 from pz_agent.agents.reporter import ReporterAgent
+from pz_agent.agents.scholarly_retrieval import ScholarlyRetrievalAgent
 from pz_agent.agents.standardizer import StandardizerAgent
 from pz_agent.agents.structure_expansion import StructureExpansionAgent
 from pz_agent.agents.surrogate_screen import SurrogateScreenAgent
@@ -25,6 +26,7 @@ STAGE_MAP = {
     "standardizer": StandardizerAgent,
     "structure_expansion": StructureExpansionAgent,
     "patent_retrieval": PatentRetrievalAgent,
+    "scholarly_retrieval": ScholarlyRetrievalAgent,
     "visual_identity": VisualIdentityAgent,
     "surrogate_screen": SurrogateScreenAgent,
     "benchmark": BenchmarkAgent,
@@ -61,6 +63,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "shortlist_count": len(state.shortlist or []),
             "structure_expansion_count": len(state.structure_expansion or []),
             "patent_registry_count": len(state.patent_registry or []),
+            "scholarly_registry_count": len(state.scholarly_registry or []),
         },
     )
 

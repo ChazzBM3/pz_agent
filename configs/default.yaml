@@ -21,6 +21,7 @@ pipeline:
     - standardizer
     - structure_expansion
     - patent_retrieval
+    - scholarly_retrieval
     - surrogate_screen
     - benchmark
     - knowledge_graph
@@ -51,6 +52,9 @@ patent_retrieval:
   enabled: true
   count: 5
   timeout: 20
+scholarly_retrieval:
+  enabled: true
+  count: 5
 search:
   backend: stub
   count: 5
