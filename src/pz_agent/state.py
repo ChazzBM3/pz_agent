@@ -26,6 +26,7 @@ class RunState:
     structure_expansion: list[dict[str, Any]] | None = None
     patent_registry: list[dict[str, Any]] | None = None
     scholarly_registry: list[dict[str, Any]] | None = None
+    page_registry: list[dict[str, Any]] | None = None
     logs: list[str] = field(default_factory=list)
 
     def log(self, message: str) -> None:

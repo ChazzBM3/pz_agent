@@ -22,6 +22,7 @@ pipeline:
     - structure_expansion
     - patent_retrieval
     - scholarly_retrieval
+    - page_corpus
     - surrogate_screen
     - benchmark
     - knowledge_graph
@@ -60,6 +61,8 @@ scholarly_retrieval:
   exact_query_budget: 1
   analog_query_budget: 3
   exploratory_query_budget: 2
+page_corpus:
+  enabled: true
 search:
   backend: stub
   count: 5
