@@ -117,15 +117,15 @@ def _chain_position_label(atom, neighbor) -> str | None:
 
 
 
-def _estimate_decoration_summary_from_mol(mol) -> tuple[str | None, int | None, list[str], list[str], list[str], str | None, list[str]]:
+def _estimate_decoration_summary_from_mol(mol) -> tuple[str | None, int | None, list[str], list[str], list[str], str | None, list[str], list[str], list[dict[str, Any]]]:
     if not RDKIT_AVAILABLE or mol is None:
-        return None, None, [], [], [], None, []
+        return None, None, [], [], [], None, [], [], []
     pattern = Chem.MolFromSmarts(PHENOTHIAZINE_SMARTS)
     if pattern is None:
-        return None, None, [], [], [], None, []
+        return None, None, [], [], [], None, [], [], []
     matches = mol.GetSubstructMatches(pattern)
     if not matches:
-        return None, None, [], [], [], None, []
+        return None, None, [], [], [], None, [], [], []
 
     match = matches[0]
     core_atoms = set(match)
@@ -135,6 +135,8 @@ def _estimate_decoration_summary_from_mol(mol) -> tuple[str | None, int | None, 
     attachment_summary: list[str] = []
     positional_tokens: list[str] = []
     ring_positions: list[str] = []
+    attachment_sites: list[str] = []
+    site_assignments: list[dict[str, Any]] = []
 
     for atom_idx in match:
         atom = mol.GetAtomWithIdx(atom_idx)
@@ -147,12 +149,22 @@ def _estimate_decoration_summary_from_mol(mol) -> tuple[str | None, int | None, 
             detected_tokens.append(token)
             attachment_summary.append(f"phenothiazine_core+{token}")
             position_label = position_map.get(atom_idx)
+            role_label = None
+            site_label = None
             if position_label:
                 ring_positions.append(position_label)
                 positional_tokens.append(f"position {position_label} {token}")
+                role_label = f"position {position_label} {token}"
+                site_label = f"ring_{position_label}"
             chain_label = _chain_position_label(atom, neighbor)
             if chain_label:
                 positional_tokens.append(f"{chain_label} {token}")
+                role_label = f"{chain_label} {token}"
+                site_label = f"chain_{chain_label}"
+            if not site_label:
+                site_label = f"atom_{atom_idx}"
+            attachment_sites.append(site_label)
+            site_assignments.append({"site": site_label, "role_label": role_label, "substituent_class": token, "atom_index": atom_idx})
             if token == "CF3":
                 substituent_fragments.append("frag:trifluoromethyl")
             elif token == "C(=O)":
@@ -189,7 +201,7 @@ def _estimate_decoration_summary_from_mol(mol) -> tuple[str | None, int | None, 
         substitution_pattern = "di_substituted"
     elif substituent_count >= 3:
         substitution_pattern = "poly_substituted"
-    return summary, substituent_count, unique_tokens, unique_fragments, unique_attachments, bias, unique_positions
+    return summary, substituent_count, unique_tokens, unique_fragments, unique_attachments, bias, unique_positions, sorted(set(attachment_sites)), site_assignments
 
 
 def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
@@ -223,8 +235,10 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
     electronic_bias = None
     positional_tokens: list[str] = []
     substitution_pattern = None
+    attachment_sites: list[str] = []
+    site_assignments: list[dict[str, Any]] = []
     if mol is not None:
-        decoration_summary, substituent_count, decoration_tokens, substituent_fragments, attachment_summary, electronic_bias, positional_tokens = _estimate_decoration_summary_from_mol(mol)
+        decoration_summary, substituent_count, decoration_tokens, substituent_fragments, attachment_summary, electronic_bias, positional_tokens, attachment_sites, site_assignments = _estimate_decoration_summary_from_mol(mol)
         if substituent_count == 1:
             substitution_pattern = "mono_substituted"
         elif substituent_count == 2:
@@ -254,6 +268,8 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
         decoration_tokens=decoration_tokens,
         substituent_fragments=substituent_fragments,
         attachment_summary=attachment_summary,
+        attachment_sites=attachment_sites,
+        site_assignments=site_assignments,
         substitution_pattern=substitution_pattern,
         positional_tokens=positional_tokens,
         molecular_formula=molecular_formula,

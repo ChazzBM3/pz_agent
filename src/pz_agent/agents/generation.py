@@ -24,7 +24,7 @@ def _build_dossier(candidate: dict, prediction: dict | None, ranked_row: dict | 
     bucket = _portfolio_bucket(index)
     support_uncertainty = float(prediction.get("prediction_uncertainty", 0.25) if prediction else 0.25)
     attachment_sites = candidate.get("sites") or identity.get("attachment_sites") or []
-    site_assignments = [
+    site_assignments = identity.get("site_assignments") or [
         {
             "site": site,
             "role_label": next((token for token in (identity.get("positional_tokens") or []) if site.lower() in token.lower()), None),
