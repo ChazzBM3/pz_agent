@@ -225,6 +225,8 @@ def summarize_support_contradiction(
 
     exact_match_hits = 0
     analog_match_hits = 0
+    patent_hit_count = 0
+    scholarly_hit_count = 0
     support_score = 0.0
     contradiction_score = 0.0
     contradictions = 0
@@ -245,6 +247,8 @@ def summarize_support_contradiction(
             contradiction_score += 1.0
         exact_match_hits += int(signals.get("exact_match_hits", 0) or 0)
         analog_match_hits += int(signals.get("analog_match_hits", 0) or 0)
+        patent_hit_count += int(signals.get("patent_hit_count", 0) or 0)
+        scholarly_hit_count += int(signals.get("scholarly_hit_count", 0) or 0)
         support_score += float(signals.get("support_score", 0.0) or 0.0)
         contradiction_score += float(signals.get("contradiction_score", 0.0) or 0.0)
 
@@ -252,12 +256,18 @@ def summarize_support_contradiction(
         attrs = hit.get("attrs", {})
         match_type = attrs.get("match_type")
         confidence = float(attrs.get("confidence", 0.0) or 0.0)
+        source_type = str(attrs.get("provenance", {}).get("source_type") or "")
+        evidence_level = str(attrs.get("provenance", {}).get("evidence_level") or "")
         if match_type == "exact":
             exact_match_hits += 1
             support_score += max(confidence, 0.5)
         elif match_type in {"analog", "family"}:
             analog_match_hits += 1
             support_score += max(confidence * 0.5, 0.1)
+        if source_type in {"surechembl", "patcid"} or evidence_level == "patent_retrieval":
+            patent_hit_count += 1
+        if source_type == "openalex" or evidence_level == "scholarly_retrieval":
+            scholarly_hit_count += 1
 
     return {
         "candidate_id": candidate_id,
@@ -266,6 +276,8 @@ def summarize_support_contradiction(
         "evidence_count": len(evidence_hits),
         "exact_match_hits": exact_match_hits,
         "analog_match_hits": analog_match_hits,
+        "patent_hit_count": patent_hit_count,
+        "scholarly_hit_count": scholarly_hit_count,
         "support_score": support_score,
         "contradiction_score": contradiction_score,
         "contradictions": contradictions,

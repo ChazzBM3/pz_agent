@@ -56,6 +56,14 @@ class CritiqueRerankerAgent(BaseAgent):
                     float(note["signals"].get("contradiction_score", 0.0) or 0.0),
                     float(kg_summary.get("contradiction_score", 0.0) or 0.0),
                 )
+                note["signals"]["patent_hit_count"] = max(
+                    int(note["signals"].get("patent_hit_count", 0) or 0),
+                    int(kg_summary.get("patent_hit_count", 0) or 0),
+                )
+                note["signals"]["scholarly_hit_count"] = max(
+                    int(note["signals"].get("scholarly_hit_count", 0) or 0),
+                    int(kg_summary.get("scholarly_hit_count", 0) or 0),
+                )
                 note["signals"]["measurement_count"] = max(
                     int(note["signals"].get("measurement_count", 0) or 0),
                     int(measurement_summary.get("measurement_count", 0) or 0),

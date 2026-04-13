@@ -183,6 +183,8 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
     broad_scaffold_hits = int(signals.get("broad_scaffold_hits", 0) or 0)
     property_aligned_hits = int(signals.get("property_aligned_hits", 0) or 0)
     review_hits = int(signals.get("review_hits", 0) or 0)
+    patent_hit_count = int(signals.get("patent_hit_count", 0) or 0)
+    scholarly_hit_count = int(signals.get("scholarly_hit_count", 0) or 0)
     support_score = float(signals.get("support_score", 0.0) or 0.0)
     contradiction_score = float(signals.get("contradiction_score", 0.0) or 0.0)
     measurement_count = int(signals.get("measurement_count", 0) or 0)
@@ -208,6 +210,14 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
         support_bonus = min(0.05, support_score * 0.003)
         bonus += support_bonus
         rationale.append(f"kg_support_bonus={support_bonus:.3f}")
+    if patent_hit_count > 0:
+        patent_bonus = min(0.05, patent_hit_count * 0.004)
+        bonus += patent_bonus
+        rationale.append(f"patent_hits_bonus={patent_bonus:.3f}")
+    if scholarly_hit_count > 0:
+        scholarly_bonus = min(0.03, scholarly_hit_count * 0.002)
+        bonus += scholarly_bonus
+        rationale.append(f"scholarly_hits_bonus={scholarly_bonus:.3f}")
     if review_hits > 0:
         review_penalty = min(0.02, review_hits * 0.002)
         bonus -= review_penalty
