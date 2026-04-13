@@ -7,6 +7,7 @@ from pz_agent.agents.standardizer import StandardizerAgent
 from pz_agent.agents.structure_expansion import StructureExpansionAgent
 from pz_agent.agents.surrogate_screen import SurrogateScreenAgent
 from pz_agent.analysis.portfolio import assign_portfolio_buckets
+from pz_agent.chemistry.bridge import build_bridge_hypothesis
 from pz_agent.state import RunState
 
 
@@ -26,6 +27,7 @@ def _build_dossier(candidate: dict, prediction: dict | None, ranked_row: dict | 
         }
         for site in attachment_sites
     ]
+    bridge_hypothesis = build_bridge_hypothesis(candidate, bucket=bucket, bridge_relevance=portfolio_assignment.get("bridge_relevance", 0.0))
     dossier = {
         "candidate_id": candidate.get("id"),
         "identity": {
@@ -76,14 +78,7 @@ def _build_dossier(candidate: dict, prediction: dict | None, ranked_row: dict | 
             "exploitation_score": portfolio_assignment.get("exploitation_score", 1.0 if bucket == "exploit" else 0.4),
             "bridge_relevance": portfolio_assignment.get("bridge_relevance", 0.0),
         },
-        "bridge_hypothesis": {
-            "source_family": "chem_qn::quinone_abstract" if bucket == "bridge" else None,
-            "target_family": "chem_pt::phenothiazine",
-            "transfer_hypothesis": "quinone-inspired substituent logic may transfer redox-beneficial behavior into the phenothiazine scaffold" if bucket == "bridge" else None,
-            "expected_transferred_effect": "redox_tuning" if bucket == "bridge" else None,
-            "expected_failure_mode": "effect_not_transferred" if bucket == "bridge" else None,
-            "transfer_confidence": portfolio_assignment.get("bridge_relevance", 0.0),
-        },
+        "bridge_hypothesis": bridge_hypothesis,
         "ranking_snapshot": ranked_row or {},
     }
     return dossier

@@ -30,12 +30,14 @@ def test_macro_critique_agent_populates_belief_lifecycle_and_bridge_registry(mon
         lambda notes: [{**notes[0], "signals": {"support_score": 0.4, "contradiction_score": 0.1}, "evidence": []}],
     )
 
-    state = RunState(config={"critique": {"enable_web_search": False}}, run_dir=tmp_path, shortlist=[{"id": "cand_1"}], multimodal_registry=[])
+    state = RunState(config={"critique": {"enable_web_search": False}}, run_dir=tmp_path, shortlist=[{"id": "cand_1"}], multimodal_registry=[], dossier_registry=[{"candidate_id": "cand_1", "bridge_hypothesis": {"source_family": "chem_qn::quinone_abstract", "target_family": "chem_pt::phenothiazine", "template_id": "qn_to_pt_generic_redox_transfer", "failure_rationale": "scaffold-level orbital differences may prevent useful transfer"}}])
     updated = CritiqueAgent(config=state.config).run(state)
     assert updated.belief_registry is not None
     assert updated.bridge_registry is not None
     assert updated.belief_registry[0]["status"] in {"open", "testing", "supported", "contradicted"}
     assert updated.bridge_registry[0]["source_family"] == "chem_qn::quinone_abstract"
+    assert updated.bridge_registry[0]["template_id"] == "qn_to_pt_generic_redox_transfer"
+    assert updated.bridge_registry[0]["failure_rationale"] is not None
 
 
 

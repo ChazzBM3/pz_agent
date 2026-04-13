@@ -31,3 +31,5 @@ def test_build_dossier_contains_enriched_scaffold_metadata() -> None:
     assert len(scaffold_meta["site_assignments"]) == 2
     assert dossier["portfolio_metadata"]["proposal_bucket"] == "bridge"
     assert dossier["bridge_hypothesis"]["source_family"] == "chem_qn::quinone_abstract"
+    assert dossier["bridge_hypothesis"]["template_id"] is not None
+    assert dossier["bridge_hypothesis"]["failure_rationale"] is not None

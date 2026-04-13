@@ -398,6 +398,7 @@ class CritiqueAgent(BaseAgent):
             search_fields=search_fields,
             graph_path=state.knowledge_graph_path,
         )
+        dossier_map = {item.get("candidate_id"): item for item in (state.dossier_registry or [])}
 
         backend_name = str(self.config.get("search", {}).get("backend", "stub"))
         count = int(self.config.get("search", {}).get("count", 5))
@@ -416,6 +417,9 @@ class CritiqueAgent(BaseAgent):
         simulation_requests = []
         for note in critique_notes:
             note = dict(note)
+            dossier = dossier_map.get(note.get("candidate_id"), {})
+            bridge_hypothesis = dossier.get("bridge_hypothesis") or {}
+            note["bridge_hypothesis"] = bridge_hypothesis
             note["multimodal_rerank"] = multimodal_map.get(note.get("candidate_id"), {"candidate_id": note.get("candidate_id"), "bundles": [], "status": "empty"})
             note = _apply_multimodal_judgments(note)
             signals = note.get("signals", {}) or {}
@@ -438,6 +442,10 @@ class CritiqueAgent(BaseAgent):
             note["recommended_next_tier"] = next_tier
             note["contradiction_ledger"] = [item for item in (note.get("evidence") or []) if item.get("match_type") in {"negative", "unrelated"}]
             note["evidence_ledger"] = list(note.get("evidence") or [])
+            if bridge_hypothesis.get("template_id"):
+                note.setdefault("analysis_hooks", {})
+                note["analysis_hooks"]["bridge_template_id"] = bridge_hypothesis.get("template_id")
+                note["analysis_hooks"]["bridge_failure_rationale"] = bridge_hypothesis.get("failure_rationale")
             belief_status = "supported" if decision == "approve" else ("contradicted" if decision == "reject" else ("testing" if decision == "simulate-next" else "open"))
             belief_confidence = max(0.1, min(1.0, support - contradiction + 0.5))
             belief_registry.append({
@@ -454,9 +462,14 @@ class CritiqueAgent(BaseAgent):
             })
             bridge_registry.append({
                 "candidate_id": note.get("candidate_id"),
-                "source_family": "chem_qn::quinone_abstract",
-                "target_family": "chem_pt::phenothiazine",
-                "transfer_reason": "analogy_seed" if note.get("evidence_tier") in {"analog", "scaffold"} else "local_family_refinement",
+                "source_family": bridge_hypothesis.get("source_family") or "chem_qn::quinone_abstract",
+                "target_family": bridge_hypothesis.get("target_family") or "chem_pt::phenothiazine",
+                "source_motif": bridge_hypothesis.get("source_motif"),
+                "target_motif": bridge_hypothesis.get("target_motif"),
+                "transferred_property": bridge_hypothesis.get("transferred_property"),
+                "template_id": bridge_hypothesis.get("template_id"),
+                "transfer_reason": "bridge_template_support" if bridge_hypothesis.get("template_id") else ("analogy_seed" if note.get("evidence_tier") in {"analog", "scaffold"} else "local_family_refinement"),
+                "failure_rationale": bridge_hypothesis.get("failure_rationale"),
                 "status": "proposed" if decision in {"revise", "simulate-next"} else "retained",
             })
             if decision == "simulate-next":
