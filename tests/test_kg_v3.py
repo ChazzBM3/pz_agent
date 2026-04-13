@@ -27,5 +27,7 @@ def test_build_graph_snapshot_includes_transitional_v3_nodes(tmp_path: Path) -> 
     assert "chem_pt::scaffold::phenothiazine" in node_ids
     assert any(node_id.startswith("chem_bridge::rule::") for node_id in node_ids)
     assert any(node_id.startswith("chem_bridge::case::") for node_id in node_ids)
+    assert any(node_id.startswith("identity::compound::") for node_id in node_ids)
+    assert any(node_id.startswith("identity::scaffold::") for node_id in node_ids)
     run_node = next(node for node in graph["nodes"] if node["id"].startswith("run::"))
     assert "kg_layers" in run_node["attrs"]

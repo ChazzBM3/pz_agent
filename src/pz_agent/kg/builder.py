@@ -12,6 +12,12 @@ from pz_agent.kg.claims import (
     build_search_query_node,
     stable_node_id,
 )
+from pz_agent.kg.identity_spine import (
+    build_attachment_site_node,
+    build_compound_node,
+    build_scaffold_node,
+    build_substituent_node,
+)
 from pz_agent.kg.merge import append_graph_update
 from pz_agent.kg.ontology_bridge import (
     build_bridge_case,
@@ -52,11 +58,21 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         add_node({"id": batch_id, "type": "GenerationBatch", "attrs": batch})
         add_edge(batch_id, run_id, "GENERATED_IN_RUN")
 
+    candidate_map = {item.get("id"): item for item in (state.library_clean or [])}
+
     for dossier in state.dossier_registry or []:
         dossier_id = f"belief::dossier::{dossier['candidate_id']}"
         add_node({"id": dossier_id, "type": "Hypothesis", "attrs": dossier})
         add_edge(dossier_id, dossier["candidate_id"], "PROPOSES")
         add_edge(dossier_id, run_id, "GENERATED_IN_RUN")
+
+        candidate = candidate_map.get(dossier["candidate_id"], {"id": dossier["candidate_id"], "identity": dossier.get("identity") or {}})
+        identity = candidate.get("identity") or dossier.get("identity") or {}
+        compound_node = build_compound_node(candidate)
+        scaffold_node = build_scaffold_node(identity)
+        add_node(compound_node)
+        add_node(scaffold_node)
+        add_edge(compound_node["id"], scaffold_node["id"], "INSTANCE_OF")
 
         bridge_hypothesis = dossier.get("bridge_hypothesis") or {}
         if bridge_hypothesis.get("source_family"):
@@ -85,17 +101,24 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         scaffold_id = f"chem_pt::scaffold::{scaffold_name}"
         add_node({"id": scaffold_id, "type": "Scaffold", "attrs": {"name": scaffold_name, "layer": "chemistry"}})
         add_edge(dossier["candidate_id"], scaffold_id, "BELONGS_TO_FAMILY")
+        add_edge(dossier["candidate_id"], compound_node["id"], "IS_COMPOUND")
 
         for site_assignment in scaffold_meta.get("site_assignments") or []:
             site = site_assignment.get("site") or "unknown"
             site_id = f"chem_pt::site::{dossier['candidate_id']}::{site}"
+            identity_site_node = build_attachment_site_node(identity, site_assignment)
+            add_node(identity_site_node)
             add_node({"id": site_id, "type": "AttachmentSite", "attrs": {**site_assignment, "candidate_id": dossier["candidate_id"]}})
             add_edge(dossier["candidate_id"], site_id, "ATTACHED_AT")
+            add_edge(compound_node["id"], identity_site_node["id"], "HAS_SUBSTITUENT_AT")
             substituent_class = site_assignment.get("substituent_class")
             if substituent_class:
                 substituent_id = f"chem_pt::substituent::{dossier['candidate_id']}::{substituent_class}"
+                identity_substituent_node = build_substituent_node(dossier["candidate_id"], site_assignment)
+                add_node(identity_substituent_node)
                 add_node({"id": substituent_id, "type": "Substituent", "attrs": {"name": substituent_class, "candidate_id": dossier["candidate_id"]}})
                 add_edge(site_id, substituent_id, "HAS_DECORATION_PATTERN")
+                add_edge(compound_node["id"], identity_substituent_node["id"], "HAS_SUBSTITUENT")
 
     for belief in state.belief_registry or []:
         belief_id = f"belief::{belief['candidate_id']}"
