@@ -90,6 +90,32 @@ def test_invoke_gemma_multimodal_falls_back_when_backend_unavailable(monkeypatch
     result = invoke_gemma_multimodal(bundle)
     assert result["backend"] == "fallback"
     assert result["gemma_judgment"]["status"] == "fallback"
+    assert result["gemma_judgment"]["match_label"] in {"analog", "possible"}
+
+
+
+def test_invoke_gemma_multimodal_maps_live_visual_identity(monkeypatch) -> None:
+    monkeypatch.setattr("pz_agent.retrieval.multimodal_rerank.gemini_vision_available", lambda: (True, None))
+    monkeypatch.setattr(
+        "pz_agent.retrieval.multimodal_rerank.extract_visual_identity_with_gemini",
+        lambda image_path, prompt, model="gemini-2.5-flash", timeout=120: {
+            "vision_status": "gemini_ok",
+            "vision_model": model,
+            "visual_identity": {
+                "scaffold_confirmed": True,
+                "retrieval_phrases": ["phenothiazine redox"],
+                "confidence": 0.9,
+                "notes": "strong structural alignment",
+            },
+            "raw_output": '{}',
+        },
+    )
+    bundle = {"retrieval_score": 0.85, "caption": "Phenothiazine redox figure", "ocr_text": "compound 5", "query_image_path": "q.png", "target_image_path": "t.png"}
+    result = invoke_gemma_multimodal(bundle)
+    assert result["backend"] == "gemini-2.5-flash"
+    assert result["gemma_judgment"]["status"] == "ok"
+    assert result["gemma_judgment"]["match_label"] == "analog"
+    assert result["gemma_judgment"]["confidence"] in {"high", "medium"}
 
 
 
