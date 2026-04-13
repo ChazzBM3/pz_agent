@@ -13,6 +13,13 @@ from pz_agent.kg.claims import (
     stable_node_id,
 )
 from pz_agent.kg.merge import append_graph_update
+from pz_agent.kg.ontology_bridge import (
+    build_bridge_case,
+    build_bridge_dimension,
+    build_bridge_principle,
+    build_failure_mode_class,
+    build_transform_rule,
+)
 from pz_agent.kg.schema_v3 import KG_V3_LAYERS
 from pz_agent.state import RunState
 
@@ -53,10 +60,25 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
 
         bridge_hypothesis = dossier.get("bridge_hypothesis") or {}
         if bridge_hypothesis.get("source_family"):
-            bridge_id = f"bridge::{dossier['candidate_id']}::proposal"
-            add_node({"id": bridge_id, "type": "TransformRule", "attrs": {**bridge_hypothesis, "candidate_id": dossier["candidate_id"]}})
-            add_edge(dossier_id, bridge_id, "PROPOSES_TRANSFER")
-            add_edge(bridge_id, dossier["candidate_id"], "TRANSFERS_UNDER")
+            principle_node = build_bridge_principle(bridge_hypothesis)
+            dimension_node = build_bridge_dimension(bridge_hypothesis)
+            failure_node = build_failure_mode_class(bridge_hypothesis)
+            transform_rule_node = build_transform_rule(dossier["candidate_id"], bridge_hypothesis)
+            bridge_case_node = build_bridge_case(dossier["candidate_id"], bridge_hypothesis)
+            add_node(principle_node)
+            add_node(dimension_node)
+            if failure_node:
+                add_node(failure_node)
+            add_node(transform_rule_node)
+            add_node(bridge_case_node)
+            add_edge(dossier_id, transform_rule_node["id"], "PROPOSES_TRANSFER")
+            add_edge(transform_rule_node["id"], dossier["candidate_id"], "TRANSFERS_UNDER")
+            add_edge(transform_rule_node["id"], principle_node["id"], "USES_PRINCIPLE")
+            add_edge(transform_rule_node["id"], dimension_node["id"], "ALONG_DIMENSION")
+            add_edge(bridge_case_node["id"], transform_rule_node["id"], "INSTANTIATES")
+            add_edge(bridge_case_node["id"], dossier["candidate_id"], "TARGETS")
+            if failure_node:
+                add_edge(transform_rule_node["id"], failure_node["id"], "RISKS")
 
         scaffold_meta = dossier.get("scaffold_metadata") or {}
         scaffold_name = scaffold_meta.get("scaffold_family") or "phenothiazine"
@@ -82,10 +104,25 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         add_edge(belief_id, run_id, "UPDATES_BELIEF")
 
     for bridge in state.bridge_registry or []:
-        bridge_id = f"bridge::{bridge['candidate_id']}::{bridge.get('source_family')}::{bridge.get('target_family')}"
-        add_node({"id": bridge_id, "type": "TransformRule", "attrs": bridge})
-        add_edge(bridge_id, bridge["candidate_id"], "TRANSFERS_UNDER")
-        add_edge(bridge_id, run_id, "GENERATED_IN_RUN")
+        transform_rule_node = build_transform_rule(bridge["candidate_id"], bridge)
+        bridge_case_node = build_bridge_case(bridge["candidate_id"], bridge)
+        principle_node = build_bridge_principle(bridge)
+        dimension_node = build_bridge_dimension(bridge)
+        failure_node = build_failure_mode_class(bridge)
+        add_node(transform_rule_node)
+        add_node(bridge_case_node)
+        add_node(principle_node)
+        add_node(dimension_node)
+        if failure_node:
+            add_node(failure_node)
+        add_edge(transform_rule_node["id"], bridge["candidate_id"], "TRANSFERS_UNDER")
+        add_edge(transform_rule_node["id"], run_id, "GENERATED_IN_RUN")
+        add_edge(transform_rule_node["id"], principle_node["id"], "USES_PRINCIPLE")
+        add_edge(transform_rule_node["id"], dimension_node["id"], "ALONG_DIMENSION")
+        add_edge(bridge_case_node["id"], transform_rule_node["id"], "INSTANTIATES")
+        add_edge(bridge_case_node["id"], bridge["candidate_id"], "TARGETS")
+        if failure_node:
+            add_edge(transform_rule_node["id"], failure_node["id"], "RISKS")
 
     for ranking in state.ranking_registry or []:
         rank_id = f"run::ranking::{ranking['candidate_id']}"

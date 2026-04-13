@@ -53,4 +53,5 @@ def test_graph_snapshot_includes_bridge_nodes(tmp_path: Path) -> None:
     )
     graph = build_graph_snapshot(state)
     node_ids = {node["id"] for node in graph["nodes"]}
-    assert any(node_id.startswith("bridge::cand_1::") for node_id in node_ids)
+    assert any(node_id.startswith("chem_bridge::rule::") for node_id in node_ids)
+    assert any(node_id.startswith("chem_bridge::case::") for node_id in node_ids)
