@@ -159,7 +159,11 @@ def _is_review_or_background_hit(title: str | None, snippet: str | None) -> bool
 def _infer_evidence_tier(signals: dict) -> str:
     if int(signals.get("exact_match_hits", 0) or 0) > 0:
         return "candidate"
-    if int(signals.get("analog_match_hits", 0) or 0) > 0 or int(signals.get("property_aligned_hits", 0) or 0) > 0:
+    if int(signals.get("analog_match_hits", 0) or 0) > 0:
+        return "analog"
+    if int(signals.get("patent_hit_count", 0) or 0) > 0:
+        return "patent"
+    if int(signals.get("scholarly_hit_count", 0) or 0) > 0 or int(signals.get("property_aligned_hits", 0) or 0) > 0:
         return "analog"
     if int(signals.get("review_hits", 0) or 0) > 0:
         return "general_review"
@@ -180,6 +184,8 @@ def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
     broad_scaffold_hits = int(signals.get("broad_scaffold_hits", 0) or 0)
     property_aligned_hits = int(signals.get("property_aligned_hits", 0) or 0)
     review_hits = int(signals.get("review_hits", 0) or 0)
+    patent_hit_count = int(signals.get("patent_hit_count", 0) or 0)
+    scholarly_hit_count = int(signals.get("scholarly_hit_count", 0) or 0)
 
     for item in evidence:
         title = str(item.get("title") or "")
@@ -227,6 +233,8 @@ def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
             "broad_scaffold_hits": broad_scaffold_hits,
             "property_aligned_hits": property_aligned_hits,
             "review_hits": review_hits,
+            "patent_hit_count": patent_hit_count,
+            "scholarly_hit_count": scholarly_hit_count,
             "support_score": support_score,
             "contradiction_score": contradiction_score,
         }

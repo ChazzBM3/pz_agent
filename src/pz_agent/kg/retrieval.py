@@ -48,14 +48,26 @@ def _token_to_literature_term(token: str) -> str:
 
 def _iupac_query_bits(iupac_name: str) -> list[str]:
     text = iupac_name.lower()
-    bits: list[str] = []
+
+    bis_match = re.search(r"(\d+(?:,\d+)*)-bis\(([^)]+)\)", text)
+    if bis_match:
+        locants, group = bis_match.groups()
+        return [f"{locants} {group}"]
+
+    simple_parenthetical = re.search(r"(?:^|\]|-)(\d+(?:,\d+)*)-\((trifluoromethyl|methoxy|ethoxy|cyano|amino)\)", text)
+    if simple_parenthetical:
+        locants, group = simple_parenthetical.groups()
+        return [f"{locants} {group}"]
+
+    plain_match = re.search(r"(\d+(?:,\d+)*)-(dimethyl|difluoro|dichloro|dibromo|diiodo|methoxy|ethoxy|fluoro|chloro|bromo|iodo|cyano|amino)", text)
+    if plain_match:
+        locants, group = plain_match.groups()
+        if not (group == 'ethyl' and locants == '10'):
+            return [f"{locants} {group}"]
+
     if "trifluoromethyl" in text:
-        bits.append("trifluoromethyl")
-    if "bis(trifluoromethyl)" in text:
-        bits.append("bis(trifluoromethyl)")
-    position_tokens = re.findall(r"\b\d+(?:,\d+)?\b", text)
-    bits.extend(position_tokens[:2])
-    return bits
+        return ["trifluoromethyl"]
+    return []
 
 
 
@@ -71,6 +83,13 @@ def build_candidate_queries(
     electronic_bias = _clean_token(identity.get("electronic_bias"))
     attachment_text = _clean_token(" ".join(identity.get("attachment_summary") or []))
     substitution_pattern = _clean_token(identity.get("substitution_pattern"))
+    visual_bundle = candidate.get("visual_bundle") or {}
+    visual_identity = visual_bundle.get("visual_identity") or {}
+    visual_retrieval_phrases = [
+        _clean_token(phrase)
+        for phrase in (visual_identity.get("retrieval_phrases") or [])
+        if _clean_token(phrase)
+    ]
     positional_tokens = [
         _clean_token(token)
         for token in (identity.get("positional_tokens") or [])
@@ -134,6 +153,8 @@ def build_candidate_queries(
     if decoration_tokens:
         token_clause = " ".join(decoration_tokens[:2])
         queries.append(f'"{scaffold}" {token_clause} redox solubility synthesis')
+    for phrase in visual_retrieval_phrases[:2]:
+        queries.append(f'"{scaffold}" {phrase} redox solubility synthesis')
     queries.extend(
         [
             f'"{scaffold}" derivative synthesis redox',
@@ -179,9 +200,17 @@ def attach_critique_placeholders(
         )
         kg_context = retrieve_context(graph_path, retrieval_query)
         property_coverage = summarize_property_coverage(graph_path, item["id"])
+        structure_expansion = item.get("structure_expansion") or {}
+        patent_retrieval = item.get("patent_retrieval") or {}
+        scholarly_retrieval = item.get("scholarly_retrieval") or {}
+        exact_match_hits = len(structure_expansion.get("exact_matches") or [])
+        analog_match_hits = len(structure_expansion.get("similarity_matches") or []) + len(structure_expansion.get("substructure_matches") or [])
+        patent_hit_count = sum(len(bundle.get("hits") or []) for bundle in (patent_retrieval.get("surechembl") or [])) + sum(len(bundle.get("hits") or []) for bundle in (patent_retrieval.get("patcid") or []))
+        scholarly_hit_count = sum(len(bundle.get("hits") or []) for bundle in (scholarly_retrieval.get("openalex") or []))
         notes.append(
             {
                 "candidate_id": item["id"],
+                "identity": item.get("identity", {}),
                 "web_search_enabled": enable_web_search,
                 "status": "pending_web_search" if enable_web_search else "disabled",
                 "queries": build_candidate_queries(item, search_fields=search_fields, query_hints=kg_context.query_hints),
@@ -190,13 +219,18 @@ def attach_critique_placeholders(
                 "media_evidence": [],
                 "kg_context": kg_context.to_dict(),
                 "measurement_context": property_coverage,
+                "structure_expansion": structure_expansion,
+                "patent_retrieval": patent_retrieval,
+                "scholarly_retrieval": scholarly_retrieval,
                 "signals": {
                     "supports_solubility": None,
                     "supports_synthesizability": None,
                     "warns_instability": None,
-                    "exact_match_hits": kg_context.exact_match_hits,
-                    "analog_match_hits": kg_context.analog_match_hits,
-                    "support_score": kg_context.support_score,
+                    "exact_match_hits": kg_context.exact_match_hits + exact_match_hits,
+                    "analog_match_hits": kg_context.analog_match_hits + analog_match_hits,
+                    "patent_hit_count": patent_hit_count,
+                    "scholarly_hit_count": scholarly_hit_count,
+                    "support_score": kg_context.support_score + (1.0 * exact_match_hits) + (0.25 * analog_match_hits) + (0.1 * patent_hit_count) + (0.05 * scholarly_hit_count),
                     "contradiction_score": kg_context.contradiction_score,
                     "measurement_count": int(property_coverage.get("measurement_count", 0)),
                     "property_count": int(property_coverage.get("property_count", 0)),
@@ -210,6 +244,90 @@ def synthesize_evidence_from_queries(notes: list[dict]) -> list[dict]:
     for note in notes:
         evidence = []
         media_evidence = []
+
+        structure_expansion = note.get("structure_expansion") or {}
+        patent_retrieval = note.get("patent_retrieval") or {}
+        scholarly_retrieval = note.get("scholarly_retrieval") or {}
+
+        for idx, match in enumerate(structure_expansion.get("exact_matches") or []):
+            evidence.append(
+                {
+                    "id": f"pubchem_exact::{note['candidate_id']}::{idx}",
+                    "kind": "pubchem_exact_match",
+                    "query": structure_expansion.get("query_smiles"),
+                    "title": match.get("title") or f"PubChem exact match {match.get('cid')}",
+                    "url": match.get("pubchem_url"),
+                    "snippet": f"Exact PubChem identity hit for CID {match.get('cid')} ({match.get('molecular_formula') or 'formula unavailable'}).",
+                    "match_type": "exact",
+                    "provenance": {
+                        "source_type": "pubchem",
+                        "query": structure_expansion.get("query_smiles"),
+                        "confidence": 1.0,
+                        "evidence_level": "exact_structure",
+                    },
+                }
+            )
+
+        for idx, match in enumerate((structure_expansion.get("similarity_matches") or []) + (structure_expansion.get("substructure_matches") or [])):
+            evidence.append(
+                {
+                    "id": f"pubchem_analog::{note['candidate_id']}::{idx}",
+                    "kind": "pubchem_analog_match",
+                    "query": structure_expansion.get("query_smiles"),
+                    "title": match.get("title") or f"PubChem analog match {match.get('cid')}",
+                    "url": match.get("pubchem_url"),
+                    "snippet": f"Analog PubChem structure hit for CID {match.get('cid')} ({match.get('molecular_formula') or 'formula unavailable'}).",
+                    "match_type": "analog",
+                    "provenance": {
+                        "source_type": "pubchem",
+                        "query": structure_expansion.get("query_smiles"),
+                        "confidence": 0.6,
+                        "evidence_level": "analog_structure",
+                    },
+                }
+            )
+
+        for source_name in ["surechembl", "patcid"]:
+            for idx, bundle in enumerate(patent_retrieval.get(source_name) or []):
+                for hit_idx, hit in enumerate(bundle.get("hits") or []):
+                    evidence.append(
+                        {
+                            "id": f"{source_name}::{note['candidate_id']}::{idx}::{hit_idx}",
+                            "kind": "patent_result",
+                            "query": bundle.get("query"),
+                            "title": hit.get("title") or hit.get("doc_id") or hit.get("patent_id") or "Patent hit",
+                            "url": hit.get("url"),
+                            "snippet": hit.get("snippet") or "Patent-side retrieval hit.",
+                            "match_type": hit.get("match_type") or "analog",
+                            "provenance": {
+                                "source_type": source_name,
+                                "query": bundle.get("query"),
+                                "confidence": hit.get("confidence"),
+                                "evidence_level": "patent_retrieval",
+                            },
+                        }
+                    )
+
+        for idx, bundle in enumerate(scholarly_retrieval.get("openalex") or []):
+            for hit_idx, hit in enumerate(bundle.get("hits") or []):
+                evidence.append(
+                    {
+                        "id": f"openalex::{note['candidate_id']}::{idx}::{hit_idx}",
+                        "kind": "scholarly_result",
+                        "query": bundle.get("query"),
+                        "title": hit.get("title"),
+                        "url": hit.get("url"),
+                        "snippet": hit.get("snippet"),
+                        "match_type": hit.get("match_type") or "unknown",
+                        "provenance": {
+                            "source_type": "openalex",
+                            "query": bundle.get("query"),
+                            "confidence": hit.get("confidence"),
+                            "evidence_level": "scholarly_retrieval",
+                        },
+                    }
+                )
+
         for idx, query in enumerate(note.get("queries", [])):
             evidence.append(
                 {
@@ -262,6 +380,8 @@ def synthesize_evidence_from_queries(notes: list[dict]) -> list[dict]:
             "warns_instability": None,
             "exact_match_hits": int(note.get("signals", {}).get("exact_match_hits", 0)),
             "analog_match_hits": int(note.get("signals", {}).get("analog_match_hits", 0)),
+            "patent_hit_count": int(note.get("signals", {}).get("patent_hit_count", 0)),
+            "scholarly_hit_count": int(note.get("signals", {}).get("scholarly_hit_count", 0)),
             "support_score": float(note.get("signals", {}).get("support_score", 0.0)),
             "contradiction_score": float(note.get("signals", {}).get("contradiction_score", 0.0)),
             "measurement_count": int(note.get("signals", {}).get("measurement_count", 0)),
