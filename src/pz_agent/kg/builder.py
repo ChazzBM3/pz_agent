@@ -120,6 +120,18 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                 add_edge(site_id, substituent_id, "HAS_DECORATION_PATTERN")
                 add_edge(compound_node["id"], identity_substituent_node["id"], "HAS_SUBSTITUENT")
 
+    for decision in state.candidate_decision_registry or []:
+        decision_id = decision["candidate_decision_id"]
+        add_node({"id": decision_id, "type": "CandidateDecision", "attrs": decision})
+        add_edge(decision_id, decision["compound_id"], "ABOUT_MOLECULE")
+        add_edge(decision_id, run_id, "GENERATED_IN_RUN")
+
+    for belief_state in state.belief_state_registry or []:
+        belief_state_id = belief_state["belief_state_id"]
+        add_node({"id": belief_state_id, "type": "BeliefState", "attrs": belief_state})
+        add_edge(belief_state_id, belief_state["entity_id"], "ABOUT_MOLECULE")
+        add_edge(belief_state_id, run_id, "UPDATES_BELIEF")
+
     for belief in state.belief_registry or []:
         belief_id = f"belief::{belief['candidate_id']}"
         add_node({"id": belief_id, "type": "Hypothesis", "attrs": belief})

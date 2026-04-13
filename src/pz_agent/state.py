@@ -26,6 +26,8 @@ class RunState:
     hypothesis_registry: list[dict[str, Any]] | None = None
     portfolio_registry: list[dict[str, Any]] | None = None
     ranking_registry: list[dict[str, Any]] | None = None
+    candidate_decision_registry: list[dict[str, Any]] | None = None
+    belief_state_registry: list[dict[str, Any]] | None = None
     belief_registry: list[dict[str, Any]] | None = None
     bridge_registry: list[dict[str, Any]] | None = None
     simulation_requests: list[dict[str, Any]] | None = None

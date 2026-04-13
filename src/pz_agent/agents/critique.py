@@ -412,6 +412,8 @@ class CritiqueAgent(BaseAgent):
             state.log("CritiqueAgent prepared candidate evidence bundles with KG-derived context and multimodal hooks")
 
         enriched_notes = []
+        candidate_decision_registry = []
+        belief_state_registry = []
         belief_registry = []
         bridge_registry = []
         simulation_requests = []
@@ -455,6 +457,32 @@ class CritiqueAgent(BaseAgent):
                 note["analysis_hooks"]["bridge_decision_bias"] = "simulate" if bridge_uncertain else "retain"
             belief_status = "supported" if decision == "approve" else ("contradicted" if decision == "reject" else ("testing" if decision == "simulate-next" else "open"))
             belief_confidence = max(0.1, min(1.0, support - contradiction + 0.5))
+            candidate_decision_registry.append({
+                "candidate_decision_id": f"decision::{note.get('candidate_id')}",
+                "compound_id": note.get("candidate_id"),
+                "decision": decision,
+                "decision_reason_codes": [
+                    "bridge_support_only" if bridge_hypothesis.get("template_id") else None,
+                    "contradiction_present" if contradiction > 0 else None,
+                    "direct_support_present" if support >= 0.35 else None,
+                ],
+                "score_summary": {
+                    "support": support,
+                    "contradiction": contradiction,
+                    "bridge_score": bridge_confidence,
+                    "uncertainty": 1.0 - belief_confidence,
+                },
+            })
+            belief_state_registry.append({
+                "belief_state_id": f"belief_state::{note.get('candidate_id')}",
+                "entity_type": "compound",
+                "entity_id": note.get("candidate_id"),
+                "support_count": len([item for item in (note.get("evidence_ledger") or []) if item.get("match_type") not in {"negative", "unrelated"}]),
+                "contradiction_count": len(note.get("contradiction_ledger") or []),
+                "source_mix": {"bridge": bool(bridge_hypothesis.get("template_id")), "multimodal": bool(signals.get("multimodal_support_score", 0.0))},
+                "confidence": belief_confidence,
+                "last_updated": "critique_agent",
+            })
             belief_registry.append({
                 "candidate_id": note.get("candidate_id"),
                 "status": belief_status,
@@ -491,6 +519,8 @@ class CritiqueAgent(BaseAgent):
             enriched_notes.append(note)
 
         state.critique_notes = enriched_notes
+        state.candidate_decision_registry = candidate_decision_registry
+        state.belief_state_registry = belief_state_registry
         state.belief_registry = belief_registry
         state.bridge_registry = bridge_registry
         state.simulation_requests = simulation_requests
