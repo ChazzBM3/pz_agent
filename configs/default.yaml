@@ -71,6 +71,8 @@ page_corpus:
 document_fetch:
   enabled: true
   artifacts_dir: artifacts/page_assets
+  fetch_live: true
+  timeout: 20
 figure_corpus:
   enabled: true
   artifacts_dir: artifacts/figure_assets

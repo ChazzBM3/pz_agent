@@ -10,11 +10,16 @@ from pz_agent.state import RunState
 def test_document_fetch_agent_writes_artifact(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         "pz_agent.agents.document_fetch.assemble_document_artifacts_for_candidate",
-        lambda page_bundle, artifacts_dir: {"candidate_id": page_bundle.get("candidate_id"), "document_count": 1, "documents": [{"title": "Doc"}], "status": "ok"},
+        lambda page_bundle, artifacts_dir, timeout=20, fetch_live=True: {
+            "candidate_id": page_bundle.get("candidate_id"),
+            "document_count": 1,
+            "documents": [{"document_kind": "html", "fetch_status": "fetched"}],
+            "status": "ok",
+        },
     )
 
     state = RunState(
-        config={"document_fetch": {"enabled": True, "artifacts_dir": str(tmp_path / 'assets')}},
+        config={"document_fetch": {"enabled": True, "artifacts_dir": str(tmp_path / 'docs'), "timeout": 5, "fetch_live": True}},
         run_dir=tmp_path,
         library_clean=[{"id": "cand_1", "page_corpus": {}}],
     )

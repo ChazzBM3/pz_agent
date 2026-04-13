@@ -19,11 +19,13 @@ class DocumentFetchAgent(BaseAgent):
             return state
 
         artifacts_dir = Path(cfg.get("artifacts_dir", state.run_dir / "page_assets"))
+        timeout = int(cfg.get("timeout", 20) or 20)
+        fetch_live = bool(cfg.get("fetch_live", True))
         page_registry = state.page_registry or []
         document_registry: list[dict] = []
 
         for page_bundle in page_registry:
-            document_bundle = assemble_document_artifacts_for_candidate(page_bundle, artifacts_dir=artifacts_dir)
+            document_bundle = assemble_document_artifacts_for_candidate(page_bundle, artifacts_dir=artifacts_dir, timeout=timeout, fetch_live=fetch_live)
             document_registry.append(document_bundle)
 
         updated_candidates: list[dict] = []
@@ -36,5 +38,6 @@ class DocumentFetchAgent(BaseAgent):
         state.library_clean = updated_candidates
         state.document_registry = document_registry
         write_json(state.run_dir / "document_fetch.json", document_registry)
-        state.log(f"Document artifact metadata prepared for {len(document_registry)} candidates")
+        fetched_count = sum(1 for bundle in document_registry for doc in (bundle.get("documents") or []) if doc.get("fetch_status") == "fetched")
+        state.log(f"Document fetch completed for {len(document_registry)} candidates, fetched {fetched_count} documents")
         return state
