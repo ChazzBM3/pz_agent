@@ -17,22 +17,9 @@ screening:
   shortlist_size: 3
 pipeline:
   stages:
-    - library_designer
-    - standardizer
-    - structure_expansion
-    - patent_retrieval
-    - scholarly_retrieval
-    - page_corpus
-    - document_fetch
-    - figure_corpus
-    - ocr_caption
-    - page_image_retrieval
-    - multimodal_rerank
-    - surrogate_screen
-    - benchmark
+    - generation_agent
     - knowledge_graph
-    - ranker
-    - critique
+    - critique_agent
     - critique_reranker
     - knowledge_graph
     - reporter

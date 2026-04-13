@@ -3,6 +3,15 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 from pz_agent.agents.base import BaseAgent
+from pz_agent.agents.document_fetch import DocumentFetchAgent
+from pz_agent.agents.figure_corpus import FigureCorpusAgent
+from pz_agent.agents.multimodal_rerank import MultimodalRerankAgent
+from pz_agent.agents.ocr_caption import OCRCaptionAgent
+from pz_agent.agents.page_corpus import PageCorpusAgent
+from pz_agent.agents.page_image_retrieval import PageImageRetrievalAgent
+from pz_agent.agents.patent_retrieval import PatentRetrievalAgent
+from pz_agent.agents.scholarly_retrieval import ScholarlyRetrievalAgent
+from pz_agent.agents.base import BaseAgent
 from pz_agent.io import write_json
 from pz_agent.kg.retrieval import attach_critique_placeholders, synthesize_evidence_from_queries
 from pz_agent.search.backends import get_search_backend
@@ -364,9 +373,22 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
 
 
 class CritiqueAgent(BaseAgent):
-    name = "critique"
+    name = "critique_agent"
 
     def run(self, state: RunState) -> RunState:
+        worker_sequence = [
+            PatentRetrievalAgent(config=self.config),
+            ScholarlyRetrievalAgent(config=self.config),
+            PageCorpusAgent(config=self.config),
+            DocumentFetchAgent(config=self.config),
+            FigureCorpusAgent(config=self.config),
+            OCRCaptionAgent(config=self.config),
+            PageImageRetrievalAgent(config=self.config),
+            MultimodalRerankAgent(config=self.config),
+        ]
+        for worker in worker_sequence:
+            state = worker.run(state)
+
         search_fields = list(self.config.get("critique", {}).get("search_fields", []))
         enable_web_search = bool(self.config.get("critique", {}).get("enable_web_search", True))
         critique_notes = attach_critique_placeholders(
@@ -383,19 +405,56 @@ class CritiqueAgent(BaseAgent):
 
         if enable_web_search and backend_name != "stub":
             critique_notes = [_live_search_note(note, backend_name=backend_name, count=count) for note in critique_notes]
-            state.log(f"Critique agent collected live web evidence using {backend_name}")
+            state.log(f"CritiqueAgent collected live web evidence using {backend_name}")
         else:
             critique_notes = synthesize_evidence_from_queries(critique_notes)
-            state.log("Critique agent prepared candidate evidence bundles with KG-derived context, targeted queries, and text/image placeholders")
+            state.log("CritiqueAgent prepared candidate evidence bundles with KG-derived context and multimodal hooks")
 
         enriched_notes = []
+        belief_registry = []
+        simulation_requests = []
         for note in critique_notes:
             note = dict(note)
             note["multimodal_rerank"] = multimodal_map.get(note.get("candidate_id"), {"candidate_id": note.get("candidate_id"), "bundles": [], "status": "empty"})
             note = _apply_multimodal_judgments(note)
-            note["evidence_tier"] = _infer_evidence_tier(note.get("signals", {}))
+            signals = note.get("signals", {}) or {}
+            note["evidence_tier"] = _infer_evidence_tier(signals)
+            support = float(signals.get("support_score", 0.0) or 0.0)
+            contradiction = float(signals.get("contradiction_score", 0.0) or 0.0)
+            if contradiction >= 0.8:
+                decision = "reject"
+                next_tier = None
+            elif support >= 0.8:
+                decision = "approve"
+                next_tier = None
+            elif support >= 0.35:
+                decision = "simulate-next"
+                next_tier = 1 if signals.get("multimodal_support_score", 0.0) else 2
+            else:
+                decision = "revise"
+                next_tier = 1
+            note["decision"] = decision
+            note["recommended_next_tier"] = next_tier
+            note["contradiction_ledger"] = [item for item in (note.get("evidence") or []) if item.get("match_type") in {"negative", "unrelated"}]
+            note["evidence_ledger"] = list(note.get("evidence") or [])
+            belief_registry.append({
+                "candidate_id": note.get("candidate_id"),
+                "status": "supported" if decision == "approve" else ("contradicted" if decision == "reject" else "open"),
+                "confidence": max(0.1, min(1.0, support - contradiction + 0.5)),
+                "evidence_count": len(note.get("evidence_ledger") or []),
+                "owner": "CritiqueAgent",
+            })
+            if decision == "simulate-next":
+                simulation_requests.append({
+                    "candidate_id": note.get("candidate_id"),
+                    "requested_tier": next_tier,
+                    "reason": "critique_uncertainty_resolution",
+                })
             enriched_notes.append(note)
 
         state.critique_notes = enriched_notes
-        write_json(state.run_dir / "critique_notes.json", critique_notes)
+        state.belief_registry = belief_registry
+        state.simulation_requests = simulation_requests
+        write_json(state.run_dir / "critique_notes.json", enriched_notes)
+        state.log(f"CritiqueAgent completed macro evidence pass for {len(enriched_notes)} candidates")
         return state

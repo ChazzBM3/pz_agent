@@ -22,6 +22,13 @@ class RunState:
     critique_notes: list[dict[str, Any]] | None = None
     media_registry: list[dict[str, Any]] | None = None
     generation_registry: list[dict[str, Any]] | None = None
+    dossier_registry: list[dict[str, Any]] | None = None
+    hypothesis_registry: list[dict[str, Any]] | None = None
+    portfolio_registry: list[dict[str, Any]] | None = None
+    ranking_registry: list[dict[str, Any]] | None = None
+    belief_registry: list[dict[str, Any]] | None = None
+    simulation_requests: list[dict[str, Any]] | None = None
+    simulation_results: list[dict[str, Any]] | None = None
     visual_registry: list[dict[str, Any]] | None = None
     structure_expansion: list[dict[str, Any]] | None = None
     patent_registry: list[dict[str, Any]] | None = None
