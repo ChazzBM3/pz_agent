@@ -19,6 +19,7 @@ pipeline:
   stages:
     - library_designer
     - standardizer
+    - structure_expansion
     - surrogate_screen
     - benchmark
     - knowledge_graph
@@ -39,6 +40,12 @@ critique:
     - solubility
     - synthesizability
     - derivative
+structure_expansion:
+  enabled: true
+  similarity_threshold: 90
+  similarity_max_records: 5
+  substructure_max_records: 5
+  timeout: 20
 search:
   backend: stub
   count: 5

@@ -22,6 +22,8 @@ class RunState:
     critique_notes: list[dict[str, Any]] | None = None
     media_registry: list[dict[str, Any]] | None = None
     generation_registry: list[dict[str, Any]] | None = None
+    visual_registry: list[dict[str, Any]] | None = None
+    structure_expansion: list[dict[str, Any]] | None = None
     logs: list[str] = field(default_factory=list)
 
     def log(self, message: str) -> None:

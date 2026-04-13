@@ -11,7 +11,9 @@ from pz_agent.agents.library_designer import LibraryDesignerAgent
 from pz_agent.agents.ranker import RankerAgent
 from pz_agent.agents.reporter import ReporterAgent
 from pz_agent.agents.standardizer import StandardizerAgent
+from pz_agent.agents.structure_expansion import StructureExpansionAgent
 from pz_agent.agents.surrogate_screen import SurrogateScreenAgent
+from pz_agent.agents.visual_identity import VisualIdentityAgent
 from pz_agent.config import load_config
 from pz_agent.io import ensure_dir, write_json
 from pz_agent.state import RunState
@@ -20,6 +22,8 @@ from pz_agent.state import RunState
 STAGE_MAP = {
     "library_designer": LibraryDesignerAgent,
     "standardizer": StandardizerAgent,
+    "structure_expansion": StructureExpansionAgent,
+    "visual_identity": VisualIdentityAgent,
     "surrogate_screen": SurrogateScreenAgent,
     "benchmark": BenchmarkAgent,
     "knowledge_graph": KnowledgeGraphAgent,
@@ -53,6 +57,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "knowledge_graph_path": str(state.knowledge_graph_path) if state.knowledge_graph_path else None,
             "ranked_count": len(state.ranked or []),
             "shortlist_count": len(state.shortlist or []),
+            "structure_expansion_count": len(state.structure_expansion or []),
         },
     )
 
