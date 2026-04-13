@@ -154,6 +154,20 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                 add_node({"id": media_id, "type": "MediaArtifact", "attrs": media})
                 add_edge(note_id, media_id, "HAS_MEDIA_EVIDENCE")
 
+            multimodal_bundle = note.get("multimodal_rerank") or {}
+            for bundle in multimodal_bundle.get("bundles") or []:
+                mm_id = bundle.get("bundle_id")
+                if not mm_id:
+                    continue
+                add_node({"id": mm_id, "type": "Figure", "attrs": bundle})
+                add_edge(note_id, mm_id, "HAS_FIGURE")
+                judgment = bundle.get("gemma_judgment") or {}
+                if judgment:
+                    judgment_id = f"judgment::{mm_id}"
+                    add_node({"id": judgment_id, "type": "Claim", "attrs": {**judgment, "candidate_id": note["candidate_id"], "summary": judgment.get("justification"), "status": judgment.get("status")}})
+                    add_edge(judgment_id, mm_id, "SUPPORTED_BY")
+                    add_edge(judgment_id, note["candidate_id"], "ABOUT_MOLECULE")
+
     snapshot = {
         "nodes": nodes,
         "edges": edges,

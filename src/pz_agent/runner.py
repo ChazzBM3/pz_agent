@@ -11,6 +11,7 @@ from pz_agent.agents.figure_corpus import FigureCorpusAgent
 from pz_agent.agents.knowledge_graph import KnowledgeGraphAgent
 from pz_agent.agents.library_designer import LibraryDesignerAgent
 from pz_agent.agents.multimodal_rerank import MultimodalRerankAgent
+from pz_agent.agents.ocr_caption import OCRCaptionAgent
 from pz_agent.agents.page_corpus import PageCorpusAgent
 from pz_agent.agents.page_image_retrieval import PageImageRetrievalAgent
 from pz_agent.agents.patent_retrieval import PatentRetrievalAgent
@@ -35,6 +36,7 @@ STAGE_MAP = {
     "page_corpus": PageCorpusAgent,
     "document_fetch": DocumentFetchAgent,
     "figure_corpus": FigureCorpusAgent,
+    "ocr_caption": OCRCaptionAgent,
     "page_image_retrieval": PageImageRetrievalAgent,
     "multimodal_rerank": MultimodalRerankAgent,
     "visual_identity": VisualIdentityAgent,
@@ -79,6 +81,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "figure_registry_count": len(state.figure_registry or []),
             "page_image_registry_count": len(state.page_image_registry or []),
             "multimodal_registry_count": len(state.multimodal_registry or []),
+            "ocr_registry_count": len(state.ocr_registry or []),
         },
     )
 

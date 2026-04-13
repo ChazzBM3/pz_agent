@@ -172,6 +172,51 @@ def _infer_evidence_tier(signals: dict) -> str:
     return "candidate"
 
 
+def _apply_multimodal_judgments(note: dict) -> dict:
+    signals = dict(note.get("signals", {}))
+    multimodal_bundle = note.get("multimodal_rerank") or {}
+    judgments = []
+    exact_bonus = 0
+    analog_bonus = 0
+    support_bonus = 0.0
+    contradiction_penalty = 0.0
+    property_bonus = 0
+    human_review_flags = 0
+
+    for bundle in multimodal_bundle.get("bundles") or []:
+        judgment = bundle.get("gemma_judgment") or {}
+        if not judgment:
+            continue
+        judgments.append(judgment)
+        label = str(judgment.get("match_label") or "unknown").lower()
+        relevance = str(judgment.get("property_relevance") or "unknown").lower()
+        confidence = str(judgment.get("confidence") or "unknown").lower()
+        needs_review = bool(judgment.get("needs_human_review", False))
+        if needs_review:
+            human_review_flags += 1
+        conf_weight = {"high": 1.0, "medium": 0.6, "low": 0.25}.get(confidence, 0.2)
+        if label == "exact":
+            exact_bonus += 1
+            support_bonus += 0.7 * conf_weight
+        elif label == "analog":
+            analog_bonus += 1
+            support_bonus += 0.35 * conf_weight
+        elif label in {"unrelated", "negative"}:
+            contradiction_penalty += 0.5 * conf_weight
+        if relevance not in {"unknown", "none", "irrelevant"}:
+            property_bonus += 1
+            support_bonus += 0.1 * conf_weight
+
+    signals["exact_match_hits"] = int(signals.get("exact_match_hits", 0) or 0) + exact_bonus
+    signals["analog_match_hits"] = int(signals.get("analog_match_hits", 0) or 0) + analog_bonus
+    signals["property_aligned_hits"] = int(signals.get("property_aligned_hits", 0) or 0) + property_bonus
+    signals["support_score"] = float(signals.get("support_score", 0.0) or 0.0) + support_bonus
+    signals["contradiction_score"] = float(signals.get("contradiction_score", 0.0) or 0.0) + contradiction_penalty
+    signals["multimodal_review_flags"] = int(signals.get("multimodal_review_flags", 0) or 0) + human_review_flags
+    note["signals"] = signals
+    return note
+
+
 def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
     signals = dict(note.get("signals", {}))
     exact_hits = 0
@@ -321,6 +366,8 @@ class CritiqueAgent(BaseAgent):
 
         backend_name = str(self.config.get("search", {}).get("backend", "stub"))
         count = int(self.config.get("search", {}).get("count", 5))
+        multimodal_map = {item.get("candidate_id"): item for item in (state.multimodal_registry or [])}
+
         if enable_web_search and backend_name != "stub":
             critique_notes = [_live_search_note(note, backend_name=backend_name, count=count) for note in critique_notes]
             state.log(f"Critique agent collected live web evidence using {backend_name}")
@@ -328,6 +375,14 @@ class CritiqueAgent(BaseAgent):
             critique_notes = synthesize_evidence_from_queries(critique_notes)
             state.log("Critique agent prepared candidate evidence bundles with KG-derived context, targeted queries, and text/image placeholders")
 
-        state.critique_notes = critique_notes
+        enriched_notes = []
+        for note in critique_notes:
+            note = dict(note)
+            note["multimodal_rerank"] = multimodal_map.get(note.get("candidate_id"), {"candidate_id": note.get("candidate_id"), "bundles": [], "status": "empty"})
+            note = _apply_multimodal_judgments(note)
+            note["evidence_tier"] = _infer_evidence_tier(note.get("signals", {}))
+            enriched_notes.append(note)
+
+        state.critique_notes = enriched_notes
         write_json(state.run_dir / "critique_notes.json", critique_notes)
         return state

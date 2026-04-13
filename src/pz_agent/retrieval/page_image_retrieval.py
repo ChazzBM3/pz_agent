@@ -25,6 +25,7 @@ def assemble_page_image_retrieval_for_candidate(candidate: dict[str, Any], artif
                 "target_image_path": figure.get("storage_ref"),
                 "source_document_path": figure.get("source_document_path"),
                 "caption": figure.get("caption"),
+                "ocr_text": figure.get("ocr_text"),
                 "status": COLPALI_HINT,
             }
         )
