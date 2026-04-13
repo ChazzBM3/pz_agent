@@ -13,7 +13,7 @@ class OCRCaptionAgent(BaseAgent):
         cfg = state.config.get("ocr_caption", {}) or {}
         enabled = bool(cfg.get("enabled", True))
         if not enabled:
-            state.log("OCR/caption scaffolding skipped (disabled)")
+            state.log("OCR/caption extraction skipped (disabled)")
             return state
 
         registry: list[dict] = []
@@ -42,5 +42,6 @@ class OCRCaptionAgent(BaseAgent):
         state.library_clean = updated_candidates
         state.ocr_registry = registry
         write_json(state.run_dir / "ocr_caption.json", registry)
-        state.log(f"OCR/caption scaffolding prepared for {len(registry)} candidates")
+        extracted_count = sum(1 for bundle in registry for entry in (bundle.get("entries") or []) if entry.get("ocr_status") == "ok" or entry.get("caption_status") == "ok")
+        state.log(f"OCR/caption extraction prepared for {len(registry)} candidates, populated {extracted_count} figure text entries")
         return state
