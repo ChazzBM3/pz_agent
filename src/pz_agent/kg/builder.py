@@ -74,6 +74,12 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         add_edge(belief_id, belief["candidate_id"], "ABOUT_MOLECULE")
         add_edge(belief_id, run_id, "UPDATES_BELIEF")
 
+    for bridge in state.bridge_registry or []:
+        bridge_id = f"bridge::{bridge['candidate_id']}::{bridge.get('source_family')}::{bridge.get('target_family')}"
+        add_node({"id": bridge_id, "type": "TransformRule", "attrs": bridge})
+        add_edge(bridge_id, bridge["candidate_id"], "TRANSFERS_UNDER")
+        add_edge(bridge_id, run_id, "GENERATED_IN_RUN")
+
     for ranking in state.ranking_registry or []:
         rank_id = f"run::ranking::{ranking['candidate_id']}"
         add_node({"id": rank_id, "type": "RankingDecision", "attrs": ranking})

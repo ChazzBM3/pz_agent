@@ -412,6 +412,7 @@ class CritiqueAgent(BaseAgent):
 
         enriched_notes = []
         belief_registry = []
+        bridge_registry = []
         simulation_requests = []
         for note in critique_notes:
             note = dict(note)
@@ -437,12 +438,26 @@ class CritiqueAgent(BaseAgent):
             note["recommended_next_tier"] = next_tier
             note["contradiction_ledger"] = [item for item in (note.get("evidence") or []) if item.get("match_type") in {"negative", "unrelated"}]
             note["evidence_ledger"] = list(note.get("evidence") or [])
+            belief_status = "supported" if decision == "approve" else ("contradicted" if decision == "reject" else ("testing" if decision == "simulate-next" else "open"))
+            belief_confidence = max(0.1, min(1.0, support - contradiction + 0.5))
             belief_registry.append({
                 "candidate_id": note.get("candidate_id"),
-                "status": "supported" if decision == "approve" else ("contradicted" if decision == "reject" else "open"),
-                "confidence": max(0.1, min(1.0, support - contradiction + 0.5)),
+                "status": belief_status,
+                "confidence": belief_confidence,
                 "evidence_count": len(note.get("evidence_ledger") or []),
                 "owner": "CritiqueAgent",
+                "last_updated_by": "critique_agent",
+                "unresolved_uncertainties": [
+                    "simulation_needed" if decision == "simulate-next" else None,
+                    "contradiction_present" if contradiction > 0 else None,
+                ],
+            })
+            bridge_registry.append({
+                "candidate_id": note.get("candidate_id"),
+                "source_family": "chem_qn::quinone_abstract",
+                "target_family": "chem_pt::phenothiazine",
+                "transfer_reason": "analogy_seed" if note.get("evidence_tier") in {"analog", "scaffold"} else "local_family_refinement",
+                "status": "proposed" if decision in {"revise", "simulate-next"} else "retained",
             })
             if decision == "simulate-next":
                 simulation_requests.append({
@@ -454,6 +469,7 @@ class CritiqueAgent(BaseAgent):
 
         state.critique_notes = enriched_notes
         state.belief_registry = belief_registry
+        state.bridge_registry = bridge_registry
         state.simulation_requests = simulation_requests
         write_json(state.run_dir / "critique_notes.json", enriched_notes)
         state.log(f"CritiqueAgent completed macro evidence pass for {len(enriched_notes)} candidates")
