@@ -23,6 +23,7 @@ pipeline:
     - patent_retrieval
     - scholarly_retrieval
     - page_corpus
+    - document_fetch
     - surrogate_screen
     - benchmark
     - knowledge_graph
@@ -63,6 +64,9 @@ scholarly_retrieval:
   exploratory_query_budget: 2
 page_corpus:
   enabled: true
+document_fetch:
+  enabled: true
+  artifacts_dir: artifacts/page_assets
 search:
   backend: stub
   count: 5
