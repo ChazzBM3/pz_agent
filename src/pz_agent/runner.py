@@ -8,6 +8,7 @@ from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
 from pz_agent.agents.dft_handoff import DFTHandoffAgent
 from pz_agent.agents.knowledge_graph import KnowledgeGraphAgent
 from pz_agent.agents.library_designer import LibraryDesignerAgent
+from pz_agent.agents.patent_retrieval import PatentRetrievalAgent
 from pz_agent.agents.ranker import RankerAgent
 from pz_agent.agents.reporter import ReporterAgent
 from pz_agent.agents.standardizer import StandardizerAgent
@@ -23,6 +24,7 @@ STAGE_MAP = {
     "library_designer": LibraryDesignerAgent,
     "standardizer": StandardizerAgent,
     "structure_expansion": StructureExpansionAgent,
+    "patent_retrieval": PatentRetrievalAgent,
     "visual_identity": VisualIdentityAgent,
     "surrogate_screen": SurrogateScreenAgent,
     "benchmark": BenchmarkAgent,
@@ -58,6 +60,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "ranked_count": len(state.ranked or []),
             "shortlist_count": len(state.shortlist or []),
             "structure_expansion_count": len(state.structure_expansion or []),
+            "patent_registry_count": len(state.patent_registry or []),
         },
     )
 

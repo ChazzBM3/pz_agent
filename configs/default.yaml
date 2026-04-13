@@ -20,6 +20,7 @@ pipeline:
     - library_designer
     - standardizer
     - structure_expansion
+    - patent_retrieval
     - surrogate_screen
     - benchmark
     - knowledge_graph
@@ -45,6 +46,10 @@ structure_expansion:
   similarity_threshold: 90
   similarity_max_records: 5
   substructure_max_records: 5
+  timeout: 20
+patent_retrieval:
+  enabled: true
+  count: 5
   timeout: 20
 search:
   backend: stub
