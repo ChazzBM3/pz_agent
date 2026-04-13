@@ -51,6 +51,13 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         add_edge(dossier_id, dossier["candidate_id"], "PROPOSES")
         add_edge(dossier_id, run_id, "GENERATED_IN_RUN")
 
+        bridge_hypothesis = dossier.get("bridge_hypothesis") or {}
+        if bridge_hypothesis.get("source_family"):
+            bridge_id = f"bridge::{dossier['candidate_id']}::proposal"
+            add_node({"id": bridge_id, "type": "TransformRule", "attrs": {**bridge_hypothesis, "candidate_id": dossier["candidate_id"]}})
+            add_edge(dossier_id, bridge_id, "PROPOSES_TRANSFER")
+            add_edge(bridge_id, dossier["candidate_id"], "TRANSFERS_UNDER")
+
         scaffold_meta = dossier.get("scaffold_metadata") or {}
         scaffold_name = scaffold_meta.get("scaffold_family") or "phenothiazine"
         scaffold_id = f"chem_pt::scaffold::{scaffold_name}"

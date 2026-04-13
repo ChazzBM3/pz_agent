@@ -6,22 +6,16 @@ from pz_agent.agents.ranker import RankerAgent
 from pz_agent.agents.standardizer import StandardizerAgent
 from pz_agent.agents.structure_expansion import StructureExpansionAgent
 from pz_agent.agents.surrogate_screen import SurrogateScreenAgent
+from pz_agent.analysis.portfolio import assign_portfolio_buckets
 from pz_agent.state import RunState
 
 
-DEFAULT_BUCKETS = ("exploit", "explore", "bridge", "falsify")
 
-
-
-def _portfolio_bucket(index: int) -> str:
-    return DEFAULT_BUCKETS[index % len(DEFAULT_BUCKETS)]
-
-
-
-def _build_dossier(candidate: dict, prediction: dict | None, ranked_row: dict | None, index: int) -> dict:
+def _build_dossier(candidate: dict, prediction: dict | None, ranked_row: dict | None, portfolio_assignment: dict | None) -> dict:
     identity = candidate.get("identity") or {}
     structure_expansion = candidate.get("structure_expansion") or {}
-    bucket = _portfolio_bucket(index)
+    portfolio_assignment = portfolio_assignment or {}
+    bucket = portfolio_assignment.get("proposal_bucket") or "explore"
     support_uncertainty = float(prediction.get("prediction_uncertainty", 0.25) if prediction else 0.25)
     attachment_sites = candidate.get("sites") or identity.get("attachment_sites") or []
     site_assignments = identity.get("site_assignments") or [
@@ -71,14 +65,24 @@ def _build_dossier(candidate: dict, prediction: dict | None, ranked_row: dict | 
         "evidence_hooks": {
             "query_hints": structure_expansion.get("query_hints") or [],
             "nearest_analogs": structure_expansion.get("similarity_hits") or [],
-            "bridge_transform_references": [],
-            "likely_failure_modes": [],
+            "bridge_transform_references": ["quinone_to_phenothiazine_transfer"] if bucket == "bridge" else [],
+            "likely_failure_modes": ["effect_not_transferred", "solubility_regression"] if bucket == "bridge" else [],
         },
         "portfolio_metadata": {
             "proposal_bucket": bucket,
-            "selection_reason": f"macro_generation_{bucket}",
-            "exploration_score": 1.0 if bucket in {"explore", "bridge", "falsify"} else 0.3,
-            "exploitation_score": 1.0 if bucket == "exploit" else 0.4,
+            "selection_reason": portfolio_assignment.get("selection_reason") or f"macro_generation_{bucket}",
+            "budget_fraction": portfolio_assignment.get("budget_fraction"),
+            "exploration_score": portfolio_assignment.get("exploration_score", 1.0 if bucket in {"explore", "bridge", "falsify"} else 0.3),
+            "exploitation_score": portfolio_assignment.get("exploitation_score", 1.0 if bucket == "exploit" else 0.4),
+            "bridge_relevance": portfolio_assignment.get("bridge_relevance", 0.0),
+        },
+        "bridge_hypothesis": {
+            "source_family": "chem_qn::quinone_abstract" if bucket == "bridge" else None,
+            "target_family": "chem_pt::phenothiazine",
+            "transfer_hypothesis": "quinone-inspired substituent logic may transfer redox-beneficial behavior into the phenothiazine scaffold" if bucket == "bridge" else None,
+            "expected_transferred_effect": "redox_tuning" if bucket == "bridge" else None,
+            "expected_failure_mode": "effect_not_transferred" if bucket == "bridge" else None,
+            "transfer_confidence": portfolio_assignment.get("bridge_relevance", 0.0),
         },
         "ranking_snapshot": ranked_row or {},
     }
@@ -107,8 +111,17 @@ class GenerationAgent(BaseAgent):
         portfolio = []
         ranking_registry = []
 
-        for idx, candidate in enumerate(state.library_clean or []):
-            dossier = _build_dossier(candidate, prediction_map.get(candidate.get("id")), ranked_map.get(candidate.get("id")), idx)
+        portfolio_assignments = assign_portfolio_buckets(
+            [
+                {**candidate, "ranked_row": ranked_map.get(candidate.get("id"))}
+                for candidate in (state.library_clean or [])
+            ],
+            budgets=(self.config.get("portfolio") or {}).get("budgets"),
+        )
+        portfolio_map = {item["candidate_id"]: item for item in portfolio_assignments}
+
+        for candidate in (state.library_clean or []):
+            dossier = _build_dossier(candidate, prediction_map.get(candidate.get("id")), ranked_map.get(candidate.get("id")), portfolio_map.get(candidate.get("id")))
             dossiers.append(dossier)
             hypotheses.append({"candidate_id": dossier["candidate_id"], **dossier["hypothesis"]})
             portfolio.append({"candidate_id": dossier["candidate_id"], **dossier["portfolio_metadata"]})

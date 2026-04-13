@@ -15,6 +15,12 @@ screening:
     - diversity
   use_external_scores: false
   shortlist_size: 3
+portfolio:
+  budgets:
+    exploit: 0.40
+    explore: 0.25
+    bridge: 0.25
+    falsify: 0.10
 pipeline:
   stages:
     - generation_agent
