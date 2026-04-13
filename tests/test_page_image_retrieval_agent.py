@@ -10,7 +10,7 @@ from pz_agent.state import RunState
 def test_page_image_retrieval_agent_writes_artifact(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         "pz_agent.agents.page_image_retrieval.assemble_page_image_retrieval_for_candidate",
-        lambda candidate, artifacts_dir: {"candidate_id": candidate.get("id"), "target_count": 1, "targets": [{"figure_id": "f1"}], "backend": "colpali_planned", "status": "ok"},
+        lambda candidate, artifacts_dir, top_k=5: {"candidate_id": candidate.get("id"), "target_count": 1, "targets": [{"figure_id": "f1", "score": 0.5}], "backend": "local_image_similarity", "status": "ok"},
     )
 
     state = RunState(

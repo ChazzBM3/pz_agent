@@ -7,6 +7,8 @@ from pz_agent.retrieval.page_image_retrieval import COLPALI_HINT, assemble_page_
 
 
 def test_assemble_page_image_retrieval_for_candidate_builds_targets(tmp_path: Path) -> None:
+    fig_path = tmp_path / "fig1.png"
+    fig_path.write_bytes(b"phenothiazine-figure")
     candidate = {
         "id": "cand_1",
         "smiles": "CCN1c2ccccc2Sc2ccccc21",
@@ -14,9 +16,10 @@ def test_assemble_page_image_retrieval_for_candidate_builds_targets(tmp_path: Pa
             "figures": [
                 {
                     "figure_id": "figure::cand_1::abc",
-                    "storage_ref": str(tmp_path / "fig1.png"),
+                    "storage_ref": str(fig_path),
                     "source_document_path": str(tmp_path / "doc1.pdf"),
-                    "caption": None,
+                    "caption": "Figure 1. Phenothiazine redox",
+                    "ocr_text": "compound phenothiazine",
                 }
             ]
         },
@@ -25,6 +28,7 @@ def test_assemble_page_image_retrieval_for_candidate_builds_targets(tmp_path: Pa
     assert result["status"] == "ok"
     assert result["target_count"] == 1
     assert result["targets"][0]["status"] == COLPALI_HINT
+    assert result["targets"][0]["score"] > 0.1
 
 
 
