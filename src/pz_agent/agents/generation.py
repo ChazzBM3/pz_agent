@@ -23,6 +23,15 @@ def _build_dossier(candidate: dict, prediction: dict | None, ranked_row: dict | 
     structure_expansion = candidate.get("structure_expansion") or {}
     bucket = _portfolio_bucket(index)
     support_uncertainty = float(prediction.get("prediction_uncertainty", 0.25) if prediction else 0.25)
+    attachment_sites = candidate.get("sites") or identity.get("attachment_sites") or []
+    site_assignments = [
+        {
+            "site": site,
+            "role_label": next((token for token in (identity.get("positional_tokens") or []) if site.lower() in token.lower()), None),
+            "substituent_class": next((token for token in (identity.get("decoration_tokens") or [])), None),
+        }
+        for site in attachment_sites
+    ]
     dossier = {
         "candidate_id": candidate.get("id"),
         "identity": {
@@ -34,9 +43,14 @@ def _build_dossier(candidate: dict, prediction: dict | None, ranked_row: dict | 
         },
         "scaffold_metadata": {
             "scaffold_family": identity.get("scaffold") or "phenothiazine",
-            "attachment_sites": candidate.get("sites") or identity.get("attachment_sites") or [],
+            "attachment_sites": attachment_sites,
             "substituent_descriptors": identity.get("decoration_tokens") or [],
             "site_role_labels": identity.get("positional_tokens") or [],
+            "attachment_summary": identity.get("attachment_summary") or [],
+            "substituent_fragments": identity.get("substituent_fragments") or [],
+            "site_assignments": site_assignments,
+            "substitution_pattern": identity.get("substitution_pattern"),
+            "electronic_bias": identity.get("electronic_bias"),
         },
         "hypothesis": {
             "text": f"{candidate.get('id')} may improve phenothiazine screening objectives through its current substitution pattern.",
@@ -48,6 +62,10 @@ def _build_dossier(candidate: dict, prediction: dict | None, ranked_row: dict | 
             "predicted_reduction_potential": prediction.get("predicted_reduction_potential") if prediction else None,
             "predicted_solubility": prediction.get("predicted_solubility") if prediction else None,
             "predicted_synthesizability": prediction.get("predicted_synthesizability") if prediction else None,
+            "predicted_priority": ranked_row.get("predicted_priority") if ranked_row else None,
+            "sa_score": prediction.get("sa_score") if prediction else None,
+            "route_score": prediction.get("route_score") if prediction else None,
+            "novelty_ip_score": prediction.get("novelty_ip_score") if prediction else None,
             "uncertainty": support_uncertainty,
         },
         "evidence_hooks": {

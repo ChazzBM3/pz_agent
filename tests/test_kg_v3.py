@@ -24,5 +24,6 @@ def test_build_graph_snapshot_includes_transitional_v3_nodes(tmp_path: Path) -> 
     assert "run::simulation_result::cand_1" in node_ids
     assert "belief::cand_1" in node_ids
     assert "belief::dossier::cand_1" in node_ids
+    assert "chem_pt::scaffold::phenothiazine" in node_ids
     run_node = next(node for node in graph["nodes"] if node["id"].startswith("run::"))
     assert "kg_layers" in run_node["attrs"]

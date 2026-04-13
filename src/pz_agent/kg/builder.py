@@ -51,6 +51,23 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         add_edge(dossier_id, dossier["candidate_id"], "PROPOSES")
         add_edge(dossier_id, run_id, "GENERATED_IN_RUN")
 
+        scaffold_meta = dossier.get("scaffold_metadata") or {}
+        scaffold_name = scaffold_meta.get("scaffold_family") or "phenothiazine"
+        scaffold_id = f"chem_pt::scaffold::{scaffold_name}"
+        add_node({"id": scaffold_id, "type": "Scaffold", "attrs": {"name": scaffold_name, "layer": "chemistry"}})
+        add_edge(dossier["candidate_id"], scaffold_id, "BELONGS_TO_FAMILY")
+
+        for site_assignment in scaffold_meta.get("site_assignments") or []:
+            site = site_assignment.get("site") or "unknown"
+            site_id = f"chem_pt::site::{dossier['candidate_id']}::{site}"
+            add_node({"id": site_id, "type": "AttachmentSite", "attrs": {**site_assignment, "candidate_id": dossier["candidate_id"]}})
+            add_edge(dossier["candidate_id"], site_id, "ATTACHED_AT")
+            substituent_class = site_assignment.get("substituent_class")
+            if substituent_class:
+                substituent_id = f"chem_pt::substituent::{dossier['candidate_id']}::{substituent_class}"
+                add_node({"id": substituent_id, "type": "Substituent", "attrs": {"name": substituent_class, "candidate_id": dossier["candidate_id"]}})
+                add_edge(site_id, substituent_id, "HAS_DECORATION_PATTERN")
+
     for belief in state.belief_registry or []:
         belief_id = f"belief::{belief['candidate_id']}"
         add_node({"id": belief_id, "type": "Hypothesis", "attrs": belief})
