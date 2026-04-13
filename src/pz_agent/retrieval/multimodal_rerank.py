@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 from pz_agent.chemistry.vision_client import DEFAULT_VISION_MODEL, extract_visual_identity_with_gemini, gemini_vision_available
@@ -12,6 +11,7 @@ DEFAULT_GEMMA_MULTIMODAL_PROMPT = (
     "Use the target structure image, candidate identity, source snippet, figure crop path, and caption/OCR context. "
     "Return JSON with keys: match_label, property_relevance, confidence, justification, needs_human_review."
 )
+
 
 
 def build_gemma_multimodal_prompt(bundle: dict[str, Any]) -> str:
@@ -40,6 +40,7 @@ def build_gemma_multimodal_prompt(bundle: dict[str, Any]) -> str:
     return json.dumps(payload, indent=2)
 
 
+
 def parse_gemma_multimodal_response(text: str) -> dict[str, Any]:
     try:
         payload = json.loads(text)
@@ -53,14 +54,28 @@ def parse_gemma_multimodal_response(text: str) -> dict[str, Any]:
             "status": "parse_failed",
         }
 
+    match_label = str(payload.get("match_label", "unknown") or "unknown").lower()
+    if match_label not in {"exact", "analog", "possible", "unknown", "unrelated", "negative"}:
+        match_label = "unknown"
+
+    property_relevance = str(payload.get("property_relevance", "unknown") or "unknown").lower()
+    confidence = str(payload.get("confidence", "unknown") or "unknown").lower()
+    if confidence not in {"high", "medium", "low", "unknown"}:
+        confidence = "unknown"
+
+    justification = payload.get("justification")
+    if not justification:
+        justification = "gemma judgment returned without justification"
+
     return {
-        "match_label": payload.get("match_label", "unknown"),
-        "property_relevance": payload.get("property_relevance", "unknown"),
-        "confidence": payload.get("confidence", "unknown"),
-        "justification": payload.get("justification"),
+        "match_label": match_label,
+        "property_relevance": property_relevance,
+        "confidence": confidence,
+        "justification": justification,
         "needs_human_review": bool(payload.get("needs_human_review", False)),
         "status": "ok",
     }
+
 
 
 def _fallback_multimodal_judgment(bundle: dict[str, Any], reason: str) -> dict[str, Any]:
@@ -68,16 +83,19 @@ def _fallback_multimodal_judgment(bundle: dict[str, Any], reason: str) -> dict[s
     caption = str(bundle.get("caption") or "").lower()
     ocr_text = str(bundle.get("ocr_text") or "").lower()
     text = f"{caption} {ocr_text}"
-    if score >= 0.75 or "phenothiazine" in text:
+    if score >= 0.85 or ("phenothiazine" in text and "redox" in text):
         match_label = "analog"
         confidence = "medium"
-    elif score >= 0.4:
+    elif score >= 0.5 or "phenothiazine" in text:
         match_label = "possible"
+        confidence = "low"
+    elif "irrelevant" in text or "biology" in text:
+        match_label = "unrelated"
         confidence = "low"
     else:
         match_label = "unknown"
         confidence = "low"
-    property_relevance = "redox" if "redox" in text else "unknown"
+    property_relevance = "redox" if "redox" in text else ("solubility" if "solubility" in text else "unknown")
     return {
         "match_label": match_label,
         "property_relevance": property_relevance,
@@ -86,6 +104,44 @@ def _fallback_multimodal_judgment(bundle: dict[str, Any], reason: str) -> dict[s
         "needs_human_review": True,
         "status": "fallback",
     }
+
+
+
+def _map_visual_identity_to_judgment(visual_identity: dict[str, Any], bundle: dict[str, Any], backend_status: str) -> dict[str, Any]:
+    scaffold_confirmed = bool(visual_identity.get("scaffold_confirmed"))
+    confidence_raw = visual_identity.get("confidence")
+    try:
+        confidence_value = float(confidence_raw)
+    except (TypeError, ValueError):
+        confidence_value = 0.0
+    retrieval_score = float(bundle.get("retrieval_score") or 0.0)
+    phrases = [str(x).lower() for x in (visual_identity.get("retrieval_phrases") or [])]
+    notes = str(visual_identity.get("notes") or "")
+    phrase_text = " ".join(phrases + [notes.lower(), str(bundle.get("caption") or "").lower(), str(bundle.get("ocr_text") or "").lower()])
+
+    if scaffold_confirmed and (confidence_value >= 0.75 or retrieval_score >= 0.8):
+        match_label = "analog"
+        confidence = "high" if confidence_value >= 0.85 else "medium"
+    elif scaffold_confirmed or retrieval_score >= 0.5:
+        match_label = "possible"
+        confidence = "medium" if confidence_value >= 0.5 else "low"
+    elif any(token in phrase_text for token in ["irrelevant", "biology", "protein"]):
+        match_label = "unrelated"
+        confidence = "low"
+    else:
+        match_label = "unknown"
+        confidence = "low"
+
+    property_relevance = "redox" if "redox" in phrase_text else ("solubility" if "solubility" in phrase_text else "unknown")
+    return {
+        "match_label": match_label,
+        "property_relevance": property_relevance,
+        "confidence": confidence,
+        "justification": f"mapped from visual backend ({backend_status})",
+        "needs_human_review": confidence != "high",
+        "status": "ok",
+    }
+
 
 
 def invoke_gemma_multimodal(bundle: dict[str, Any], model: str = DEFAULT_VISION_MODEL, timeout: int = 120) -> dict[str, Any]:
@@ -110,23 +166,25 @@ def invoke_gemma_multimodal(bundle: dict[str, Any], model: str = DEFAULT_VISION_
 
     prompt = build_gemma_multimodal_prompt(bundle)
     target_result = extract_visual_identity_with_gemini(target_image_path, prompt=prompt, model=model, timeout=timeout)
-    status = target_result.get("vision_status")
+    status = str(target_result.get("vision_status") or "unknown_backend_status")
     if status != "gemini_ok":
         return {
             "gemma_response": target_result.get("raw_output"),
-            "gemma_judgment": _fallback_multimodal_judgment(bundle, str(status)),
+            "gemma_judgment": _fallback_multimodal_judgment(bundle, status),
             "backend_status": status,
             "backend": "fallback",
         }
 
     visual_identity = target_result.get("visual_identity") or {}
     response_text = json.dumps(visual_identity)
+    judgment = _map_visual_identity_to_judgment(visual_identity, bundle, backend_status=status)
     return {
         "gemma_response": response_text,
-        "gemma_judgment": parse_gemma_multimodal_response(response_text),
+        "gemma_judgment": judgment,
         "backend_status": status,
         "backend": model,
     }
+
 
 
 def assemble_multimodal_rerank_for_candidate(candidate: dict[str, Any], invoke_live: bool = True, model: str = DEFAULT_VISION_MODEL, timeout: int = 120) -> dict[str, Any]:

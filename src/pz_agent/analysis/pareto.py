@@ -187,6 +187,9 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
     scholarly_hit_count = int(signals.get("scholarly_hit_count", 0) or 0)
     support_score = float(signals.get("support_score", 0.0) or 0.0)
     contradiction_score = float(signals.get("contradiction_score", 0.0) or 0.0)
+    multimodal_support_score = float(signals.get("multimodal_support_score", 0.0) or 0.0)
+    multimodal_contradiction_score = float(signals.get("multimodal_contradiction_score", 0.0) or 0.0)
+    multimodal_mean_retrieval_score = float(signals.get("multimodal_mean_retrieval_score", 0.0) or 0.0)
     measurement_count = int(signals.get("measurement_count", 0) or 0)
     property_count = int(signals.get("property_count", 0) or 0)
 
@@ -226,6 +229,18 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
         contradiction_penalty = min(0.10, contradiction_score * 0.01)
         bonus -= contradiction_penalty
         rationale.append(f"kg_contradiction_penalty={contradiction_penalty:.3f}")
+    if multimodal_support_score > 0:
+        mm_support_bonus = min(0.08, multimodal_support_score * 0.04)
+        bonus += mm_support_bonus
+        rationale.append(f"multimodal_support_bonus={mm_support_bonus:.3f}")
+    if multimodal_contradiction_score > 0:
+        mm_contradiction_penalty = min(0.08, multimodal_contradiction_score * 0.05)
+        bonus -= mm_contradiction_penalty
+        rationale.append(f"multimodal_contradiction_penalty={mm_contradiction_penalty:.3f}")
+    if multimodal_mean_retrieval_score > 0:
+        mm_retrieval_bonus = min(0.03, multimodal_mean_retrieval_score * 0.02)
+        bonus += mm_retrieval_bonus
+        rationale.append(f"multimodal_retrieval_bonus={mm_retrieval_bonus:.3f}")
     if measurement_count > 0:
         measurement_bonus = min(0.06, measurement_count * 0.002)
         bonus += measurement_bonus

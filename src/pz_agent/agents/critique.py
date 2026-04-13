@@ -3,6 +3,15 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 from pz_agent.agents.base import BaseAgent
+from pz_agent.agents.document_fetch import DocumentFetchAgent
+from pz_agent.agents.figure_corpus import FigureCorpusAgent
+from pz_agent.agents.multimodal_rerank import MultimodalRerankAgent
+from pz_agent.agents.ocr_caption import OCRCaptionAgent
+from pz_agent.agents.page_corpus import PageCorpusAgent
+from pz_agent.agents.page_image_retrieval import PageImageRetrievalAgent
+from pz_agent.agents.patent_retrieval import PatentRetrievalAgent
+from pz_agent.agents.scholarly_retrieval import ScholarlyRetrievalAgent
+from pz_agent.agents.base import BaseAgent
 from pz_agent.io import write_json
 from pz_agent.kg.retrieval import attach_critique_placeholders, synthesize_evidence_from_queries
 from pz_agent.search.backends import get_search_backend
@@ -175,37 +184,46 @@ def _infer_evidence_tier(signals: dict) -> str:
 def _apply_multimodal_judgments(note: dict) -> dict:
     signals = dict(note.get("signals", {}))
     multimodal_bundle = note.get("multimodal_rerank") or {}
-    judgments = []
     exact_bonus = 0
     analog_bonus = 0
     support_bonus = 0.0
     contradiction_penalty = 0.0
     property_bonus = 0
     human_review_flags = 0
+    multimodal_support = 0.0
+    multimodal_contradiction = 0.0
+    multimodal_score_sum = 0.0
+    multimodal_score_count = 0
 
     for bundle in multimodal_bundle.get("bundles") or []:
         judgment = bundle.get("gemma_judgment") or {}
         if not judgment:
             continue
-        judgments.append(judgment)
         label = str(judgment.get("match_label") or "unknown").lower()
         relevance = str(judgment.get("property_relevance") or "unknown").lower()
         confidence = str(judgment.get("confidence") or "unknown").lower()
         needs_review = bool(judgment.get("needs_human_review", False))
+        retrieval_score = float(bundle.get("retrieval_score") or 0.0)
         if needs_review:
             human_review_flags += 1
         conf_weight = {"high": 1.0, "medium": 0.6, "low": 0.25}.get(confidence, 0.2)
+        weighted_conf = conf_weight * max(0.25, retrieval_score if retrieval_score > 0 else 0.5)
+        multimodal_score_sum += retrieval_score
+        multimodal_score_count += 1
         if label == "exact":
             exact_bonus += 1
-            support_bonus += 0.7 * conf_weight
-        elif label == "analog":
-            analog_bonus += 1
-            support_bonus += 0.35 * conf_weight
+            support_bonus += 0.8 * weighted_conf
+            multimodal_support += weighted_conf
+        elif label in {"analog", "possible"}:
+            analog_bonus += 1 if label == "analog" else 0
+            support_bonus += 0.45 * weighted_conf
+            multimodal_support += 0.7 * weighted_conf
         elif label in {"unrelated", "negative"}:
-            contradiction_penalty += 0.5 * conf_weight
+            contradiction_penalty += 0.65 * weighted_conf
+            multimodal_contradiction += weighted_conf
         if relevance not in {"unknown", "none", "irrelevant"}:
             property_bonus += 1
-            support_bonus += 0.1 * conf_weight
+            support_bonus += 0.12 * weighted_conf
 
     signals["exact_match_hits"] = int(signals.get("exact_match_hits", 0) or 0) + exact_bonus
     signals["analog_match_hits"] = int(signals.get("analog_match_hits", 0) or 0) + analog_bonus
@@ -213,6 +231,10 @@ def _apply_multimodal_judgments(note: dict) -> dict:
     signals["support_score"] = float(signals.get("support_score", 0.0) or 0.0) + support_bonus
     signals["contradiction_score"] = float(signals.get("contradiction_score", 0.0) or 0.0) + contradiction_penalty
     signals["multimodal_review_flags"] = int(signals.get("multimodal_review_flags", 0) or 0) + human_review_flags
+    signals["multimodal_support_score"] = float(signals.get("multimodal_support_score", 0.0) or 0.0) + multimodal_support
+    signals["multimodal_contradiction_score"] = float(signals.get("multimodal_contradiction_score", 0.0) or 0.0) + multimodal_contradiction
+    if multimodal_score_count > 0:
+        signals["multimodal_mean_retrieval_score"] = multimodal_score_sum / multimodal_score_count
     note["signals"] = signals
     return note
 
@@ -351,9 +373,22 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
 
 
 class CritiqueAgent(BaseAgent):
-    name = "critique"
+    name = "critique_agent"
 
     def run(self, state: RunState) -> RunState:
+        worker_sequence = [
+            PatentRetrievalAgent(config=self.config),
+            ScholarlyRetrievalAgent(config=self.config),
+            PageCorpusAgent(config=self.config),
+            DocumentFetchAgent(config=self.config),
+            FigureCorpusAgent(config=self.config),
+            OCRCaptionAgent(config=self.config),
+            PageImageRetrievalAgent(config=self.config),
+            MultimodalRerankAgent(config=self.config),
+        ]
+        for worker in worker_sequence:
+            state = worker.run(state)
+
         search_fields = list(self.config.get("critique", {}).get("search_fields", []))
         enable_web_search = bool(self.config.get("critique", {}).get("enable_web_search", True))
         critique_notes = attach_critique_placeholders(
@@ -370,19 +405,72 @@ class CritiqueAgent(BaseAgent):
 
         if enable_web_search and backend_name != "stub":
             critique_notes = [_live_search_note(note, backend_name=backend_name, count=count) for note in critique_notes]
-            state.log(f"Critique agent collected live web evidence using {backend_name}")
+            state.log(f"CritiqueAgent collected live web evidence using {backend_name}")
         else:
             critique_notes = synthesize_evidence_from_queries(critique_notes)
-            state.log("Critique agent prepared candidate evidence bundles with KG-derived context, targeted queries, and text/image placeholders")
+            state.log("CritiqueAgent prepared candidate evidence bundles with KG-derived context and multimodal hooks")
 
         enriched_notes = []
+        belief_registry = []
+        bridge_registry = []
+        simulation_requests = []
         for note in critique_notes:
             note = dict(note)
             note["multimodal_rerank"] = multimodal_map.get(note.get("candidate_id"), {"candidate_id": note.get("candidate_id"), "bundles": [], "status": "empty"})
             note = _apply_multimodal_judgments(note)
-            note["evidence_tier"] = _infer_evidence_tier(note.get("signals", {}))
+            signals = note.get("signals", {}) or {}
+            note["evidence_tier"] = _infer_evidence_tier(signals)
+            support = float(signals.get("support_score", 0.0) or 0.0)
+            contradiction = float(signals.get("contradiction_score", 0.0) or 0.0)
+            if contradiction >= 0.8:
+                decision = "reject"
+                next_tier = None
+            elif support >= 0.8:
+                decision = "approve"
+                next_tier = None
+            elif support >= 0.35:
+                decision = "simulate-next"
+                next_tier = 1 if signals.get("multimodal_support_score", 0.0) else 2
+            else:
+                decision = "revise"
+                next_tier = 1
+            note["decision"] = decision
+            note["recommended_next_tier"] = next_tier
+            note["contradiction_ledger"] = [item for item in (note.get("evidence") or []) if item.get("match_type") in {"negative", "unrelated"}]
+            note["evidence_ledger"] = list(note.get("evidence") or [])
+            belief_status = "supported" if decision == "approve" else ("contradicted" if decision == "reject" else ("testing" if decision == "simulate-next" else "open"))
+            belief_confidence = max(0.1, min(1.0, support - contradiction + 0.5))
+            belief_registry.append({
+                "candidate_id": note.get("candidate_id"),
+                "status": belief_status,
+                "confidence": belief_confidence,
+                "evidence_count": len(note.get("evidence_ledger") or []),
+                "owner": "CritiqueAgent",
+                "last_updated_by": "critique_agent",
+                "unresolved_uncertainties": [
+                    "simulation_needed" if decision == "simulate-next" else None,
+                    "contradiction_present" if contradiction > 0 else None,
+                ],
+            })
+            bridge_registry.append({
+                "candidate_id": note.get("candidate_id"),
+                "source_family": "chem_qn::quinone_abstract",
+                "target_family": "chem_pt::phenothiazine",
+                "transfer_reason": "analogy_seed" if note.get("evidence_tier") in {"analog", "scaffold"} else "local_family_refinement",
+                "status": "proposed" if decision in {"revise", "simulate-next"} else "retained",
+            })
+            if decision == "simulate-next":
+                simulation_requests.append({
+                    "candidate_id": note.get("candidate_id"),
+                    "requested_tier": next_tier,
+                    "reason": "critique_uncertainty_resolution",
+                })
             enriched_notes.append(note)
 
         state.critique_notes = enriched_notes
-        write_json(state.run_dir / "critique_notes.json", critique_notes)
+        state.belief_registry = belief_registry
+        state.bridge_registry = bridge_registry
+        state.simulation_requests = simulation_requests
+        write_json(state.run_dir / "critique_notes.json", enriched_notes)
+        state.log(f"CritiqueAgent completed macro evidence pass for {len(enriched_notes)} candidates")
         return state

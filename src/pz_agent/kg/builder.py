@@ -13,6 +13,7 @@ from pz_agent.kg.claims import (
     stable_node_id,
 )
 from pz_agent.kg.merge import append_graph_update
+from pz_agent.kg.schema_v3 import KG_V3_LAYERS
 from pz_agent.state import RunState
 
 
@@ -36,13 +37,66 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         seen_edges.add(key)
         edges.append({"source": source, "target": target, "type": edge_type})
 
-    run_id = state.run_dir.name
-    add_node({"id": run_id, "type": "Run", "attrs": {"logs": len(state.logs)}})
+    run_id = f"run::{state.run_dir.name}"
+    add_node({"id": run_id, "type": "Run", "attrs": {"logs": len(state.logs), "kg_layers": KG_V3_LAYERS}})
 
     for idx, batch in enumerate(state.generation_registry or []):
-        batch_id = f"generation_batch::{idx}"
+        batch_id = f"run::generation_batch::{idx}"
         add_node({"id": batch_id, "type": "GenerationBatch", "attrs": batch})
         add_edge(batch_id, run_id, "GENERATED_IN_RUN")
+
+    for dossier in state.dossier_registry or []:
+        dossier_id = f"belief::dossier::{dossier['candidate_id']}"
+        add_node({"id": dossier_id, "type": "Hypothesis", "attrs": dossier})
+        add_edge(dossier_id, dossier["candidate_id"], "PROPOSES")
+        add_edge(dossier_id, run_id, "GENERATED_IN_RUN")
+
+        scaffold_meta = dossier.get("scaffold_metadata") or {}
+        scaffold_name = scaffold_meta.get("scaffold_family") or "phenothiazine"
+        scaffold_id = f"chem_pt::scaffold::{scaffold_name}"
+        add_node({"id": scaffold_id, "type": "Scaffold", "attrs": {"name": scaffold_name, "layer": "chemistry"}})
+        add_edge(dossier["candidate_id"], scaffold_id, "BELONGS_TO_FAMILY")
+
+        for site_assignment in scaffold_meta.get("site_assignments") or []:
+            site = site_assignment.get("site") or "unknown"
+            site_id = f"chem_pt::site::{dossier['candidate_id']}::{site}"
+            add_node({"id": site_id, "type": "AttachmentSite", "attrs": {**site_assignment, "candidate_id": dossier["candidate_id"]}})
+            add_edge(dossier["candidate_id"], site_id, "ATTACHED_AT")
+            substituent_class = site_assignment.get("substituent_class")
+            if substituent_class:
+                substituent_id = f"chem_pt::substituent::{dossier['candidate_id']}::{substituent_class}"
+                add_node({"id": substituent_id, "type": "Substituent", "attrs": {"name": substituent_class, "candidate_id": dossier["candidate_id"]}})
+                add_edge(site_id, substituent_id, "HAS_DECORATION_PATTERN")
+
+    for belief in state.belief_registry or []:
+        belief_id = f"belief::{belief['candidate_id']}"
+        add_node({"id": belief_id, "type": "Hypothesis", "attrs": belief})
+        add_edge(belief_id, belief["candidate_id"], "ABOUT_MOLECULE")
+        add_edge(belief_id, run_id, "UPDATES_BELIEF")
+
+    for bridge in state.bridge_registry or []:
+        bridge_id = f"bridge::{bridge['candidate_id']}::{bridge.get('source_family')}::{bridge.get('target_family')}"
+        add_node({"id": bridge_id, "type": "TransformRule", "attrs": bridge})
+        add_edge(bridge_id, bridge["candidate_id"], "TRANSFERS_UNDER")
+        add_edge(bridge_id, run_id, "GENERATED_IN_RUN")
+
+    for ranking in state.ranking_registry or []:
+        rank_id = f"run::ranking::{ranking['candidate_id']}"
+        add_node({"id": rank_id, "type": "RankingDecision", "attrs": ranking})
+        add_edge(rank_id, ranking["candidate_id"], "RANKED_IN")
+        add_edge(rank_id, run_id, "GENERATED_IN_RUN")
+
+    for request in state.simulation_requests or []:
+        request_id = f"run::simulation_request::{request['candidate_id']}::{request.get('requested_tier')}"
+        add_node({"id": request_id, "type": "SimulationRequest", "attrs": request})
+        add_edge(request_id, request["candidate_id"], "TESTS")
+        add_edge(request_id, run_id, "GENERATED_IN_RUN")
+
+    for result in state.simulation_results or []:
+        result_id = f"run::simulation_result::{result['candidate_id']}"
+        add_node({"id": result_id, "type": "SimulationResult", "attrs": result})
+        add_edge(result_id, result["candidate_id"], "VALIDATED_BY")
+        add_edge(result_id, run_id, "GENERATED_IN_RUN")
 
     for item in state.library_clean or []:
         attrs = dict(item)

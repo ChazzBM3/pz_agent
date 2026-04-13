@@ -20,6 +20,8 @@ class MoleculeIdentity:
     decoration_tokens: list[str] | None = None
     substituent_fragments: list[str] | None = None
     attachment_summary: list[str] | None = None
+    attachment_sites: list[str] | None = None
+    site_assignments: list[dict[str, Any]] | None = None
     substitution_pattern: str | None = None
     positional_tokens: list[str] | None = None
     molecular_formula: str | None = None

@@ -17,23 +17,11 @@ screening:
   shortlist_size: 3
 pipeline:
   stages:
-    - library_designer
-    - standardizer
-    - structure_expansion
-    - patent_retrieval
-    - scholarly_retrieval
-    - page_corpus
-    - document_fetch
-    - figure_corpus
-    - ocr_caption
-    - page_image_retrieval
-    - multimodal_rerank
-    - surrogate_screen
-    - benchmark
+    - generation_agent
     - knowledge_graph
-    - ranker
-    - critique
+    - critique_agent
     - critique_reranker
+    - simulation_planner
     - knowledge_graph
     - reporter
     - dft_handoff
@@ -87,6 +75,8 @@ multimodal_rerank:
   invoke_live: true
   model: gemini-2.5-flash
   timeout: 120
+simulation_planner:
+  enabled: true
 search:
   backend: stub
   count: 5

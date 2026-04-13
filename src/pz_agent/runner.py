@@ -8,6 +8,7 @@ from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
 from pz_agent.agents.dft_handoff import DFTHandoffAgent
 from pz_agent.agents.document_fetch import DocumentFetchAgent
 from pz_agent.agents.figure_corpus import FigureCorpusAgent
+from pz_agent.agents.generation import GenerationAgent
 from pz_agent.agents.knowledge_graph import KnowledgeGraphAgent
 from pz_agent.agents.library_designer import LibraryDesignerAgent
 from pz_agent.agents.multimodal_rerank import MultimodalRerankAgent
@@ -18,6 +19,7 @@ from pz_agent.agents.patent_retrieval import PatentRetrievalAgent
 from pz_agent.agents.ranker import RankerAgent
 from pz_agent.agents.reporter import ReporterAgent
 from pz_agent.agents.scholarly_retrieval import ScholarlyRetrievalAgent
+from pz_agent.agents.simulation_planner import SimulationPlannerAgent
 from pz_agent.agents.standardizer import StandardizerAgent
 from pz_agent.agents.structure_expansion import StructureExpansionAgent
 from pz_agent.agents.surrogate_screen import SurrogateScreenAgent
@@ -31,6 +33,7 @@ STAGE_MAP = {
     "library_designer": LibraryDesignerAgent,
     "standardizer": StandardizerAgent,
     "structure_expansion": StructureExpansionAgent,
+    "generation_agent": GenerationAgent,
     "patent_retrieval": PatentRetrievalAgent,
     "scholarly_retrieval": ScholarlyRetrievalAgent,
     "page_corpus": PageCorpusAgent,
@@ -45,7 +48,9 @@ STAGE_MAP = {
     "knowledge_graph": KnowledgeGraphAgent,
     "ranker": RankerAgent,
     "critique": CritiqueAgent,
+    "critique_agent": CritiqueAgent,
     "critique_reranker": CritiqueRerankerAgent,
+    "simulation_planner": SimulationPlannerAgent,
     "reporter": ReporterAgent,
     "dft_handoff": DFTHandoffAgent,
 }
@@ -82,6 +87,10 @@ def _write_state_snapshot(state: RunState) -> None:
             "page_image_registry_count": len(state.page_image_registry or []),
             "multimodal_registry_count": len(state.multimodal_registry or []),
             "ocr_registry_count": len(state.ocr_registry or []),
+            "dossier_registry_count": len(state.dossier_registry or []),
+            "hypothesis_registry_count": len(state.hypothesis_registry or []),
+            "belief_registry_count": len(state.belief_registry or []),
+            "simulation_request_count": len(state.simulation_requests or []),
         },
     )
 
