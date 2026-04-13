@@ -21,6 +21,7 @@ pipeline:
     - knowledge_graph
     - critique_agent
     - critique_reranker
+    - simulation_planner
     - knowledge_graph
     - reporter
     - dft_handoff
@@ -74,6 +75,8 @@ multimodal_rerank:
   invoke_live: true
   model: gemini-2.5-flash
   timeout: 120
+simulation_planner:
+  enabled: true
 search:
   backend: stub
   count: 5

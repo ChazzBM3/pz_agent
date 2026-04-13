@@ -19,6 +19,7 @@ from pz_agent.agents.patent_retrieval import PatentRetrievalAgent
 from pz_agent.agents.ranker import RankerAgent
 from pz_agent.agents.reporter import ReporterAgent
 from pz_agent.agents.scholarly_retrieval import ScholarlyRetrievalAgent
+from pz_agent.agents.simulation_planner import SimulationPlannerAgent
 from pz_agent.agents.standardizer import StandardizerAgent
 from pz_agent.agents.structure_expansion import StructureExpansionAgent
 from pz_agent.agents.surrogate_screen import SurrogateScreenAgent
@@ -49,6 +50,7 @@ STAGE_MAP = {
     "critique": CritiqueAgent,
     "critique_agent": CritiqueAgent,
     "critique_reranker": CritiqueRerankerAgent,
+    "simulation_planner": SimulationPlannerAgent,
     "reporter": ReporterAgent,
     "dft_handoff": DFTHandoffAgent,
 }
