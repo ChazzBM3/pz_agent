@@ -22,6 +22,16 @@ class RunState:
     critique_notes: list[dict[str, Any]] | None = None
     media_registry: list[dict[str, Any]] | None = None
     generation_registry: list[dict[str, Any]] | None = None
+    visual_registry: list[dict[str, Any]] | None = None
+    structure_expansion: list[dict[str, Any]] | None = None
+    patent_registry: list[dict[str, Any]] | None = None
+    scholarly_registry: list[dict[str, Any]] | None = None
+    page_registry: list[dict[str, Any]] | None = None
+    document_registry: list[dict[str, Any]] | None = None
+    figure_registry: list[dict[str, Any]] | None = None
+    page_image_registry: list[dict[str, Any]] | None = None
+    multimodal_registry: list[dict[str, Any]] | None = None
+    ocr_registry: list[dict[str, Any]] | None = None
     logs: list[str] = field(default_factory=list)
 
     def log(self, message: str) -> None:

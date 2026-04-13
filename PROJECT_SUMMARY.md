@@ -146,6 +146,19 @@ GitHub:
 - live enrichment artifact path
 - normalized literature/evidence nodes in enriched graph
 - enriched reranking path
+- initial direct multimodal benchmark path for rendered-structure -> Gemini extraction
+
+## Retrieval direction update
+
+The current best next direction is a structure-first retrieval stack rather than image-to-phrase search:
+- RDKit + RanDepict for structure-native query assets
+- PubChem for exact/similarity/substructure expansion
+- SureChEMBL + PatCID for patent-first retrieval
+- OpenAlex as the scholarly metadata/text companion after structure expansion
+- later page corpus assembly + ColPali page-image retrieval
+- Gemma 4 for multimodal reranking and justification, not first-stage search generation
+
+This reframes multimodal vision as an evidence-ranking layer rather than the main query-generation layer.
 
 ## What is still scaffold-level / incomplete
 

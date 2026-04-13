@@ -19,6 +19,15 @@ pipeline:
   stages:
     - library_designer
     - standardizer
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
+    - page_corpus
+    - document_fetch
+    - figure_corpus
+    - ocr_caption
+    - page_image_retrieval
+    - multimodal_rerank
     - surrogate_screen
     - benchmark
     - knowledge_graph
@@ -39,6 +48,45 @@ critique:
     - solubility
     - synthesizability
     - derivative
+structure_expansion:
+  enabled: true
+  similarity_threshold: 90
+  similarity_max_records: 5
+  substructure_max_records: 5
+  timeout: 20
+patent_retrieval:
+  enabled: true
+  count: 5
+  timeout: 20
+scholarly_retrieval:
+  enabled: true
+  count: 5
+  mode: broad
+  max_queries: 6
+  exact_query_budget: 1
+  analog_query_budget: 3
+  exploratory_query_budget: 2
+page_corpus:
+  enabled: true
+document_fetch:
+  enabled: true
+  artifacts_dir: artifacts/page_assets
+  fetch_live: true
+  timeout: 20
+figure_corpus:
+  enabled: true
+  artifacts_dir: artifacts/figure_assets
+ocr_caption:
+  enabled: true
+page_image_retrieval:
+  enabled: true
+  artifacts_dir: artifacts/page_image_retrieval
+  top_k: 5
+multimodal_rerank:
+  enabled: true
+  invoke_live: true
+  model: gemini-2.5-flash
+  timeout: 120
 search:
   backend: stub
   count: 5

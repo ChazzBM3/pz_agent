@@ -5,3 +5,5 @@ __pycache__/
 *.pyd
 *.egg-info/
 artifacts/run/
+artifacts/*_run/
+artifacts/review_run/

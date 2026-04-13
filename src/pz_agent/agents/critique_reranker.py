@@ -3,6 +3,11 @@ from __future__ import annotations
 from pz_agent.agents.base import BaseAgent
 from pz_agent.analysis.diversity import diversify_placeholder
 from pz_agent.analysis.pareto import apply_literature_adjustment, compute_decoration_adjustment
+from pz_agent.kg.rag import (
+    summarize_candidate_property_values,
+    summarize_property_coverage,
+    summarize_support_contradiction,
+)
 from pz_agent.state import RunState
 
 
@@ -18,7 +23,62 @@ class CritiqueRerankerAgent(BaseAgent):
             item["decoration_adjustment_second_pass"] = decoration_bonus
             item.setdefault("ranking_rationale", {})
             item["ranking_rationale"]["decoration_adjustment_second_pass"] = decoration_rationale
-            reranked.append(apply_literature_adjustment(item, note_map.get(row["id"])))
+
+            note = dict(note_map.get(row["id"], {})) if note_map.get(row["id"]) else None
+            if note is not None:
+                note.setdefault("signals", {})
+                kg_summary = summarize_support_contradiction(state.knowledge_graph_path, row["id"])
+                measurement_summary = summarize_property_coverage(state.knowledge_graph_path, row["id"])
+                measurement_values = summarize_candidate_property_values(
+                    state.knowledge_graph_path,
+                    row["id"],
+                    [
+                        "oxidation_potential",
+                        "reduction_potential",
+                        "groundState.solvation_energy",
+                        "hole_reorganization_energy",
+                        "electron_reorganization_energy",
+                    ],
+                )
+                note["signals"]["exact_match_hits"] = max(
+                    int(note["signals"].get("exact_match_hits", 0) or 0),
+                    int(kg_summary.get("exact_match_hits", 0) or 0),
+                )
+                note["signals"]["analog_match_hits"] = max(
+                    int(note["signals"].get("analog_match_hits", 0) or 0),
+                    int(kg_summary.get("analog_match_hits", 0) or 0),
+                )
+                note["signals"]["support_score"] = max(
+                    float(note["signals"].get("support_score", 0.0) or 0.0),
+                    float(kg_summary.get("support_score", 0.0) or 0.0),
+                )
+                note["signals"]["contradiction_score"] = max(
+                    float(note["signals"].get("contradiction_score", 0.0) or 0.0),
+                    float(kg_summary.get("contradiction_score", 0.0) or 0.0),
+                )
+                note["signals"]["patent_hit_count"] = max(
+                    int(note["signals"].get("patent_hit_count", 0) or 0),
+                    int(kg_summary.get("patent_hit_count", 0) or 0),
+                )
+                note["signals"]["scholarly_hit_count"] = max(
+                    int(note["signals"].get("scholarly_hit_count", 0) or 0),
+                    int(kg_summary.get("scholarly_hit_count", 0) or 0),
+                )
+                note["signals"]["measurement_count"] = max(
+                    int(note["signals"].get("measurement_count", 0) or 0),
+                    int(measurement_summary.get("measurement_count", 0) or 0),
+                )
+                note["signals"]["property_count"] = max(
+                    int(note["signals"].get("property_count", 0) or 0),
+                    int(measurement_summary.get("property_count", 0) or 0),
+                )
+                item.setdefault("ranking_rationale", {})
+                item["ranking_rationale"]["kg_summary"] = kg_summary
+                item["ranking_rationale"]["measurement_summary"] = measurement_summary
+                item["ranking_rationale"]["measurement_values"] = measurement_values
+                note["measurement_context"] = measurement_summary
+                note["measurement_values"] = measurement_values
+            reranked.append(apply_literature_adjustment(item, note))
         reranked.sort(
             key=lambda x: (
                 -1.0 if x.get("predicted_priority_literature_adjusted") is None else -float(x["predicted_priority_literature_adjusted"]),
@@ -29,5 +89,5 @@ class CritiqueRerankerAgent(BaseAgent):
         state.ranked = reranked
         shortlist_size = int(self.config.get("screening", {}).get("shortlist_size", 3))
         state.shortlist = list((state.ranked or [])[: min(shortlist_size, len(state.ranked or []))])
-        state.log("Critique reranker adjusted priorities using literature and decoration evidence")
+        state.log("Critique reranker adjusted priorities using literature, KG support/contradiction summaries, and decoration evidence")
         return state

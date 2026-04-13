@@ -3,6 +3,7 @@ from __future__ import annotations
 from pz_agent.agents.base import BaseAgent
 from pz_agent.chemistry.genmol_import import attach_genmol_provenance, load_external_genmol_candidates
 from pz_agent.chemistry.scaffold import get_phenothiazine_prompt_context
+from pz_agent.data.d3tales_loader import load_d3tales_csv
 from pz_agent.state import RunState
 
 
@@ -11,13 +12,41 @@ class LibraryDesignerAgent(BaseAgent):
 
     def run(self, state: RunState) -> RunState:
         context = get_phenothiazine_prompt_context()
-        source_path = self.config.get("generation", {}).get("external_genmol_path")
+        generation_config = self.config.get("generation", {})
+        source_path = generation_config.get("external_genmol_path")
+        d3tales_csv_path = generation_config.get("d3tales_csv_path")
+        d3tales_limit = generation_config.get("d3tales_limit")
+        d3tales_phenothiazine_only = bool(generation_config.get("d3tales_phenothiazine_only", False))
+
+        metadata = {
+            "mode": context["strategy"],
+            "objective": generation_config.get("prompts", {}).get("objective"),
+        }
+
+        if d3tales_csv_path:
+            records = load_d3tales_csv(
+                d3tales_csv_path,
+                limit=d3tales_limit,
+                phenothiazine_only=d3tales_phenothiazine_only,
+            )
+            state.library_raw = [record.to_candidate() for record in records]
+            state.generation_registry = [
+                {
+                    "source_path": d3tales_csv_path,
+                    "engine": "d3tales_csv",
+                    "count": len(state.library_raw),
+                    "metadata": {
+                        **metadata,
+                        "source_kind": "real_measurement_demo",
+                        "phenothiazine_only": d3tales_phenothiazine_only,
+                    },
+                }
+            ]
+            state.log(f"Library designer imported {len(state.library_raw)} D3TaLES candidates for demo run")
+            return state
+
         if source_path:
             imported = load_external_genmol_candidates(source_path)
-            metadata = {
-                "mode": context["strategy"],
-                "objective": self.config.get("generation", {}).get("prompts", {}).get("objective"),
-            }
             state.library_raw = attach_genmol_provenance(
                 imported,
                 source_path=source_path,

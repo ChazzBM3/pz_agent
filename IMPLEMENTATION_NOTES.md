@@ -33,12 +33,14 @@ The codebase now supports:
 
 ## Next coding step
 
-The next step should be improving semantic quality:
-- classify evidence into support vs contradiction based on snippets
-- attach local/generated plot paths more selectively per candidate
-- generate actual plots with matplotlib or plotly
-- replace placeholder molecules with real GenMol outputs
-- add chemistry-aware exact matching via SMILES/InChI/name normalization
+The next step should be improving semantic quality, but with a clearer structure-first retrieval direction:
+- build `structure_expansion` via PubChem exact/similarity/substructure lookup
+- build patent-first retrieval via SureChEMBL + PatCID
+- refine OpenAlex retrieval to consume structure-expansion outputs
+- update critique/KG integration to use exact/analog/patent support tiers before generic text heuristics
+- only after that, add page-corpus assembly, ColPali page-image retrieval, and Gemma multimodal reranking
+
+See `IMAGE_RETRIEVAL_ROADMAP.md` for the concrete staged plan.
 
 ## Why it is not fully live yet
 

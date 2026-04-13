@@ -1,0 +1,49 @@
+project:
+  name: phenothiazine-screen-d3tales-demo
+generation:
+  engine: d3tales_csv
+  mode: phenothiazine_derivative_generation
+  external_genmol_path: null
+  d3tales_csv_path: data/d3tales.csv
+  d3tales_limit: 8
+  d3tales_phenothiazine_only: true
+  prompts:
+    objective: rank real D3TaLES molecules with KG-backed measurement-aware reranking
+screening:
+  primary_objectives:
+    - synthesizability
+    - solubility
+  secondary_objectives:
+    - novelty
+    - diversity
+  use_external_scores: false
+  shortlist_size: 5
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - critique_reranker
+    - knowledge_graph
+    - reporter
+    - dft_handoff
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: true
+  max_candidates: 5
+  search_fields:
+    - phenothiazine
+    - oxidation_potential
+    - reduction_potential
+    - solvation_energy
+    - reorganization_energy
+search:
+  backend: openalex
+  count: 5
+  production_backend: openalex
