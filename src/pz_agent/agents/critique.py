@@ -175,37 +175,46 @@ def _infer_evidence_tier(signals: dict) -> str:
 def _apply_multimodal_judgments(note: dict) -> dict:
     signals = dict(note.get("signals", {}))
     multimodal_bundle = note.get("multimodal_rerank") or {}
-    judgments = []
     exact_bonus = 0
     analog_bonus = 0
     support_bonus = 0.0
     contradiction_penalty = 0.0
     property_bonus = 0
     human_review_flags = 0
+    multimodal_support = 0.0
+    multimodal_contradiction = 0.0
+    multimodal_score_sum = 0.0
+    multimodal_score_count = 0
 
     for bundle in multimodal_bundle.get("bundles") or []:
         judgment = bundle.get("gemma_judgment") or {}
         if not judgment:
             continue
-        judgments.append(judgment)
         label = str(judgment.get("match_label") or "unknown").lower()
         relevance = str(judgment.get("property_relevance") or "unknown").lower()
         confidence = str(judgment.get("confidence") or "unknown").lower()
         needs_review = bool(judgment.get("needs_human_review", False))
+        retrieval_score = float(bundle.get("retrieval_score") or 0.0)
         if needs_review:
             human_review_flags += 1
         conf_weight = {"high": 1.0, "medium": 0.6, "low": 0.25}.get(confidence, 0.2)
+        weighted_conf = conf_weight * max(0.25, retrieval_score if retrieval_score > 0 else 0.5)
+        multimodal_score_sum += retrieval_score
+        multimodal_score_count += 1
         if label == "exact":
             exact_bonus += 1
-            support_bonus += 0.7 * conf_weight
-        elif label == "analog":
-            analog_bonus += 1
-            support_bonus += 0.35 * conf_weight
+            support_bonus += 0.8 * weighted_conf
+            multimodal_support += weighted_conf
+        elif label in {"analog", "possible"}:
+            analog_bonus += 1 if label == "analog" else 0
+            support_bonus += 0.45 * weighted_conf
+            multimodal_support += 0.7 * weighted_conf
         elif label in {"unrelated", "negative"}:
-            contradiction_penalty += 0.5 * conf_weight
+            contradiction_penalty += 0.65 * weighted_conf
+            multimodal_contradiction += weighted_conf
         if relevance not in {"unknown", "none", "irrelevant"}:
             property_bonus += 1
-            support_bonus += 0.1 * conf_weight
+            support_bonus += 0.12 * weighted_conf
 
     signals["exact_match_hits"] = int(signals.get("exact_match_hits", 0) or 0) + exact_bonus
     signals["analog_match_hits"] = int(signals.get("analog_match_hits", 0) or 0) + analog_bonus
@@ -213,6 +222,10 @@ def _apply_multimodal_judgments(note: dict) -> dict:
     signals["support_score"] = float(signals.get("support_score", 0.0) or 0.0) + support_bonus
     signals["contradiction_score"] = float(signals.get("contradiction_score", 0.0) or 0.0) + contradiction_penalty
     signals["multimodal_review_flags"] = int(signals.get("multimodal_review_flags", 0) or 0) + human_review_flags
+    signals["multimodal_support_score"] = float(signals.get("multimodal_support_score", 0.0) or 0.0) + multimodal_support
+    signals["multimodal_contradiction_score"] = float(signals.get("multimodal_contradiction_score", 0.0) or 0.0) + multimodal_contradiction
+    if multimodal_score_count > 0:
+        signals["multimodal_mean_retrieval_score"] = multimodal_score_sum / multimodal_score_count
     note["signals"] = signals
     return note
 
