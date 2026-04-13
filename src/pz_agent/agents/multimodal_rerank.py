@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pz_agent.agents.base import BaseAgent
 from pz_agent.io import write_json
-from pz_agent.retrieval.multimodal_rerank import assemble_multimodal_rerank_for_candidate
+from pz_agent.retrieval.multimodal_rerank import assemble_multimodal_rerank_for_candidate, parse_gemma_multimodal_response
 from pz_agent.state import RunState
 
 
@@ -21,6 +21,10 @@ class MultimodalRerankAgent(BaseAgent):
 
         for candidate in state.library_clean or []:
             rerank_bundle = assemble_multimodal_rerank_for_candidate(candidate)
+            for bundle in rerank_bundle.get("bundles") or []:
+                response_text = bundle.get("gemma_response")
+                if isinstance(response_text, str) and response_text.strip():
+                    bundle["gemma_judgment"] = parse_gemma_multimodal_response(response_text)
             enriched = dict(candidate)
             enriched["multimodal_rerank"] = rerank_bundle
             updated_candidates.append(enriched)

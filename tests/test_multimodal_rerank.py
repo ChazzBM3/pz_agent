@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from pz_agent.retrieval.multimodal_rerank import assemble_multimodal_rerank_for_candidate
+from pz_agent.retrieval.multimodal_rerank import (
+    assemble_multimodal_rerank_for_candidate,
+    build_gemma_multimodal_prompt,
+    parse_gemma_multimodal_response,
+)
 
 
 
@@ -32,6 +36,7 @@ def test_assemble_multimodal_rerank_for_candidate_builds_bundles() -> None:
                     "target_image_path": "artifacts/figure_assets/cand_1/fig1.png",
                     "source_document_path": "artifacts/page_assets/cand_1/doc1.html",
                     "caption": None,
+                    "ocr_text": "compound 5 phenothiazine",
                 }
             ]
         },
@@ -41,6 +46,37 @@ def test_assemble_multimodal_rerank_for_candidate_builds_bundles() -> None:
     assert result["bundle_count"] == 1
     assert result["bundles"][0]["backend"] == "gemma_planned"
     assert result["bundles"][0]["candidate_identity"]["scaffold"] == "phenothiazine"
+    assert "gemma_prompt" in result["bundles"][0]
+
+
+
+def test_build_gemma_multimodal_prompt_contains_candidate_and_artifact_context() -> None:
+    bundle = {
+        "candidate_id": "cand_1",
+        "query_image_path": "q.png",
+        "target_image_path": "t.png",
+        "caption": "Figure 2",
+        "ocr_text": "compound 5",
+        "title": "Paper",
+        "snippet": "phenothiazine redox",
+        "source_url": "https://doi.org/x",
+        "candidate_identity": {"iupac_name": "10-ethylphenothiazine", "scaffold": "phenothiazine"},
+    }
+    prompt = build_gemma_multimodal_prompt(bundle)
+    assert "cand_1" in prompt
+    assert "q.png" in prompt
+    assert "compound 5" in prompt
+
+
+
+def test_parse_gemma_multimodal_response_handles_json_and_fallback() -> None:
+    parsed = parse_gemma_multimodal_response('{"match_label":"analog","property_relevance":"redox","confidence":"medium","justification":"Looks related","needs_human_review":false}')
+    assert parsed["status"] == "ok"
+    assert parsed["match_label"] == "analog"
+
+    fallback = parse_gemma_multimodal_response('not json')
+    assert fallback["status"] == "parse_failed"
+    assert fallback["needs_human_review"] is True
 
 
 
