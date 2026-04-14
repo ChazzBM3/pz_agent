@@ -11,11 +11,13 @@ class ReporterAgent(BaseAgent):
 
     def run(self, state: RunState) -> RunState:
         evidence_report_path = write_evidence_report(state)
+        evidence_report = __import__('json').loads(evidence_report_path.read_text()) if evidence_report_path.exists() else {}
         report = {
             "summary": "Placeholder report with evidence-aware artifacts",
             "ranked": state.ranked or [],
             "shortlist": state.shortlist or [],
             "predictions": state.predictions or [],
+            "graph_metrics": evidence_report.get("graph_metrics", {}),
             "prediction_provenance_summary": [
                 {
                     "id": pred["id"],

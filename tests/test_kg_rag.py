@@ -175,6 +175,29 @@ def test_build_bridge_case_nodes_for_mixed_support_note() -> None:
 
 
 
+def test_build_bridge_case_nodes_emit_failure_mode_for_low_transfer() -> None:
+    nodes = build_bridge_case_nodes(
+        {
+            "candidate_id": "cand_fail",
+            "summary": "Weak adjacent transfer with contradictions.",
+            "signals": {"property_support": {}},
+            "support_mix": {
+                "direct_pt_support": 0.0,
+                "pt_scaffold_support": 0.0,
+                "adjacent_scaffold_support": 0.1,
+                "quinone_bridge_support": 0.0,
+                "simulation_support": 0.0,
+                "metadata_support": 0.0,
+                "contradiction_count": 2,
+                "transferability_score": 0.2,
+            },
+            "evidence": [{"id": "evidence::cand_fail::0", "source_family": "adjacent"}],
+        }
+    )
+    assert any(node["type"] == "FailureModeClass" for node in nodes)
+
+
+
 def test_evidence_match_type_is_inferred_from_exact_match_edges(tmp_path: Path) -> None:
     graph = {
         "nodes": [

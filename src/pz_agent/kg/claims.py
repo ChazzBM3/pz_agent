@@ -199,7 +199,7 @@ def build_bridge_case_nodes(note: dict[str, Any]) -> list[dict[str, Any]]:
         direct_pt_support=float(support_mix.get("direct_pt_support", 0.0) or 0.0),
     )
 
-    return [
+    nodes = [
         {
             "id": transform_rule_id,
             "type": "TransformRule",
@@ -236,7 +236,7 @@ def build_bridge_case_nodes(note: dict[str, Any]) -> list[dict[str, Any]]:
                 "contradiction_penalty": round(contradiction_penalty, 3),
                 "rationale": note.get("summary"),
                 "next_action": "simulation_request" if transferability_score < 0.75 else "generation_prior",
-                "validation_status": "pending",
+                "validation_status": "failed_transfer" if transferability_score < 0.25 else "pending",
                 "support_mix": support_mix,
             },
         },
@@ -263,3 +263,20 @@ def build_bridge_case_nodes(note: dict[str, Any]) -> list[dict[str, Any]]:
             },
         },
     ]
+
+    if transferability_score < 0.25 or contradiction_penalty >= 0.5:
+        nodes.append(
+            {
+                "id": f"failure_mode::{note['candidate_id']}",
+                "type": "FailureModeClass",
+                "attrs": {
+                    "candidate_id": note["candidate_id"],
+                    "kind": "failed_transfer",
+                    "transferability_score": round(transferability_score, 3),
+                    "contradiction_penalty": round(contradiction_penalty, 3),
+                    "notes": note.get("summary"),
+                },
+            }
+        )
+
+    return nodes

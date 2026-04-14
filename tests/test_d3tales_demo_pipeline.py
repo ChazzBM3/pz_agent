@@ -67,3 +67,5 @@ search:
     graph = __import__('json').loads(state.knowledge_graph_path.read_text())
     assert any(node["type"] == "SimulationResult" for node in graph.get("nodes", []))
     assert any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))
+    report = __import__('json').loads((tmp_path / 'run' / 'report.json').read_text())
+    assert "graph_metrics" in report
