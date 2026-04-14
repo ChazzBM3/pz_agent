@@ -24,7 +24,7 @@ from pz_agent.agents.structure_expansion import StructureExpansionAgent
 from pz_agent.agents.surrogate_screen import SurrogateScreenAgent
 from pz_agent.agents.visual_identity import VisualIdentityAgent
 from pz_agent.config import load_config
-from pz_agent.io import ensure_dir, write_json
+from pz_agent.io import ensure_dir, read_json, write_json
 from pz_agent.state import RunState
 
 
@@ -90,6 +90,17 @@ def _write_state_snapshot(state: RunState) -> None:
     )
 
 
+def _load_prior_action_queue(config: dict) -> list[dict] | None:
+    queue_path = config.get("pipeline", {}).get("prior_action_queue_path")
+    if not queue_path:
+        return None
+    path = Path(queue_path)
+    if not path.exists():
+        return None
+    payload = read_json(path)
+    return payload if isinstance(payload, list) else None
+
+
 def run_pipeline(config_path: str | Path, run_dir: str | Path = "artifacts/run") -> RunState:
     config = load_config(config_path)
     stages = _get_stage_list(config)
@@ -97,6 +108,10 @@ def run_pipeline(config_path: str | Path, run_dir: str | Path = "artifacts/run")
     ensure_dir(run_dir)
 
     state = RunState(config=config, run_dir=run_dir)
+    prior_action_queue = _load_prior_action_queue(config)
+    if prior_action_queue:
+        state.action_queue = prior_action_queue
+        state.log(f"Loaded prior action queue with {len(prior_action_queue)} actions")
     state.log("Initialized run state")
     _write_state_snapshot(state)
 

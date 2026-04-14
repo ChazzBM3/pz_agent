@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from pz_agent.runner import run_pipeline
@@ -80,3 +81,71 @@ search:
     assert (tmp_path / 'run' / 'expansion_proposals.rejected.json').exists()
     assert (tmp_path / 'run' / 'action_queue.json').exists()
     assert report["queued_evidence_query_count"] >= 0
+
+
+def test_d3tales_demo_pipeline_loads_prior_action_queue(tmp_path: Path) -> None:
+    csv_path = tmp_path / "demo.csv"
+    csv_path.write_text(CSV_TEXT, encoding="utf-8")
+    prior_queue_path = tmp_path / "prior_action_queue.json"
+    prior_queue_path.write_text(
+        json.dumps([
+            {
+                "candidate_id": "rec_a",
+                "priority": 0.7,
+                "source": "graph_expansion",
+                "proposal_type": "evidence_query_candidate",
+                "critic_reason": "seeded_for_test",
+                "action_type": "evidence_query",
+                "payload": {"belief_status": "proposed", "confidence": 0.42},
+            }
+        ]),
+        encoding="utf-8",
+    )
+
+    config_path = tmp_path / "demo_prior.yaml"
+    config_path.write_text(
+        f"""
+project:
+  name: demo
+generation:
+  engine: d3tales_csv
+  d3tales_csv_path: {csv_path}
+  d3tales_limit: 2
+  d3tales_phenothiazine_only: true
+  prompts:
+    objective: test demo
+screening:
+  shortlist_size: 2
+pipeline:
+  prior_action_queue_path: {prior_queue_path}
+  stages:
+    - library_designer
+    - standardizer
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - critique_reranker
+    - knowledge_graph
+    - graph_expansion
+    - reporter
+    - dft_handoff
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: false
+  max_candidates: 2
+  search_fields:
+    - oxidation_potential
+    - solvation_energy
+search:
+  backend: stub
+""",
+        encoding="utf-8",
+    )
+
+    run_pipeline(config_path, run_dir=tmp_path / "run_prior")
+    critique_notes = json.loads((tmp_path / "run_prior" / "critique_notes.json").read_text())
+    assert any(note.get("action_queue_hints") for note in critique_notes)
