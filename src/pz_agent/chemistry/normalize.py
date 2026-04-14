@@ -26,6 +26,8 @@ EDG_TOKENS = {"N", "O"}
 EWG_TOKENS = {"F", "Cl", "Br", "I", "C#N", "C(=O)", "CF3"}
 
 PHENOTHIAZINE_SMARTS = "c1ccc2c(c1)Nc1ccccc1S2"
+THIANTHRENE_SMARTS = "c1ccc2c(c1)Sc1ccccc1S2"
+PHENOXAZINE_SMARTS = "c1ccc2c(c1)Oc1ccccc1N2"
 
 
 def _derive_scaffold(mol) -> str | None:
@@ -114,6 +116,22 @@ def _chain_position_label(atom, neighbor) -> str | None:
             return "alpha"
         return "alpha"
     return None
+
+
+
+def _detect_core_family(mol) -> tuple[str, float]:
+    if not RDKIT_AVAILABLE or mol is None:
+        return PHENOTHIAZINE_CORE_ASSUMPTION, 0.0
+    patterns = [
+        ("phenothiazine", PHENOTHIAZINE_SMARTS, 1.0),
+        ("thianthrene", THIANTHRENE_SMARTS, 0.95),
+        ("phenoxazine", PHENOXAZINE_SMARTS, 0.95),
+    ]
+    for label, smarts, confidence in patterns:
+        pattern = Chem.MolFromSmarts(smarts)
+        if pattern is not None and mol.HasSubstructMatch(pattern):
+            return label, confidence
+    return PHENOTHIAZINE_CORE_ASSUMPTION, 0.2
 
 
 
@@ -231,6 +249,7 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
             substitution_pattern = "di_substituted"
         elif substituent_count and substituent_count >= 3:
             substitution_pattern = "poly_substituted"
+    core_detected, core_confidence = _detect_core_family(mol)
     iupac_name = smiles_to_iupac_name(input_smiles)
     molecular_formula = None
     if mol is not None and rdMolDescriptors is not None:
@@ -249,6 +268,8 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
         source_name=name,
         iupac_name=iupac_name,
         core_assumption=PHENOTHIAZINE_CORE_ASSUMPTION,
+        core_detected=core_detected,
+        core_confidence=core_confidence,
         decoration_summary=decoration_summary,
         substituent_count=substituent_count,
         decoration_tokens=decoration_tokens,
@@ -273,6 +294,7 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
                 substitution_pattern,
                 *positional_tokens,
                 molecular_formula,
+                core_detected,
                 PHENOTHIAZINE_QUERY_HINT,
             ]
             if token

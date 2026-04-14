@@ -23,6 +23,9 @@ def _clean_token(token: str | None) -> str:
 
 
 def _literature_scaffold_name(identity: dict) -> str:
+    core_detected = _clean_token(identity.get("core_detected"))
+    if core_detected in {"phenothiazine", "thianthrene", "phenoxazine"}:
+        return core_detected
     scaffold = _clean_token(identity.get("scaffold"))
     if scaffold and any(ch.isdigit() for ch in scaffold):
         return "phenothiazine"
@@ -41,8 +44,67 @@ def _token_to_literature_term(token: str) -> str:
         "I": "iodo",
         "C#N": "cyano",
         "C(=O)": "carbonyl OR acyl",
+        "CF3": "trifluoromethyl",
     }
     return mapping.get(token, token)
+
+
+
+def _position_token_to_literature_term(token: str) -> str:
+    token = _clean_token(token)
+    match = re.fullmatch(r"position\s+(\d+)\s+(.+)", token, flags=re.IGNORECASE)
+    if not match:
+        return token
+    locant, group = match.groups()
+    return f"{locant} {_token_to_literature_term(group)}"
+
+
+
+def _dedupe_words_preserve_order(text: str) -> str:
+    words = []
+    seen = set()
+    for word in _clean_token(text).split():
+        key = word.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        words.append(word)
+    return " ".join(words)
+
+
+
+def _build_motif_bits(
+    normalized_decoration_summary: str,
+    substitution_pattern: str,
+    bias_phrase: str,
+    decoration_tokens: list[str],
+    substituent_fragments: list[str],
+    positional_tokens: list[str],
+) -> list[str]:
+    bits: list[str] = []
+    if normalized_decoration_summary and normalized_decoration_summary != "none_detected":
+        bits.append(_dedupe_words_preserve_order(normalized_decoration_summary))
+    if substitution_pattern:
+        bits.append(substitution_pattern.replace('_', ' '))
+    if bias_phrase:
+        bits.append(_dedupe_words_preserve_order(bias_phrase))
+    if decoration_tokens:
+        bits.append(_dedupe_words_preserve_order(" ".join(decoration_tokens[:1])))
+    if substituent_fragments:
+        cleaned_fragment = _dedupe_words_preserve_order(" ".join(substituent_fragments[:1]).replace("substituted ", ""))
+        if cleaned_fragment:
+            bits.append(cleaned_fragment)
+    if positional_tokens:
+        bits.append(_dedupe_words_preserve_order(" ".join(positional_tokens[:1])))
+    deduped: list[str] = []
+    seen = set()
+    for bit in bits:
+        key = bit.lower()
+        if not bit or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(bit)
+    return deduped
 
 
 
@@ -91,9 +153,9 @@ def build_candidate_queries(
         if _clean_token(phrase)
     ]
     positional_tokens = [
-        _clean_token(token)
+        _position_token_to_literature_term(token)
         for token in (identity.get("positional_tokens") or [])
-        if _clean_token(token) and not _clean_token(token).startswith("position ")
+        if _clean_token(token)
     ]
     raw_decoration_tokens = [_clean_token(token) for token in (identity.get("decoration_tokens") or []) if _clean_token(token)]
     decoration_tokens = [_token_to_literature_term(token) for token in raw_decoration_tokens[:3]]
@@ -110,7 +172,12 @@ def build_candidate_queries(
     public_name = candidate_name if candidate_name and not _looks_like_registry_id(candidate_name) else ""
     public_id = candidate_id if candidate_id and not _looks_like_registry_id(candidate_id) else ""
     public_token_text = " ".join(token for token in [public_name, public_id] if token)
-    nomenclature_token = iupac_name if iupac_name and "phenothiaz" in iupac_name.lower() else ""
+    core_detected = _clean_token(identity.get("core_detected")) or scaffold
+    nomenclature_token = ""
+    if iupac_name:
+        iupac_lower = iupac_name.lower()
+        if any(core in iupac_lower for core in [core_detected.lower(), "phenothiaz", "thianthren", "phenoxazin"]):
+            nomenclature_token = iupac_name
     iupac_bits = _iupac_query_bits(nomenclature_token) if nomenclature_token else []
 
     property_terms = []
@@ -128,25 +195,21 @@ def build_candidate_queries(
     }.get(electronic_bias, electronic_bias)
 
     normalized_decoration_summary = decoration_summary.replace("+", " ") if decoration_summary else ""
-    motif_bits = [
-        bit
-        for bit in [
-            normalized_decoration_summary,
-            substitution_pattern.replace('_', ' ') if substitution_pattern else '',
-            bias_phrase,
-            " ".join(decoration_tokens[:2]),
-            " ".join(substituent_fragments[:2]),
-            " ".join(positional_tokens[:3]),
-        ]
-        if bit and bit != "none_detected"
-    ]
+    motif_bits = _build_motif_bits(
+        normalized_decoration_summary=normalized_decoration_summary,
+        substitution_pattern=substitution_pattern,
+        bias_phrase=bias_phrase,
+        decoration_tokens=decoration_tokens,
+        substituent_fragments=substituent_fragments,
+        positional_tokens=positional_tokens,
+    )
     motif_clause = " ".join(motif_bits)
 
     queries = []
     if nomenclature_token:
         queries.append(f'"{nomenclature_token}" redox solubility synthesis')
         if iupac_bits:
-            queries.append(f'"{scaffold}" "{' '.join(iupac_bits)}" redox')
+            queries.append(f'"{scaffold}" "{' '.join(iupac_bits)}" redox solubility')
     if motif_clause:
         queries.append(f'"{scaffold}" {motif_clause} ({broad_property_clause})')
         queries.append(f'{SCHOLARLY_SITE_HINT} "{scaffold}" {motif_clause}')
@@ -154,7 +217,9 @@ def build_candidate_queries(
         token_clause = " ".join(decoration_tokens[:2])
         queries.append(f'"{scaffold}" {token_clause} redox solubility synthesis')
     for phrase in visual_retrieval_phrases[:2]:
-        queries.append(f'"{scaffold}" {phrase} redox solubility synthesis')
+        cleaned_phrase = phrase.replace(scaffold, "").strip()
+        if cleaned_phrase:
+            queries.append(f'"{scaffold}" {cleaned_phrase} redox solubility synthesis')
     queries.extend(
         [
             f'"{scaffold}" derivative synthesis redox',

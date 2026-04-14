@@ -186,6 +186,15 @@ def test_normalize_molecule_identity_uses_rdkit_substituent_features() -> None:
     assert identity['positional_tokens']
     assert any('position' in token or token in {'ortho', 'meta', 'para', 'alpha', 'beta'} for token in identity['positional_tokens'])
     assert identity['molecular_formula'] == 'C16H11F6NS'
+    assert identity['core_detected'] == 'phenothiazine'
+
+
+
+def test_normalize_molecule_identity_detects_non_phenothiazine_core() -> None:
+    enriched = normalize_molecule_identity({'smiles': 'c1ccc2c(c1)Sc1ccccc1S2'})
+    identity = enriched['identity']
+    assert identity['core_detected'] == 'thianthrene'
+    assert identity['core_confidence'] >= 0.9
 
 
 
@@ -204,6 +213,20 @@ def test_build_candidate_queries_uses_iupac_bits_to_separate_cf3_variants() -> N
     assert mono_q != bis_q
     assert any('2' in q and 'trifluoromethyl' in q for q in mono_q)
     assert any('3,7' in q and 'bis(trifluoromethyl)' in q for q in bis_q)
+
+
+
+def test_build_candidate_queries_uses_detected_core_and_clean_position_terms() -> None:
+    candidate = normalize_molecule_identity({'smiles': 'CCN1c2ccccc2Sc2ccc(C(F)(F)F)cc21', 'id': '05TRCY'})
+    queries = build_candidate_queries(candidate)
+    assert any('trifluoromethyl' in q for q in queries)
+    assert not any('position 7 CF3' in q for q in queries)
+    assert not any('trifluoromethyl trifluoromethyl' in q for q in queries)
+    assert not any('CF3 mono substituted electron withdrawing substituents trifluoromethyl substituted trifluoromethyl' in q for q in queries)
+
+    thianthrene = normalize_molecule_identity({'smiles': 'c1ccc2c(c1)Sc1ccccc1S2', 'id': '05MNXL'})
+    thianthrene_queries = build_candidate_queries(thianthrene)
+    assert any('thianthrene' in q for q in thianthrene_queries)
 
 
 
@@ -230,6 +253,27 @@ def test_score_openalex_hit_prefers_query_overlap_over_review_background() -> No
         })(),
     )
     assert specific_score > review_score
+
+
+
+def test_score_openalex_hit_penalizes_off_target_catalyst_mentions() -> None:
+    noisy_score = _score_openalex_hit(
+        'phenothiazine methoxy redox solubility',
+        type('Hit', (), {
+            'title': 'Organophotoredox-catalyzed semipinacol rearrangement via radical-polar crossover',
+            'snippet': 'A phenothiazine-based organophotoredox catalyst enables rearrangement chemistry.',
+            'url': 'https://doi.org/10.1038/example',
+        })(),
+    )
+    relevant_score = _score_openalex_hit(
+        'phenothiazine methoxy redox solubility',
+        type('Hit', (), {
+            'title': 'Methoxy phenothiazine redox electrolytes with solubility analysis',
+            'snippet': 'Phenothiazine derivatives with methoxy substitution were evaluated for redox and solubility behavior.',
+            'url': 'https://doi.org/10.1021/example2',
+        })(),
+    )
+    assert relevant_score > noisy_score
 
 
 

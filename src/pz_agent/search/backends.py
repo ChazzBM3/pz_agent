@@ -109,14 +109,32 @@ def _score_openalex_hit(query: str, hit: SearchHit) -> float:
     query_text = query.lower()
     hit_text = " ".join(part for part in [hit.title or "", hit.snippet or "", hit.url or ""] if part).lower()
     score = 0.0
-    for token in ["solubility", "soluble", "synthesis", "synthetic", "redox", "oxidation", "reduction", "electrochemical", "phenothiazine"]:
+
+    overlap_terms = [
+        "solubility", "soluble", "synthesis", "synthetic", "redox", "oxidation", "reduction",
+        "electrochemical", "electrolyte", "battery", "flow battery", "voltammetry",
+        "phenothiazine", "thianthrene", "phenoxazine", "methoxy", "alkoxy", "trifluoromethyl",
+        "fluoro", "chloro", "bromo", "cyano",
+    ]
+    for token in overlap_terms:
         if token in query_text and token in hit_text:
             score += 1.0
-    for token in ["cl", "br", "f", "i", "c#n", "c(=o)"]:
-        if token in query_text and token in hit_text:
-            score += 1.5
+
+    exact_phrases = [phrase for phrase in ["trifluoromethyl", "methoxy", "alkoxy", "electron donating", "electron withdrawing"] if phrase in query_text and phrase in hit_text]
+    score += 0.75 * len(exact_phrases)
+
+    has_core = any(token in hit_text for token in ["phenothiazine", "thianthrene", "phenoxazine"])
+    has_property = any(token in hit_text for token in ["solubility", "redox", "oxidation", "reduction", "electrochemical", "electrolyte", "battery", "voltammetry"])
+    if has_core:
+        score += 1.0
+    if has_core and has_property:
+        score += 1.5
+
     if any(token in hit_text for token in ["review", "perspective", "overview", "platform", "editor"]):
         score -= 1.0
+    if any(token in hit_text for token in ["catalyst", "photocatal", "enzyme", "laccase", "biotransformation"]) and not any(token in query_text for token in ["catalyst", "photocatal"]):
+        score -= 1.5
+
     host = (urlparse(hit.url).netloc or "").lower() if hit.url else ""
     if any(domain in host for domain in ["acs", "wiley", "sciencedirect", "nature", "pubmed", "doi.org"]):
         score += 0.3

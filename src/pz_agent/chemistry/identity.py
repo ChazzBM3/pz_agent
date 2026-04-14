@@ -15,6 +15,8 @@ class MoleculeIdentity:
     source_name: str | None = None
     iupac_name: str | None = None
     core_assumption: str | None = None
+    core_detected: str | None = None
+    core_confidence: float | None = None
     decoration_summary: str | None = None
     substituent_count: int | None = None
     decoration_tokens: list[str] | None = None
