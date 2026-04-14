@@ -5,6 +5,28 @@ from pz_agent.io import read_json, write_json
 from pz_agent.state import RunState
 
 
+def _build_action_queue(accepted: list[dict]) -> list[dict]:
+    queue: list[dict] = []
+    for proposal in accepted:
+        proposal_type = str(proposal.get("proposal_type") or "")
+        candidate_id = proposal.get("candidate_id")
+        base = {
+            "candidate_id": candidate_id,
+            "priority": proposal.get("priority"),
+            "source": "graph_expansion",
+            "proposal_type": proposal_type,
+            "critic_reason": proposal.get("critic_reason"),
+        }
+        if proposal_type == "simulation_request_candidate":
+            queue.append({**base, "action_type": "simulation_request", "payload": proposal.get("payload", {})})
+        elif proposal_type == "evidence_query_candidate":
+            queue.append({**base, "action_type": "evidence_query", "payload": proposal.get("payload", {})})
+        elif proposal_type == "bridge_case_candidate":
+            queue.append({**base, "action_type": "bridge_expansion", "payload": proposal.get("payload", {})})
+    queue.sort(key=lambda item: (-float(item.get("priority", 0.0) or 0.0), str(item.get("candidate_id") or ""), str(item.get("action_type") or "")))
+    return queue
+
+
 def _critique_proposals(proposals: list[dict]) -> tuple[list[dict], list[dict]]:
     accepted: list[dict] = []
     rejected: list[dict] = []
@@ -108,9 +130,12 @@ class GraphExpansionAgent(BaseAgent):
                     )
 
         accepted, rejected = _critique_proposals(proposals)
+        action_queue = _build_action_queue(accepted)
         state.expansion_registry = accepted
+        state.action_queue = action_queue
         write_json(state.run_dir / "expansion_proposals.json", proposals)
         write_json(state.run_dir / "expansion_proposals.accepted.json", accepted)
         write_json(state.run_dir / "expansion_proposals.rejected.json", rejected)
-        state.log(f"Graph expansion agent proposed {len(proposals)} actions, accepted {len(accepted)}, rejected {len(rejected)}")
+        write_json(state.run_dir / "action_queue.json", action_queue)
+        state.log(f"Graph expansion agent proposed {len(proposals)} actions, accepted {len(accepted)}, rejected {len(rejected)}, queued {len(action_queue)}")
         return state

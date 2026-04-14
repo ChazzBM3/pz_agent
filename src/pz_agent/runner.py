@@ -85,6 +85,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "multimodal_registry_count": len(state.multimodal_registry or []),
             "ocr_registry_count": len(state.ocr_registry or []),
             "expansion_registry_count": len(state.expansion_registry or []),
+            "action_queue_count": len(state.action_queue or []),
         },
     )
 

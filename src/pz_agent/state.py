@@ -33,6 +33,7 @@ class RunState:
     multimodal_registry: list[dict[str, Any]] | None = None
     ocr_registry: list[dict[str, Any]] | None = None
     expansion_registry: list[dict[str, Any]] | None = None
+    action_queue: list[dict[str, Any]] | None = None
     logs: list[str] = field(default_factory=list)
 
     def log(self, message: str) -> None:
