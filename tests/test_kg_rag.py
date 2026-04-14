@@ -165,9 +165,13 @@ def test_build_bridge_case_nodes_for_mixed_support_note() -> None:
         }
     )
     assert any(node["type"] == "BridgeCase" for node in nodes)
+    assert any(node["type"] == "BeliefState" for node in nodes)
     bridge_case = next(node for node in nodes if node["type"] == "BridgeCase")
+    belief_state = next(node for node in nodes if node["type"] == "BeliefState")
     assert bridge_case["attrs"]["transferability_score"] == 0.72
     assert "solubilizing_handle" in bridge_case["attrs"]["bridge_principle_refs"]
+    assert belief_state["attrs"]["confidence"] > 0.5
+    assert belief_state["attrs"]["status"] in {"proposed", "supported"}
 
 
 

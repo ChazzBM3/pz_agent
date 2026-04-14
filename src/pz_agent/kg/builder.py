@@ -92,6 +92,7 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         bridge_nodes = build_bridge_case_nodes(note)
         bridge_case_ids = [node["id"] for node in bridge_nodes if node.get("type") == "BridgeCase"]
         transform_rule_ids = [node["id"] for node in bridge_nodes if node.get("type") == "TransformRule"]
+        belief_state_ids = [node["id"] for node in bridge_nodes if node.get("type") == "BeliefState"]
 
         for bridge_node in bridge_nodes:
             add_node(bridge_node)
@@ -103,6 +104,8 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                     dimension_id = f"bridge_dimension::{dimension}"
                     add_node({"id": dimension_id, "type": "BridgeDimension", "attrs": {"name": dimension}})
                     add_edge(bridge_node["id"], dimension_id, "HAS_BRIDGE_DIMENSION")
+            elif bridge_node.get("type") == "BeliefState":
+                add_edge(note["candidate_id"], bridge_node["id"], "HAS_BELIEF_STATE")
 
         for claim_node in claim_nodes:
             note_id = claim_node["id"]
@@ -145,6 +148,8 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                 add_edge(note_id, transform_rule_id, "USES_RULE")
             for bridge_case_id in bridge_case_ids:
                 add_edge(note_id, bridge_case_id, "BRIDGED_FROM")
+            for belief_state_id in belief_state_ids:
+                add_edge(note_id, belief_state_id, "SUPPORTED_BY")
 
             for idx, query in enumerate(note.get("queries", [])):
                 query_node = build_search_query_node(note["candidate_id"], idx, query, status=note.get("status"))

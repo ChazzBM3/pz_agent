@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 import hashlib
+import math
 
 
 def stable_node_id(prefix: str, *parts: str | None) -> str:
@@ -131,6 +132,25 @@ def build_paper_node_from_evidence(evidence: dict[str, Any]) -> dict[str, Any]:
 
 
 
+def _belief_confidence(support_score: float, contradiction_score: float, direct_pt_support: float, simulation_support: float) -> float:
+    value = 1.0 * support_score - 1.1 * contradiction_score + 0.4 * direct_pt_support + 0.3 * simulation_support
+    return 1.0 / (1.0 + math.exp(-value))
+
+
+
+def _belief_status(confidence: float, support_score: float, contradiction_score: float, direct_pt_support: float) -> str:
+    if contradiction_score >= 2.0 and confidence < 0.25:
+        return "retired"
+    if contradiction_score > support_score and confidence < 0.45:
+        return "contradicted"
+    if confidence >= 0.60 and support_score > contradiction_score:
+        return "supported"
+    if contradiction_score >= 3.0 and direct_pt_support == 0:
+        return "retired"
+    return "proposed"
+
+
+
 def build_bridge_case_nodes(note: dict[str, Any]) -> list[dict[str, Any]]:
     support_mix = dict(note.get("support_mix") or {})
     transferability_score = float(support_mix.get("transferability_score", 0.0) or 0.0)
@@ -164,6 +184,21 @@ def build_bridge_case_nodes(note: dict[str, Any]) -> list[dict[str, Any]]:
 
     transform_rule_id = f"transform_rule::{note['candidate_id']}"
     bridge_case_id = f"bridge_case::{note['candidate_id']}"
+    support_score = evidence_support + float(support_mix.get("direct_pt_support", 0.0) or 0.0) + float(support_mix.get("simulation_support", 0.0) or 0.0)
+    contradiction_score = contradiction_penalty
+    confidence = _belief_confidence(
+        support_score=support_score,
+        contradiction_score=contradiction_score,
+        direct_pt_support=float(support_mix.get("direct_pt_support", 0.0) or 0.0),
+        simulation_support=float(support_mix.get("simulation_support", 0.0) or 0.0),
+    )
+    status = _belief_status(
+        confidence=confidence,
+        support_score=support_score,
+        contradiction_score=contradiction_score,
+        direct_pt_support=float(support_mix.get("direct_pt_support", 0.0) or 0.0),
+    )
+
     return [
         {
             "id": transform_rule_id,
@@ -202,6 +237,28 @@ def build_bridge_case_nodes(note: dict[str, Any]) -> list[dict[str, Any]]:
                 "rationale": note.get("summary"),
                 "next_action": "simulation_request" if transferability_score < 0.75 else "generation_prior",
                 "validation_status": "pending",
+                "support_mix": support_mix,
+            },
+        },
+        {
+            "id": f"belief_state::{note['candidate_id']}",
+            "type": "BeliefState",
+            "attrs": {
+                "belief_id": f"belief_state::{note['candidate_id']}",
+                "belief_type": "candidate_transferability",
+                "status": status,
+                "confidence": round(confidence, 3),
+                "support_score": round(support_score, 3),
+                "contradiction_score": round(contradiction_score, 3),
+                "direct_pt_support": round(float(support_mix.get("direct_pt_support", 0.0) or 0.0), 3),
+                "broader_pt_support": round(float(support_mix.get("pt_scaffold_support", 0.0) or 0.0), 3),
+                "adjacent_support": round(float(support_mix.get("adjacent_scaffold_support", 0.0) or 0.0), 3),
+                "quinone_support": round(float(support_mix.get("quinone_bridge_support", 0.0) or 0.0), 3),
+                "simulation_support": round(float(support_mix.get("simulation_support", 0.0) or 0.0), 3),
+                "weak_support": round(float(support_mix.get("metadata_support", 0.0) or 0.0), 3),
+                "last_updated": "current_run",
+                "owner_agent": "critique",
+                "notes": note.get("summary"),
                 "support_mix": support_mix,
             },
         },

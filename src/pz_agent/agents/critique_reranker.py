@@ -77,6 +77,12 @@ class CritiqueRerankerAgent(BaseAgent):
                 item["ranking_rationale"]["measurement_summary"] = measurement_summary
                 item["ranking_rationale"]["measurement_values"] = measurement_values
                 item["ranking_rationale"]["support_mix"] = note.get("support_mix", {})
+                belief_state = {
+                    "support_score": float(note["signals"].get("support_score", 0.0) or 0.0),
+                    "contradiction_score": float(note["signals"].get("contradiction_score", 0.0) or 0.0),
+                    "transferability_score": float((note.get("support_mix") or {}).get("transferability_score", 0.0) or 0.0),
+                }
+                item["ranking_rationale"]["belief_state"] = belief_state
                 note["measurement_context"] = measurement_summary
                 note["measurement_values"] = measurement_values
             reranked.append(apply_literature_adjustment(item, note))

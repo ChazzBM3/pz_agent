@@ -36,6 +36,7 @@ NODE_TYPES = [
     "ShortlistDecision",
     "DFTJob",
     "ValidationResult",
+    "BeliefState",
 ]
 
 
@@ -75,6 +76,7 @@ EDGE_TYPES = [
     "SELECTED_FOR_DFT",
     "RANKED_IN",
     "VALIDATED_BY",
+    "HAS_BELIEF_STATE",
 ]
 
 
