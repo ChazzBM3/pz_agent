@@ -7,3 +7,6 @@ __pycache__/
 artifacts/run/
 artifacts/*_run/
 artifacts/review_run/
+artifacts/d3tales_demo_*/
+artifacts/visual_benchmark_*/
+artifacts/pubchem_name_cache.json

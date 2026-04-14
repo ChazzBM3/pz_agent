@@ -11,7 +11,7 @@ from pz_agent.agents.critique import (
     _relevance_score,
     _summarize_live_signals,
 )
-from pz_agent.kg.retrieval import build_candidate_queries
+from pz_agent.kg.retrieval import _iupac_query_bits, build_candidate_queries
 from pz_agent.search.backends import OpenAlexSearchBackend, _openalex_abstract_to_text, _score_openalex_hit
 from pz_agent.chemistry.naming import smiles_to_iupac_name
 from pz_agent.chemistry.normalize import normalize_molecule_identity
@@ -186,6 +186,13 @@ def test_normalize_molecule_identity_uses_rdkit_substituent_features() -> None:
     assert identity['positional_tokens']
     assert any('position' in token or token in {'ortho', 'meta', 'para', 'alpha', 'beta'} for token in identity['positional_tokens'])
     assert identity['molecular_formula'] == 'C16H11F6NS'
+
+
+
+def test_iupac_query_bits_prioritize_ring_substitution_locants() -> None:
+    assert _iupac_query_bits('10-ethyl-2-(trifluoromethyl)phenothiazine') == ['2 trifluoromethyl']
+    assert _iupac_query_bits('10-[2-(2-methoxyethoxy)ethyl]-3,7-bis(trifluoromethyl)phenothiazine') == ['3,7 trifluoromethyl']
+    assert _iupac_query_bits('10-ethyl-1,9-dimethylphenothiazine') == ['1,9 dimethyl']
 
 
 

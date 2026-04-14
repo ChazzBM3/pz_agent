@@ -22,6 +22,7 @@ pipeline:
   stages:
     - library_designer
     - standardizer
+    - visual_identity
     - surrogate_screen
     - benchmark
     - knowledge_graph
@@ -43,6 +44,10 @@ critique:
     - reduction_potential
     - solvation_energy
     - reorganization_energy
+visual_identity:
+  enabled: true
+  model: gemini-2.5-flash
+
 search:
   backend: openalex
   count: 5
