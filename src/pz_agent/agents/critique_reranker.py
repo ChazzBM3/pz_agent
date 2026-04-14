@@ -86,6 +86,7 @@ class CritiqueRerankerAgent(BaseAgent):
                     "simulation_support": simulation_support,
                 }
                 item["ranking_rationale"]["belief_state"] = belief_state
+                note["ranking_rationale"] = {**item.get("ranking_rationale", {}), "belief_state": belief_state}
                 note["measurement_context"] = measurement_summary
                 note["measurement_values"] = measurement_values
             reranked.append(apply_literature_adjustment(item, note))

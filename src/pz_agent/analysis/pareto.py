@@ -195,6 +195,42 @@ def compute_tier_1_value_adjustment(
 
 
 
+def _compute_kg_prior_adjustment(critique_note: dict[str, Any] | None) -> tuple[float, list[str]]:
+    if not critique_note:
+        return 0.0, []
+
+    support_mix = dict(critique_note.get("support_mix") or {})
+    belief_state = dict((critique_note.get("ranking_rationale") or {}).get("belief_state") or {})
+    bonus = 0.0
+    rationale: list[str] = []
+
+    transferability_score = float(support_mix.get("transferability_score", 0.0) or 0.0)
+    if transferability_score > 0:
+        transfer_bonus = min(0.04, transferability_score * 0.03)
+        bonus += transfer_bonus
+        rationale.append(f"kg_prior_transferability_bonus={transfer_bonus:.3f}")
+
+    simulation_support = float(support_mix.get("simulation_support", 0.0) or 0.0)
+    if simulation_support > 0:
+        sim_bonus = min(0.05, simulation_support * 0.05)
+        bonus += sim_bonus
+        rationale.append(f"kg_prior_simulation_bonus={sim_bonus:.3f}")
+
+    support_score = float(belief_state.get("support_score", 0.0) or 0.0)
+    contradiction_score = float(belief_state.get("contradiction_score", 0.0) or 0.0)
+    if support_score > 0:
+        support_bonus = min(0.04, support_score * 0.01)
+        bonus += support_bonus
+        rationale.append(f"kg_prior_belief_support_bonus={support_bonus:.3f}")
+    if contradiction_score > 0:
+        penalty = min(0.05, contradiction_score * 0.02)
+        bonus -= penalty
+        rationale.append(f"kg_prior_belief_contradiction_penalty={penalty:.3f}")
+
+    return bonus, rationale
+
+
+
 def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, Any] | None) -> dict[str, Any]:
     item = dict(row)
     base = item.get("predicted_priority")
@@ -314,6 +350,10 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
         rationale.append("bridge_support_from_quinone_teacher")
     if float(support_mix.get("adjacent_scaffold_support", 0.0) or 0.0) > 0:
         rationale.append("bridge_support_from_adjacent_scaffold")
+
+    prior_bonus, prior_rationale = _compute_kg_prior_adjustment(critique_note)
+    bonus += prior_bonus
+    rationale.extend(prior_rationale)
 
     if signals.get("warns_instability"):
         bonus -= 0.08

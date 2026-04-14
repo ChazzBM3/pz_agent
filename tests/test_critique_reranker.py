@@ -4,6 +4,7 @@ from pathlib import Path
 
 from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
 from pz_agent.analysis.pareto import apply_literature_adjustment
+from pz_agent.agents.dft_handoff import DFTHandoffAgent
 from pz_agent.io import write_json
 from pz_agent.state import RunState
 
@@ -140,6 +141,24 @@ def test_apply_literature_adjustment_rewards_specific_evidence_and_penalizes_off
 
 
 
+def test_apply_literature_adjustment_uses_kg_priors() -> None:
+    row = {"id": "cand_prior", "predicted_priority": 0.5, "ranking_rationale": {}, "identity": {}}
+    adjusted = apply_literature_adjustment(
+        row,
+        {
+            "candidate_id": "cand_prior",
+            "signals": {"support_score": 0.0, "contradiction_score": 0.0},
+            "support_mix": {"transferability_score": 0.8, "simulation_support": 0.4},
+            "ranking_rationale": {"belief_state": {"support_score": 0.9, "contradiction_score": 0.0}},
+            "evidence": [],
+        },
+    )
+    assert adjusted["predicted_priority_literature_adjusted"] > 0.5
+    assert any("kg_prior_transferability_bonus" in item for item in adjusted["ranking_rationale"]["literature_adjustment"])
+    assert any("kg_prior_simulation_bonus" in item for item in adjusted["ranking_rationale"]["literature_adjustment"])
+
+
+
 def test_apply_literature_adjustment_rewards_bridge_transferability() -> None:
     row = {"id": "cand_bridge", "predicted_priority": 0.5, "ranking_rationale": {}, "identity": {}}
     bridged = apply_literature_adjustment(
@@ -163,3 +182,22 @@ def test_apply_literature_adjustment_rewards_bridge_transferability() -> None:
     )
     assert bridged["predicted_priority_literature_adjusted"] > 0.5
     assert any("bridge_transferability_bonus" in item for item in bridged["ranking_rationale"]["literature_adjustment"])
+
+
+
+def test_dft_handoff_prioritizes_belief_and_simulation_priors(tmp_path: Path) -> None:
+    state = RunState(config={"screening": {"shortlist_size": 3}}, run_dir=tmp_path)
+    state.shortlist = [
+        {
+            "id": "cand_low",
+            "predicted_priority_literature_adjusted": 0.7,
+            "ranking_rationale": {"belief_state": {"transferability_score": 0.1, "simulation_support": 0.0}},
+        },
+        {
+            "id": "cand_high",
+            "predicted_priority_literature_adjusted": 0.7,
+            "ranking_rationale": {"belief_state": {"transferability_score": 0.8, "simulation_support": 0.4}},
+        },
+    ]
+    updated = DFTHandoffAgent(config=state.config).run(state)
+    assert updated.dft_queue[0]["id"] == "cand_high"
