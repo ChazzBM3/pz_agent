@@ -106,7 +106,7 @@ def test_d3tales_demo_pipeline_loads_prior_action_queue(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     outcome_stats_path = tmp_path / "outcome_stats.json"
-    outcome_stats_path.write_text(json.dumps({"by_proposal_type": {"evidence_query_candidate": {"success": 3, "failure": 0}}, "by_proposal_reason": {"low_confidence_belief_expand": {"success": 2, "failure": 0}}}), encoding="utf-8")
+    outcome_stats_path.write_text(json.dumps({"decay": 0.85, "by_proposal_type": {"evidence_query_candidate": {"success": 3, "failure": 0}}, "by_proposal_reason": {"low_confidence_belief_expand": {"success": 2, "failure": 0}}}), encoding="utf-8")
 
     config_path = tmp_path / "demo_prior.yaml"
     config_path.write_text(
@@ -162,3 +162,4 @@ search:
     assert "by_proposal_type" in stats
     assert stats["by_proposal_type"].get("evidence_query_candidate") is not None
     assert stats["by_proposal_reason"].get("low_confidence_belief_expand") is not None
+    assert float(stats.get("decay", 0.0)) > 0.0

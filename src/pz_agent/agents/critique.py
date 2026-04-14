@@ -586,11 +586,21 @@ class CritiqueAgent(BaseAgent):
                 }
             )
 
+        decay = float(self.config.get("pipeline", {}).get("outcome_decay", 0.85) or 0.85)
+
+        def _decay_bucket_map(bucket_map: dict) -> dict:
+            decayed = {}
+            for key, bucket in bucket_map.items():
+                success = float((bucket or {}).get("success", 0.0) or 0.0) * decay
+                failure = float((bucket or {}).get("failure", 0.0) or 0.0) * decay
+                decayed[key] = {"success": round(success, 4), "failure": round(failure, 4)}
+            return decayed
+
         outcome_stats = dict(state.outcome_stats or {})
-        by_action_type = dict(outcome_stats.get("by_action_type") or {})
-        by_critic_reason = dict(outcome_stats.get("by_critic_reason") or {})
-        by_proposal_type = dict(outcome_stats.get("by_proposal_type") or {})
-        by_proposal_reason = dict(outcome_stats.get("by_proposal_reason") or {})
+        by_action_type = _decay_bucket_map(dict(outcome_stats.get("by_action_type") or {}))
+        by_critic_reason = _decay_bucket_map(dict(outcome_stats.get("by_critic_reason") or {}))
+        by_proposal_type = _decay_bucket_map(dict(outcome_stats.get("by_proposal_type") or {}))
+        by_proposal_reason = _decay_bucket_map(dict(outcome_stats.get("by_proposal_reason") or {}))
         for item in action_outcomes:
             action_type = str(item.get("action_type") or "")
             critic_reason = str(item.get("critic_reason") or "")
@@ -600,24 +610,25 @@ class CritiqueAgent(BaseAgent):
             failure = 0 if success else 1
 
             type_bucket = dict(by_action_type.get(action_type) or {})
-            type_bucket["success"] = int(type_bucket.get("success", 0)) + success
-            type_bucket["failure"] = int(type_bucket.get("failure", 0)) + failure
+            type_bucket["success"] = round(float(type_bucket.get("success", 0.0) or 0.0) + success, 4)
+            type_bucket["failure"] = round(float(type_bucket.get("failure", 0.0) or 0.0) + failure, 4)
             by_action_type[action_type] = type_bucket
 
             critic_bucket = dict(by_critic_reason.get(critic_reason) or {})
-            critic_bucket["success"] = int(critic_bucket.get("success", 0)) + success
-            critic_bucket["failure"] = int(critic_bucket.get("failure", 0)) + failure
+            critic_bucket["success"] = round(float(critic_bucket.get("success", 0.0) or 0.0) + success, 4)
+            critic_bucket["failure"] = round(float(critic_bucket.get("failure", 0.0) or 0.0) + failure, 4)
             by_critic_reason[critic_reason] = critic_bucket
 
             proposal_type_bucket = dict(by_proposal_type.get(proposal_type) or {})
-            proposal_type_bucket["success"] = int(proposal_type_bucket.get("success", 0)) + success
-            proposal_type_bucket["failure"] = int(proposal_type_bucket.get("failure", 0)) + failure
+            proposal_type_bucket["success"] = round(float(proposal_type_bucket.get("success", 0.0) or 0.0) + success, 4)
+            proposal_type_bucket["failure"] = round(float(proposal_type_bucket.get("failure", 0.0) or 0.0) + failure, 4)
             by_proposal_type[proposal_type] = proposal_type_bucket
 
             proposal_reason_bucket = dict(by_proposal_reason.get(proposal_reason) or {})
-            proposal_reason_bucket["success"] = int(proposal_reason_bucket.get("success", 0)) + success
-            proposal_reason_bucket["failure"] = int(proposal_reason_bucket.get("failure", 0)) + failure
+            proposal_reason_bucket["success"] = round(float(proposal_reason_bucket.get("success", 0.0) or 0.0) + success, 4)
+            proposal_reason_bucket["failure"] = round(float(proposal_reason_bucket.get("failure", 0.0) or 0.0) + failure, 4)
             by_proposal_reason[proposal_reason] = proposal_reason_bucket
+        outcome_stats["decay"] = decay
         outcome_stats["by_action_type"] = by_action_type
         outcome_stats["by_critic_reason"] = by_critic_reason
         outcome_stats["by_proposal_type"] = by_proposal_type
