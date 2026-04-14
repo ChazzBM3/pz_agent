@@ -111,15 +111,19 @@ def compute_decoration_adjustment(row: dict[str, Any]) -> tuple[float, list[str]
     rationale: list[str] = []
 
     proposal_mode = str(proposal_prior.get("proposal_mode") or "")
+    generation_priors = dict(proposal_prior.get("generation_priors") or {})
+    failure_bias = list(proposal_prior.get("failure_bias") or [])
     if proposal_mode == "pt_direct_seed":
-        bonus += 0.01
+        bonus += 0.01 + float(generation_priors.get("pt_direct", 0.0) or 0.0) * 0.01
         rationale.append("pt_direct_seed_bonus")
     elif proposal_mode == "bridge_driven_placeholder":
-        bonus += 0.015
+        bonus += 0.01 + float(generation_priors.get("bridge_driven", 0.0) or 0.0) * 0.015
         rationale.append("bridge_driven_generation_bonus")
     elif proposal_mode == "simulation_driven_placeholder":
-        bonus += 0.012
+        bonus += 0.008 + float(generation_priors.get("simulation_driven", 0.0) or 0.0) * 0.02
         rationale.append("simulation_driven_generation_bonus")
+    if failure_bias:
+        rationale.append(f"generation_failure_bias_count={len(failure_bias)}")
 
     substituent_count = identity.get("substituent_count")
     if substituent_count is not None:

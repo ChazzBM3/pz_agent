@@ -3,7 +3,10 @@ from __future__ import annotations
 from pz_agent.agents.base import BaseAgent
 from pz_agent.chemistry.genmol_import import attach_genmol_provenance, load_external_genmol_candidates
 from pz_agent.chemistry.scaffold import get_phenothiazine_prompt_context
+from pathlib import Path
+
 from pz_agent.data.d3tales_loader import load_d3tales_csv
+from pz_agent.kg.generation_priors import derive_generation_priors_from_graph
 from pz_agent.state import RunState
 
 
@@ -18,12 +21,15 @@ class LibraryDesignerAgent(BaseAgent):
         d3tales_limit = generation_config.get("d3tales_limit")
         d3tales_phenothiazine_only = bool(generation_config.get("d3tales_phenothiazine_only", False))
 
+        prior_bundle = derive_generation_priors_from_graph(Path.cwd())
         metadata = {
             "mode": context["strategy"],
             "objective": generation_config.get("prompts", {}).get("objective"),
-            "generation_priors": context.get("default_generation_priors", {}),
-            "bridge_dimensions": context.get("default_bridge_dimensions", []),
-            "proposal_rationale": "PT-centered generation with bridge and simulation priors available for downstream refinement.",
+            "generation_priors": prior_bundle.get("generation_priors", context.get("default_generation_priors", {})),
+            "bridge_dimensions": prior_bundle.get("bridge_dimensions", context.get("default_bridge_dimensions", [])),
+            "failure_bias": prior_bundle.get("failure_bias", []),
+            "prior_source": prior_bundle.get("source", "default"),
+            "proposal_rationale": "PT-centered generation with live KG-derived bridge and simulation priors.",
         }
 
         if d3tales_csv_path:
@@ -37,8 +43,10 @@ class LibraryDesignerAgent(BaseAgent):
                     **record.to_candidate(),
                     "proposal_prior": {
                         "proposal_mode": "pt_direct_seed",
-                        "generation_priors": context.get("default_generation_priors", {}),
-                        "bridge_dimensions": context.get("default_bridge_dimensions", []),
+                        "generation_priors": metadata["generation_priors"],
+                        "bridge_dimensions": metadata["bridge_dimensions"],
+                        "failure_bias": metadata["failure_bias"],
+                        "prior_source": metadata["prior_source"],
                     },
                 }
                 for record in records
@@ -65,8 +73,10 @@ class LibraryDesignerAgent(BaseAgent):
                     **item,
                     "proposal_prior": {
                         "proposal_mode": "external_seed_with_bridge_priors",
-                        "generation_priors": context.get("default_generation_priors", {}),
-                        "bridge_dimensions": context.get("default_bridge_dimensions", []),
+                        "generation_priors": metadata["generation_priors"],
+                        "bridge_dimensions": metadata["bridge_dimensions"],
+                        "failure_bias": metadata["failure_bias"],
+                        "prior_source": metadata["prior_source"],
                     },
                 }
                 for item in attach_genmol_provenance(
@@ -96,8 +106,10 @@ class LibraryDesignerAgent(BaseAgent):
                 "sites": ["R1"],
                 "proposal_prior": {
                     "proposal_mode": "bridge_driven_placeholder",
-                    "generation_priors": context.get("default_generation_priors", {}),
-                    "bridge_dimensions": context.get("default_bridge_dimensions", []),
+                    "generation_priors": metadata["generation_priors"],
+                    "bridge_dimensions": metadata["bridge_dimensions"],
+                    "failure_bias": metadata["failure_bias"],
+                    "prior_source": metadata["prior_source"],
                 },
             },
             {
@@ -108,8 +120,10 @@ class LibraryDesignerAgent(BaseAgent):
                 "sites": ["R2"],
                 "proposal_prior": {
                     "proposal_mode": "simulation_driven_placeholder",
-                    "generation_priors": context.get("default_generation_priors", {}),
-                    "bridge_dimensions": context.get("default_bridge_dimensions", []),
+                    "generation_priors": metadata["generation_priors"],
+                    "bridge_dimensions": metadata["bridge_dimensions"],
+                    "failure_bias": metadata["failure_bias"],
+                    "prior_source": metadata["prior_source"],
                 },
             },
         ]

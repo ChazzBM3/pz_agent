@@ -60,6 +60,7 @@ search:
     assert len(state.library_raw) == 2
     assert [item["id"] for item in state.library_raw] == ["rec_a", "rec_b"]
     assert all("proposal_prior" in item for item in state.library_raw)
+    assert all("prior_source" in item["proposal_prior"] for item in state.library_raw)
     assert state.ranked is not None
     assert state.ranked[0]["id"] == "rec_a"
     assert state.ranked[0]["predicted_priority_literature_adjusted"] > state.ranked[1]["predicted_priority_literature_adjusted"]
