@@ -96,6 +96,16 @@ NEGATIVE_RELEVANCE_TERMS = (
     "enzyme",
     "cyp1a",
     "chagas",
+    "photocatal",
+    "organophotoredox",
+    "semipinacol",
+    "dye-sensitized solar cell",
+    "nanomedicine",
+    "redox polymer",
+    "polymer",
+    "peptide",
+    "lysine",
+    "dendrimer",
 )
 
 
@@ -119,7 +129,7 @@ def _relevance_score(title: str | None, snippet: str | None, url: str | None) ->
     host = (urlparse(url).netloc or "").lower() if url else ""
     text = " ".join(part for part in [title or "", snippet or "", host] if part).lower()
     score = 0.0
-    if "phenothiaz" in text:
+    if any(core in text for core in ["phenothiaz", "thianthren", "phenoxazin"]):
         score += 3.0
     for term in POSITIVE_RELEVANCE_TERMS:
         if term in text:
@@ -141,9 +151,12 @@ def _is_relevant_chemistry_result(title: str | None, snippet: str | None, url: s
         return False
     text = " ".join(part for part in [title or "", snippet or "", host] if part).lower()
     keyword_hits = sum(1 for keyword in CHEMISTRY_KEYWORDS if keyword in text)
-    has_core = "phenothiaz" in text
+    has_core = any(core in text for core in ["phenothiaz", "thianthren", "phenoxazin"])
     has_property_context = any(token in text for token in ["redox", "oxidation", "reduction", "electrochem", "electrochemical", "solubility", "electrolyte", "battery", "voltammetry"])
+    off_target_context = any(token in text for token in ["photocatal", "organophotoredox", "semipinacol", "solar cell", "nanomedicine", "polymer", "peptide", "lysine", "dendrimer"])
     score = _relevance_score(title, snippet, url)
+    if off_target_context and not any(token in text for token in ["flow battery", "electrolyte", "solubility"]):
+        return False
     if any(trusted in host for trusted in TRUSTED_CHEMISTRY_HOSTS):
         return score >= 4.5 and has_core and has_property_context
     return score >= 5.0 and has_core and has_property_context and keyword_hits >= 3

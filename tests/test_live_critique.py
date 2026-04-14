@@ -126,6 +126,16 @@ def test_is_relevant_chemistry_result_filters_obvious_junk() -> None:
         "Liver disease, ferroptosis, and pathological conditions.",
         "https://doi.org/10.1038/example",
     ) is False
+    assert _is_relevant_chemistry_result(
+        "Organophotoredox-catalyzed semipinacol rearrangement via radical-polar crossover",
+        "A phenothiazine-based organophotoredox catalyst enables rearrangement chemistry.",
+        "https://doi.org/10.1038/example2",
+    ) is False
+    assert _is_relevant_chemistry_result(
+        "Redox Polymers for Energy and Nanomedicine",
+        "Redox polymer design for nanomedicine and broad energy concepts.",
+        "https://doi.org/10.1002/example3",
+    ) is False
 
 
 def test_build_candidate_queries_avoids_opaque_ids_and_keeps_broad_queries() -> None:
