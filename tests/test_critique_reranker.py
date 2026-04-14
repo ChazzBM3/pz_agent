@@ -66,6 +66,7 @@ def test_critique_reranker_uses_kg_summary(tmp_path: Path) -> None:
     row = updated.ranked[0]
     assert row["predicted_priority_literature_adjusted"] > 0.5
     assert row["ranking_rationale"]["kg_summary"]["exact_match_hits"] >= 1
+    assert "support_mix" in row["ranking_rationale"]
 
 
 def test_critique_reranker_preserves_base_priority_without_note(tmp_path: Path) -> None:

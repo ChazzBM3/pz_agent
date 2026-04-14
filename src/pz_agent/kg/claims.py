@@ -62,6 +62,7 @@ def infer_claim_semantics(note: dict[str, Any]) -> list[dict[str, Any]]:
 
 def build_claim_nodes(note: dict[str, Any]) -> list[dict[str, Any]]:
     signals = note.get("signals", {})
+    support_mix = dict(note.get("support_mix") or {})
     nodes = []
     for semantics in infer_claim_semantics(note):
         claim_key = semantics["key"]
@@ -74,6 +75,7 @@ def build_claim_nodes(note: dict[str, Any]) -> list[dict[str, Any]]:
                     "status": note.get("status"),
                     "summary": note.get("summary"),
                     "signals": signals,
+                    "support_mix": support_mix,
                     "web_search_enabled": note.get("web_search_enabled"),
                     **semantics,
                 },

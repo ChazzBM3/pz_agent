@@ -6,6 +6,7 @@ from pz_agent.agents.critique import (
     CritiqueAgent,
     _classify_match_type,
     _extract_property_mentions,
+    _infer_evidence_profile,
     _infer_evidence_tier,
     _is_relevant_chemistry_result,
     _is_review_or_background_hit,
@@ -101,6 +102,19 @@ def test_extract_property_mentions_detects_specific_properties() -> None:
     assert "solubility" in props
     assert "oxidation_potential" in props
     assert "reduction_potential" in props
+
+
+
+def test_infer_evidence_profile_assigns_direct_pt_weights() -> None:
+    profile = _infer_evidence_profile(
+        "Tailoring Phenothiazines for Nonaqueous Redox Flow Batteries",
+        "Electrolyte cycling and charged-state solubility analysis.",
+        "https://doi.org/10.1021/example",
+        match_type="analog",
+    )
+    assert profile["evidence_tier"] == "tier_A_direct_pt"
+    assert profile["source_family"] == "PT"
+    assert profile["final_evidence_weight"] > 0.3
 
 
 
@@ -388,3 +402,20 @@ def test_summarize_live_signals_detects_property_support_and_warnings() -> None:
     assert signals["property_aligned_hits"] >= 1
     assert signals["review_hits"] >= 1
     assert signals["support_score"] < 2.0
+
+
+
+def test_summarize_live_signals_preserves_property_mentions_on_evidence() -> None:
+    note = {"signals": {"support_score": 0.0, "contradiction_score": 0.0}}
+    evidence = [
+        {
+            "title": "Phenothiazine redox electrolyte study",
+            "snippet": "Oxidation potential and reduction potential were measured with good solubility.",
+            "match_type": "analog",
+        }
+    ]
+    _summarize_live_signals(note, evidence)
+    assert "property_mentions" in evidence[0]
+    assert "oxidation_potential" in evidence[0]["property_mentions"]
+    assert "reduction_potential" in evidence[0]["property_mentions"]
+    assert "solubility" in evidence[0]["property_mentions"]

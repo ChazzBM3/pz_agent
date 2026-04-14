@@ -76,6 +76,7 @@ class CritiqueRerankerAgent(BaseAgent):
                 item["ranking_rationale"]["kg_summary"] = kg_summary
                 item["ranking_rationale"]["measurement_summary"] = measurement_summary
                 item["ranking_rationale"]["measurement_values"] = measurement_values
+                item["ranking_rationale"]["support_mix"] = note.get("support_mix", {})
                 note["measurement_context"] = measurement_summary
                 note["measurement_values"] = measurement_values
             reranked.append(apply_literature_adjustment(item, note))

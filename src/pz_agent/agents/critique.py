@@ -2,6 +2,16 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
+
+EVIDENCE_TIER_WEIGHTS = {
+    "tier_A_direct_pt": 1.00,
+    "tier_B_broader_pt": 0.80,
+    "tier_C_adjacent_scaffold": 0.65,
+    "tier_D_quinone_teacher": 0.60,
+    "tier_E_simulation": 0.85,
+    "tier_F_metadata_weak": 0.30,
+}
+
 from pz_agent.agents.base import BaseAgent
 from pz_agent.io import write_json
 from pz_agent.kg.retrieval import attach_critique_placeholders, synthesize_evidence_from_queries
@@ -128,6 +138,54 @@ NEGATIVE_RELEVANCE_TERMS = (
     "lysine",
     "dendrimer",
 )
+
+
+def _infer_evidence_profile(title: str | None, snippet: str | None, url: str | None, match_type: str | None = None) -> dict[str, object]:
+    text = " ".join(part for part in [title or "", snippet or "", url or ""] if part).lower()
+    if any(token in text for token in ["quinone", "anthraquinone", "benzoquinone", "naphthoquinone"]):
+        tier = "tier_D_quinone_teacher"
+        source_family = "QN"
+    elif any(token in text for token in ["phenoxazine", "phenazine", "triarylamine"]):
+        tier = "tier_C_adjacent_scaffold"
+        source_family = "adjacent"
+    elif any(token in text for token in ["patent", "vendor", "pubchem", "openalex", "supplier"]):
+        tier = "tier_F_metadata_weak"
+        source_family = "mixed"
+    elif any(token in text for token in ["flow battery", "electrolyte", "cycling", "charged-state solubility", "nonaqueous redox flow"]):
+        tier = "tier_A_direct_pt"
+        source_family = "PT"
+    elif "phenothiaz" in text:
+        tier = "tier_B_broader_pt"
+        source_family = "PT"
+    else:
+        tier = "tier_F_metadata_weak"
+        source_family = "mixed"
+
+    identity_confidence = 1.0 if match_type == "exact" else 0.8 if match_type == "analog" else 0.55
+    condition_similarity = 0.9 if any(token in text for token in ["nonaqueous", "electrolyte", "flow battery", "acetonitrile"]) else 0.7
+    measurement_quality = 0.85 if any(token in text for token in ["measured", "voltammetry", "electrochemical", "cycling", "solubility"]) else 0.65
+    modality_confidence = 0.9
+    recency_modifier = 1.0
+    source_reliability = 0.9 if url and any(host in (urlparse(url).netloc or "").lower() for host in TRUSTED_CHEMISTRY_HOSTS) else 0.65
+    base_weight = EVIDENCE_TIER_WEIGHTS[tier]
+    final_weight = base_weight * condition_similarity * identity_confidence * measurement_quality * modality_confidence * recency_modifier * source_reliability
+
+    return {
+        "evidence_tier": tier,
+        "source_family": source_family,
+        "source_type": "paper",
+        "modality": "text",
+        "extraction_method": "search_parser",
+        "condition_similarity": round(condition_similarity, 3),
+        "identity_confidence": round(identity_confidence, 3),
+        "measurement_quality": round(measurement_quality, 3),
+        "modality_confidence": round(modality_confidence, 3),
+        "recency_modifier": round(recency_modifier, 3),
+        "source_reliability": round(source_reliability, 3),
+        "base_evidence_weight": round(base_weight, 3),
+        "final_evidence_weight": round(final_weight, 3),
+    }
+
 
 
 def _classify_match_type(note: dict, title: str | None, snippet: str | None, url: str | None) -> str:
@@ -272,6 +330,7 @@ def _apply_multimodal_judgments(note: dict) -> dict:
     signals["contradiction_score"] = float(signals.get("contradiction_score", 0.0) or 0.0) + contradiction_penalty
     signals["multimodal_review_flags"] = int(signals.get("multimodal_review_flags", 0) or 0) + human_review_flags
     note["signals"] = signals
+    note.setdefault("support_mix", {})
     return note
 
 
@@ -368,6 +427,7 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
                 continue
             seen_urls.add(url_key)
             match_type = _classify_match_type(note, hit.title, hit.snippet, hit.url)
+            profile = _infer_evidence_profile(hit.title, hit.snippet, hit.url, match_type=match_type)
             evidence.append(
                 {
                     "id": f"evidence::{note['candidate_id']}::{idx}::{hit_idx}",
@@ -378,6 +438,14 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
                     "snippet": hit.snippet,
                     "match_type": match_type,
                     "relevance_score": _relevance_score(hit.title, hit.snippet, hit.url),
+                    **profile,
+                    "source_tags": {
+                        "source_type": profile["source_type"],
+                        "source_family": profile["source_family"],
+                        "evidence_tier": profile["evidence_tier"],
+                        "modality": profile["modality"],
+                        "extraction_method": profile["extraction_method"],
+                    },
                     "provenance": {
                         "source_type": backend.name,
                         "query": query,
@@ -407,6 +475,17 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
     note["media_evidence"] = media_evidence
     note["signals"] = _summarize_live_signals(note, evidence)
     note["evidence_tier"] = _infer_evidence_tier(note["signals"])
+    support_mix = {
+        "direct_pt_support": round(sum(float(item.get("final_evidence_weight", 0.0) or 0.0) for item in evidence if item.get("evidence_tier") == "tier_A_direct_pt"), 3),
+        "pt_scaffold_support": round(sum(float(item.get("final_evidence_weight", 0.0) or 0.0) for item in evidence if item.get("evidence_tier") == "tier_B_broader_pt"), 3),
+        "adjacent_scaffold_support": round(sum(float(item.get("final_evidence_weight", 0.0) or 0.0) for item in evidence if item.get("evidence_tier") == "tier_C_adjacent_scaffold"), 3),
+        "quinone_bridge_support": round(sum(float(item.get("final_evidence_weight", 0.0) or 0.0) for item in evidence if item.get("evidence_tier") == "tier_D_quinone_teacher"), 3),
+        "simulation_support": round(sum(float(item.get("final_evidence_weight", 0.0) or 0.0) for item in evidence if item.get("evidence_tier") == "tier_E_simulation"), 3),
+        "metadata_support": round(sum(float(item.get("final_evidence_weight", 0.0) or 0.0) for item in evidence if item.get("evidence_tier") == "tier_F_metadata_weak"), 3),
+        "contradiction_count": 1 if bool(note["signals"].get("warns_instability")) else 0,
+        "transferability_score": round(min(1.0, 0.2 + sum(float(item.get("final_evidence_weight", 0.0) or 0.0) for item in evidence) / 5.0), 3),
+    }
+    note["support_mix"] = support_mix
     note["status"] = "live_web_results" if evidence else "live_web_no_results"
     note["summary"] = f"Live web critique collected {len(evidence)} evidence hits via {backend.name}."
     return note
