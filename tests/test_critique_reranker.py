@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
+from pz_agent.analysis.pareto import apply_literature_adjustment
 from pz_agent.io import write_json
 from pz_agent.state import RunState
 
@@ -84,3 +85,53 @@ def test_critique_reranker_preserves_base_priority_without_note(tmp_path: Path) 
     row = updated.ranked[0]
     assert row["predicted_priority_literature_adjusted"] == 0.61
     assert row["literature_adjustment"] == 0.0
+
+
+
+def test_apply_literature_adjustment_rewards_specific_evidence_and_penalizes_off_target() -> None:
+    row = {"id": "cand_3", "predicted_priority": 0.5, "ranking_rationale": {}, "identity": {}}
+
+    specific = apply_literature_adjustment(
+        row,
+        {
+            "candidate_id": "cand_3",
+            "evidence_tier": "candidate",
+            "signals": {
+                "supports_solubility": False,
+                "supports_synthesizability": False,
+                "warns_instability": False,
+                "exact_match_hits": 1,
+                "analog_match_hits": 1,
+                "support_score": 0.0,
+                "contradiction_score": 0.0,
+            },
+            "evidence": [
+                {"match_type": "exact", "title": "Phenothiazine redox solubility study", "snippet": "Exact candidate redox and solubility evidence."},
+                {"match_type": "analog", "title": "Analog phenothiazine electrolyte paper", "snippet": "Electrolyte and voltammetry behavior."},
+            ],
+        },
+    )
+    noisy = apply_literature_adjustment(
+        row,
+        {
+            "candidate_id": "cand_3",
+            "evidence_tier": "candidate",
+            "signals": {
+                "supports_solubility": False,
+                "supports_synthesizability": False,
+                "warns_instability": False,
+                "exact_match_hits": 0,
+                "analog_match_hits": 0,
+                "support_score": 0.0,
+                "contradiction_score": 0.0,
+            },
+            "evidence": [
+                {"match_type": "unknown", "title": "Organophotoredox catalyst paper", "snippet": "Photocatalyst rearrangement chemistry."},
+                {"match_type": "unknown", "title": "Redox polymers for nanomedicine", "snippet": "Polymer and nanomedicine discussion."},
+            ],
+        },
+    )
+
+    assert specific["predicted_priority_literature_adjusted"] > noisy["predicted_priority_literature_adjusted"]
+    assert any("property_specific_evidence_bonus" in item or "exact_hits_bonus" in item for item in specific["ranking_rationale"]["literature_adjustment"])
+    assert any("off_target_evidence_penalty" in item for item in noisy["ranking_rationale"]["literature_adjustment"])

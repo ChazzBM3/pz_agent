@@ -81,12 +81,16 @@ def test_classify_match_type_detects_exact_and_analog() -> None:
         "identity": {
             "name": "cand_1",
             "scaffold": "phenothiazine",
-            "decoration_tokens": ["O", "N"],
+            "core_detected": "phenothiazine",
+            "iupac_name": "10-ethyl-2-(trifluoromethyl)phenothiazine",
+            "decoration_tokens": ["CF3"],
+            "substituent_fragments": ["frag:trifluoromethyl"],
         },
     }
 
-    assert _classify_match_type(note, "cand_1 phenothiazine result", None, None) == "exact"
-    assert _classify_match_type(note, "phenothiazine derivative study", None, None) == "analog"
+    assert _classify_match_type(note, "10-ethyl-2-(trifluoromethyl)phenothiazine redox result", None, None) == "exact"
+    assert _classify_match_type(note, "phenothiazine trifluoromethyl electrolyte study", None, None) == "analog"
+    assert _classify_match_type(note, "phenoxazine photophysics result", None, None) == "unknown"
     assert _classify_match_type(note, "unrelated benzene result", None, None) == "unknown"
 
 

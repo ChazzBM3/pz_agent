@@ -113,13 +113,37 @@ def _classify_match_type(note: dict, title: str | None, snippet: str | None, url
     identity = note.get("identity", {}) or {}
     candidate_id = str(note.get("candidate_id") or "").lower()
     haystack = " ".join(part for part in [title or "", snippet or "", url or ""] if part).lower()
-    exact_tokens = [candidate_id, str(identity.get("name") or "").lower(), str(identity.get("canonical_smiles") or "").lower()]
-    exact_tokens = [token for token in exact_tokens if token]
+
+    candidate_core = str(identity.get("core_detected") or identity.get("scaffold") or "").lower()
+    if candidate_core == "phenothiazine" and any(core in haystack for core in ["phenoxazine", "thianthrene"]):
+        return "unknown"
+    if candidate_core == "phenoxazine" and "phenothiazine" in haystack:
+        return "unknown"
+    if candidate_core == "thianthrene" and "phenothiazine" in haystack:
+        return "unknown"
+
+    exact_tokens = [
+        candidate_id,
+        str(identity.get("name") or "").lower(),
+        str(identity.get("canonical_smiles") or "").lower(),
+        str(identity.get("iupac_name") or "").lower(),
+    ]
+    exact_tokens = [token for token in exact_tokens if token and len(token) > 4]
     if any(token and token in haystack for token in exact_tokens):
         return "exact"
-    analog_tokens = [str(identity.get("scaffold") or "").lower(), *(str(t).lower() for t in (identity.get("decoration_tokens") or []))]
-    analog_tokens = [token for token in analog_tokens if token and len(token) > 1]
-    if any(token and token in haystack for token in analog_tokens):
+
+    analog_tokens = [
+        candidate_core,
+        str(identity.get("scaffold") or "").lower(),
+        *(str(t).lower() for t in (identity.get("decoration_tokens") or [])),
+        *(str(t).replace("frag:", "").lower() for t in (identity.get("substituent_fragments") or [])),
+    ]
+    analog_tokens = [token for token in analog_tokens if token and len(token) > 2]
+
+    analog_hits = sum(1 for token in analog_tokens if token in haystack)
+    if analog_hits >= 2:
+        return "analog"
+    if candidate_core and candidate_core in haystack and any(term in haystack for term in ["solubility", "redox", "oxidation", "reduction", "electrochemical", "electrolyte", "battery", "voltammetry"]):
         return "analog"
     return "unknown"
 

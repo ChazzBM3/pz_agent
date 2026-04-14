@@ -3,6 +3,61 @@ from __future__ import annotations
 from typing import Any
 
 
+
+def _compute_candidate_specificity_adjustment(critique_note: dict[str, Any] | None) -> tuple[float, list[str]]:
+    if not critique_note:
+        return 0.0, []
+
+    evidence = critique_note.get("evidence") or []
+    if not evidence:
+        return 0.0, []
+
+    exact_hits = 0
+    analog_hits = 0
+    unknown_hits = 0
+    property_hits = 0
+    off_target_hits = 0
+
+    for item in evidence:
+        match_type = str(item.get("match_type") or "unknown").lower()
+        text = " ".join(str(item.get(k) or "") for k in ["title", "snippet", "query"]).lower()
+        if match_type == "exact":
+            exact_hits += 1
+        elif match_type in {"analog", "family"}:
+            analog_hits += 1
+        else:
+            unknown_hits += 1
+        if any(token in text for token in ["solubility", "redox", "oxidation", "reduction", "electrochemical", "electrolyte", "battery", "voltammetry"]):
+            property_hits += 1
+        if any(token in text for token in ["photocatal", "organophotoredox", "semipinacol", "solar cell", "nanomedicine", "polymer", "peptide", "lysine", "dendrimer"]):
+            off_target_hits += 1
+
+    bonus = 0.0
+    rationale: list[str] = []
+    if exact_hits > 0:
+        exact_bonus = min(0.06, exact_hits * 0.015)
+        bonus += exact_bonus
+        rationale.append(f"candidate_specific_exact_bonus={exact_bonus:.3f}")
+    if analog_hits > 0:
+        analog_bonus = min(0.03, analog_hits * 0.006)
+        bonus += analog_bonus
+        rationale.append(f"candidate_specific_analog_bonus={analog_bonus:.3f}")
+    if property_hits > 0:
+        property_bonus = min(0.03, property_hits * 0.004)
+        bonus += property_bonus
+        rationale.append(f"property_specific_evidence_bonus={property_bonus:.3f}")
+    if unknown_hits > max(exact_hits + analog_hits, 0):
+        penalty = min(0.03, unknown_hits * 0.003)
+        bonus -= penalty
+        rationale.append(f"unknown_match_penalty={penalty:.3f}")
+    if off_target_hits > 0:
+        penalty = min(0.05, off_target_hits * 0.01)
+        bonus -= penalty
+        rationale.append(f"off_target_evidence_penalty={penalty:.3f}")
+
+    return bonus, rationale
+
+
 D3TALES_TIER_1 = {
     "oxidation_potential",
     "reduction_potential",
@@ -244,6 +299,10 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
     value_bonus, value_rationale = compute_tier_1_value_adjustment(measurement_values)
     bonus += value_bonus
     rationale.extend(value_rationale)
+
+    specificity_bonus, specificity_rationale = _compute_candidate_specificity_adjustment(critique_note)
+    bonus += specificity_bonus
+    rationale.extend(specificity_rationale)
 
     if signals.get("warns_instability"):
         bonus -= 0.08
