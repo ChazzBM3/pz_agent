@@ -5,6 +5,30 @@ from pz_agent.io import read_json, write_json
 from pz_agent.state import RunState
 
 
+def _priority_with_outcome_bias(proposal: dict, outcome_stats: dict | None) -> tuple[float, dict[str, float]]:
+    base_priority = float(proposal.get("priority", 0.0) or 0.0)
+    if not outcome_stats:
+        return base_priority, {"base": base_priority, "type_bias": 0.0, "reason_bias": 0.0, "final": base_priority}
+
+    proposal_type = str(proposal.get("proposal_type") or "")
+    reason = str(proposal.get("reason") or "")
+    type_stats = (outcome_stats.get("by_action_type") or {}).get(proposal_type, {})
+    reason_stats = (outcome_stats.get("by_reason") or {}).get(reason, {})
+
+    def _bias(stats: dict) -> float:
+        success = float(stats.get("success", 0.0) or 0.0)
+        failure = float(stats.get("failure", 0.0) or 0.0)
+        total = success + failure
+        if total <= 0:
+            return 0.0
+        return max(-0.08, min(0.08, ((success - failure) / total) * 0.08))
+
+    type_bias = _bias(type_stats)
+    reason_bias = _bias(reason_stats)
+    final_priority = max(0.0, min(1.0, base_priority + type_bias + reason_bias))
+    return final_priority, {"base": round(base_priority, 3), "type_bias": round(type_bias, 3), "reason_bias": round(reason_bias, 3), "final": round(final_priority, 3)}
+
+
 def _build_action_queue(accepted: list[dict]) -> list[dict]:
     queue: list[dict] = []
     for proposal in accepted:
@@ -27,7 +51,7 @@ def _build_action_queue(accepted: list[dict]) -> list[dict]:
     return queue
 
 
-def _critique_proposals(proposals: list[dict]) -> tuple[list[dict], list[dict]]:
+def _critique_proposals(proposals: list[dict], outcome_stats: dict | None = None) -> tuple[list[dict], list[dict]]:
     accepted: list[dict] = []
     rejected: list[dict] = []
     seen: set[tuple[str, str]] = set()
@@ -39,18 +63,19 @@ def _critique_proposals(proposals: list[dict]) -> tuple[list[dict], list[dict]]:
             continue
         seen.add(key)
 
-        priority = float(proposal.get("priority", 0.0) or 0.0)
+        priority, bias_meta = _priority_with_outcome_bias(proposal, outcome_stats)
         merge_tag = str(proposal.get("merge_tag") or "")
         proposal_type = str(proposal.get("proposal_type") or "")
+        enriched = {**proposal, "priority": priority, "priority_bias": bias_meta}
 
         if proposal_type == "simulation_request_candidate" and priority >= 0.5:
-            accepted.append({**proposal, "critic_decision": "accept", "critic_reason": "high_priority_failure_validation"})
+            accepted.append({**enriched, "critic_decision": "accept", "critic_reason": "high_priority_failure_validation"})
         elif proposal_type == "bridge_case_candidate" and priority >= 0.35 and merge_tag == "inferred":
-            accepted.append({**proposal, "critic_decision": "accept", "critic_reason": "medium_transfer_bridge_followup"})
+            accepted.append({**enriched, "critic_decision": "accept", "critic_reason": "medium_transfer_bridge_followup"})
         elif proposal_type == "evidence_query_candidate" and priority >= 0.45 and merge_tag == "speculative":
-            accepted.append({**proposal, "critic_decision": "accept", "critic_reason": "high_uncertainty_belief_followup"})
+            accepted.append({**enriched, "critic_decision": "accept", "critic_reason": "high_uncertainty_belief_followup"})
         else:
-            rejected.append({**proposal, "critic_decision": "reject", "critic_reason": "below_supervision_threshold"})
+            rejected.append({**enriched, "critic_decision": "reject", "critic_reason": "below_supervision_threshold"})
 
     return accepted, rejected
 
@@ -129,7 +154,7 @@ class GraphExpansionAgent(BaseAgent):
                         }
                     )
 
-        accepted, rejected = _critique_proposals(proposals)
+        accepted, rejected = _critique_proposals(proposals, outcome_stats=state.outcome_stats)
         action_queue = _build_action_queue(accepted)
         state.expansion_registry = accepted
         state.action_queue = action_queue

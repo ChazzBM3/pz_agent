@@ -30,10 +30,12 @@ class ReporterAgent(BaseAgent):
             "expansion_proposals": state.expansion_registry or [],
             "action_queue": state.action_queue or [],
             "action_outcomes": state.action_outcomes or [],
+            "outcome_stats": state.outcome_stats or {},
             "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),
             "expansion_proposals_rejected_path": str(state.run_dir / "expansion_proposals.rejected.json"),
             "action_queue_path": str(state.run_dir / "action_queue.json"),
             "action_outcomes_path": str(state.run_dir / "action_outcomes.json"),
+            "outcome_stats_path": str(state.run_dir / "outcome_stats.json"),
             "evidence_report": str(evidence_report_path),
         }
         write_json(state.run_dir / "report.json", report)

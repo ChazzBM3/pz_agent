@@ -35,6 +35,7 @@ class RunState:
     expansion_registry: list[dict[str, Any]] | None = None
     action_queue: list[dict[str, Any]] | None = None
     action_outcomes: list[dict[str, Any]] | None = None
+    outcome_stats: dict[str, Any] | None = None
     logs: list[str] = field(default_factory=list)
 
     def log(self, message: str) -> None:

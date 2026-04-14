@@ -87,8 +87,20 @@ def _write_state_snapshot(state: RunState) -> None:
             "expansion_registry_count": len(state.expansion_registry or []),
             "action_queue_count": len(state.action_queue or []),
             "action_outcomes_count": len(state.action_outcomes or []),
+            "outcome_stats_keys": sorted((state.outcome_stats or {}).keys()),
         },
     )
+
+
+def _load_outcome_stats(config: dict) -> dict | None:
+    stats_path = config.get("pipeline", {}).get("outcome_stats_path")
+    if not stats_path:
+        return None
+    path = Path(stats_path)
+    if not path.exists():
+        return None
+    payload = read_json(path)
+    return payload if isinstance(payload, dict) else None
 
 
 def _load_prior_action_queue(config: dict) -> list[dict] | None:
@@ -113,6 +125,10 @@ def run_pipeline(config_path: str | Path, run_dir: str | Path = "artifacts/run")
     if prior_action_queue:
         state.action_queue = prior_action_queue
         state.log(f"Loaded prior action queue with {len(prior_action_queue)} actions")
+    outcome_stats = _load_outcome_stats(config)
+    if outcome_stats:
+        state.outcome_stats = outcome_stats
+        state.log(f"Loaded outcome stats with keys: {', '.join(sorted(outcome_stats.keys()))}")
     state.log("Initialized run state")
     _write_state_snapshot(state)
 

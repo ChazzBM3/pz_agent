@@ -584,8 +584,29 @@ class CritiqueAgent(BaseAgent):
                 }
             )
 
+        outcome_stats = dict(state.outcome_stats or {})
+        by_action_type = dict(outcome_stats.get("by_action_type") or {})
+        by_reason = dict(outcome_stats.get("by_reason") or {})
+        for item in action_outcomes:
+            action_type = str(item.get("action_type") or "")
+            reason = str(item.get("critic_reason") or "")
+            success = 1 if item.get("result") == "evidence_found" else 0
+            failure = 0 if success else 1
+            type_bucket = dict(by_action_type.get(action_type) or {})
+            type_bucket["success"] = int(type_bucket.get("success", 0)) + success
+            type_bucket["failure"] = int(type_bucket.get("failure", 0)) + failure
+            by_action_type[action_type] = type_bucket
+            reason_bucket = dict(by_reason.get(reason) or {})
+            reason_bucket["success"] = int(reason_bucket.get("success", 0)) + success
+            reason_bucket["failure"] = int(reason_bucket.get("failure", 0)) + failure
+            by_reason[reason] = reason_bucket
+        outcome_stats["by_action_type"] = by_action_type
+        outcome_stats["by_reason"] = by_reason
+
         state.critique_notes = enriched_notes
         state.action_outcomes = action_outcomes
+        state.outcome_stats = outcome_stats
         write_json(state.run_dir / "critique_notes.json", critique_notes)
         write_json(state.run_dir / "action_outcomes.json", action_outcomes)
+        write_json(state.run_dir / "outcome_stats.json", outcome_stats)
         return state
