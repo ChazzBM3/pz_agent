@@ -5,6 +5,7 @@ from pathlib import Path
 from pz_agent.agents.critique import (
     CritiqueAgent,
     _classify_match_type,
+    _extract_property_mentions,
     _infer_evidence_tier,
     _is_relevant_chemistry_result,
     _is_review_or_background_hit,
@@ -92,6 +93,15 @@ def test_classify_match_type_detects_exact_and_analog() -> None:
     assert _classify_match_type(note, "phenothiazine trifluoromethyl electrolyte study", None, None) == "analog"
     assert _classify_match_type(note, "phenoxazine photophysics result", None, None) == "unknown"
     assert _classify_match_type(note, "unrelated benzene result", None, None) == "unknown"
+
+
+def test_extract_property_mentions_detects_specific_properties() -> None:
+    text = "High-concentration phenothiazine electrolyte with strong solubility, oxidation potential, and reduction potential data."
+    props = _extract_property_mentions(text)
+    assert "solubility" in props
+    assert "oxidation_potential" in props
+    assert "reduction_potential" in props
+
 
 
 def test_relevance_score_prefers_phenothiazine_redox_over_biomed_noise() -> None:
@@ -369,6 +379,9 @@ def test_summarize_live_signals_detects_property_support_and_warnings() -> None:
     assert signals["supports_solubility"] is True
     assert signals["supports_synthesizability"] is True
     assert signals["warns_instability"] is True
+    assert signals["property_support"]["solubility"] >= 1
+    assert signals["property_support"]["synthesizability"] >= 1
+    assert signals["property_support"]["instability"] >= 1
     assert signals["exact_match_hits"] >= 1
     assert signals["analog_match_hits"] >= 1
     assert signals["broad_scaffold_hits"] >= 1

@@ -40,37 +40,20 @@ def infer_claim_semantics(note: dict[str, Any]) -> list[dict[str, Any]]:
             "evidence_tier": evidence_tier,
         }
     ]
-    if signals.get("supports_solubility"):
+
+    property_support = dict(signals.get("property_support") or {})
+    for property_name, support_count in sorted(property_support.items()):
+        polarity = "contradiction" if property_name == "instability" else "support"
+        predicate = "warns_instability" if property_name == "instability" else "supports_property"
         semantics.append(
             {
-                "key": "solubility",
+                "key": property_name,
                 "subject_type": "molecule",
-                "predicate": "supports_property",
-                "polarity": "support",
-                "property_name": "solubility",
+                "predicate": predicate,
+                "polarity": polarity,
+                "property_name": property_name,
                 "evidence_tier": evidence_tier,
-            }
-        )
-    if signals.get("supports_synthesizability"):
-        semantics.append(
-            {
-                "key": "synthesizability",
-                "subject_type": "molecule",
-                "predicate": "supports_property",
-                "polarity": "support",
-                "property_name": "synthesizability",
-                "evidence_tier": evidence_tier,
-            }
-        )
-    if signals.get("warns_instability"):
-        semantics.append(
-            {
-                "key": "instability",
-                "subject_type": "molecule",
-                "predicate": "warns_instability",
-                "polarity": "contradiction",
-                "property_name": "instability",
-                "evidence_tier": evidence_tier,
+                "support_count": int(support_count or 0),
             }
         )
     return semantics

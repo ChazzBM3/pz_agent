@@ -26,6 +26,7 @@ SAMPLE_GRAPH = {
                     "analog_match_hits": 2,
                     "support_score": 3.5,
                     "contradiction_score": 0.0,
+                    "property_support": {"solubility": 2},
                 },
             },
         },
@@ -36,6 +37,7 @@ SAMPLE_GRAPH = {
                 "query": "cand_1 solubility phenothiazine",
                 "match_type": "analog",
                 "confidence": 0.8,
+                "property_mentions": ["solubility"],
             },
         },
         {

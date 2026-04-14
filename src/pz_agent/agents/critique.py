@@ -10,11 +10,32 @@ from pz_agent.state import RunState
 
 
 PROPERTY_KEYWORDS = {
-    "solubility": ["solubility", "soluble"],
-    "synthesizability": ["synthesis", "synthetic", "synthesizability", "prepared", "route"],
+    "solubility": ["solubility", "soluble", "high-concentration", "concentration"],
+    "synthesizability": ["synthesis", "synthetic", "synthesizability", "prepared", "route", "derivatization"],
     "instability": ["unstable", "instability", "decomposition", "degrade"],
-    "electrochemistry": ["redox", "oxidation", "reduction", "electrochemical", "voltammetry", "solvation", "reorganization"],
+    "oxidation_potential": ["oxidation potential", "oxidation", "anodic", "ionization potential"],
+    "reduction_potential": ["reduction potential", "reduction", "cathodic", "electron affinity"],
+    "electrochemistry": ["redox", "electrochemical", "voltammetry", "solvation", "reorganization"],
 }
+
+
+PROPERTY_SIGNAL_MAP = {
+    "solubility": "supports_solubility",
+    "synthesizability": "supports_synthesizability",
+    "oxidation_potential": "supports_oxidation_potential",
+    "reduction_potential": "supports_reduction_potential",
+    "instability": "warns_instability",
+}
+
+
+
+def _extract_property_mentions(text: str) -> list[str]:
+    hits: list[str] = []
+    lowered = text.lower()
+    for property_name, keywords in PROPERTY_KEYWORDS.items():
+        if any(keyword in lowered for keyword in keywords):
+            hits.append(property_name)
+    return hits
 
 REVIEW_HINTS = ("review", "progress", "perspective", "overview")
 BACKGROUND_HINTS = ("platform", "editor", "visualization", "analysis platform")
@@ -260,25 +281,25 @@ def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
     analog_hits = 0
     support_score = float(signals.get("support_score", 0.0) or 0.0)
     contradiction_score = float(signals.get("contradiction_score", 0.0) or 0.0)
-    supports_solubility = bool(signals.get("supports_solubility"))
-    supports_synth = bool(signals.get("supports_synthesizability"))
-    warns_instability = bool(signals.get("warns_instability"))
     broad_scaffold_hits = int(signals.get("broad_scaffold_hits", 0) or 0)
     property_aligned_hits = int(signals.get("property_aligned_hits", 0) or 0)
     review_hits = int(signals.get("review_hits", 0) or 0)
     patent_hit_count = int(signals.get("patent_hit_count", 0) or 0)
     scholarly_hit_count = int(signals.get("scholarly_hit_count", 0) or 0)
+    property_support = dict(signals.get("property_support") or {})
 
     for item in evidence:
         title = str(item.get("title") or "")
         snippet = str(item.get("snippet") or "")
         match_type = item.get("match_type")
         text = " ".join([title, snippet]).lower()
-        has_solubility = any(keyword in text for keyword in PROPERTY_KEYWORDS["solubility"])
-        has_synth = any(keyword in text for keyword in PROPERTY_KEYWORDS["synthesizability"])
-        has_echem = any(keyword in text for keyword in PROPERTY_KEYWORDS["electrochemistry"])
-        property_aligned = has_solubility or has_synth or has_echem
+        property_mentions = _extract_property_mentions(text)
+        property_mentions = [name for name in property_mentions if name != "electrochemistry"]
+        has_echem = "electrochemistry" in _extract_property_mentions(text)
+        property_aligned = bool(property_mentions or has_echem)
         is_review = _is_review_or_background_hit(title, snippet)
+
+        item["property_mentions"] = property_mentions
 
         if is_review:
             review_hits += 1
@@ -295,21 +316,19 @@ def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
 
         if property_aligned and not is_review:
             property_aligned_hits += 1
-        if has_solubility and not is_review:
-            supports_solubility = True
-            support_score += 0.06
-        if has_synth and not is_review:
-            supports_synth = True
-            support_score += 0.06
-        if any(keyword in text for keyword in PROPERTY_KEYWORDS["instability"]):
-            warns_instability = True
-            contradiction_score += 0.5
+
+        for property_name in property_mentions:
+            property_support[property_name] = int(property_support.get(property_name, 0) or 0) + 1
+            signal_name = PROPERTY_SIGNAL_MAP.get(property_name)
+            if signal_name:
+                signals[signal_name] = True
+            if property_name == "instability":
+                contradiction_score += 0.5
+            else:
+                support_score += 0.06
 
     signals.update(
         {
-            "supports_solubility": supports_solubility,
-            "supports_synthesizability": supports_synth,
-            "warns_instability": warns_instability,
             "exact_match_hits": int(signals.get("exact_match_hits", 0) or 0) + exact_hits,
             "analog_match_hits": int(signals.get("analog_match_hits", 0) or 0) + analog_hits,
             "broad_scaffold_hits": broad_scaffold_hits,
@@ -319,8 +338,14 @@ def _summarize_live_signals(note: dict, evidence: list[dict]) -> dict:
             "scholarly_hit_count": scholarly_hit_count,
             "support_score": support_score,
             "contradiction_score": contradiction_score,
+            "property_support": property_support,
         }
     )
+    signals.setdefault("supports_solubility", False)
+    signals.setdefault("supports_synthesizability", False)
+    signals.setdefault("supports_oxidation_potential", False)
+    signals.setdefault("supports_reduction_potential", False)
+    signals.setdefault("warns_instability", False)
     return signals
 
 
