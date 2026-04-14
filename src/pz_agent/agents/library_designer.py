@@ -21,6 +21,9 @@ class LibraryDesignerAgent(BaseAgent):
         metadata = {
             "mode": context["strategy"],
             "objective": generation_config.get("prompts", {}).get("objective"),
+            "generation_priors": context.get("default_generation_priors", {}),
+            "bridge_dimensions": context.get("default_bridge_dimensions", []),
+            "proposal_rationale": "PT-centered generation with bridge and simulation priors available for downstream refinement.",
         }
 
         if d3tales_csv_path:
@@ -29,7 +32,17 @@ class LibraryDesignerAgent(BaseAgent):
                 limit=d3tales_limit,
                 phenothiazine_only=d3tales_phenothiazine_only,
             )
-            state.library_raw = [record.to_candidate() for record in records]
+            state.library_raw = [
+                {
+                    **record.to_candidate(),
+                    "proposal_prior": {
+                        "proposal_mode": "pt_direct_seed",
+                        "generation_priors": context.get("default_generation_priors", {}),
+                        "bridge_dimensions": context.get("default_bridge_dimensions", []),
+                    },
+                }
+                for record in records
+            ]
             state.generation_registry = [
                 {
                     "source_path": d3tales_csv_path,
@@ -47,11 +60,21 @@ class LibraryDesignerAgent(BaseAgent):
 
         if source_path:
             imported = load_external_genmol_candidates(source_path)
-            state.library_raw = attach_genmol_provenance(
-                imported,
-                source_path=source_path,
-                run_metadata=metadata,
-            )
+            state.library_raw = [
+                {
+                    **item,
+                    "proposal_prior": {
+                        "proposal_mode": "external_seed_with_bridge_priors",
+                        "generation_priors": context.get("default_generation_priors", {}),
+                        "bridge_dimensions": context.get("default_bridge_dimensions", []),
+                    },
+                }
+                for item in attach_genmol_provenance(
+                    imported,
+                    source_path=source_path,
+                    run_metadata=metadata,
+                )
+            ]
             state.generation_registry = [
                 {
                     "source_path": source_path,
@@ -71,6 +94,11 @@ class LibraryDesignerAgent(BaseAgent):
                 "generation_engine": engine,
                 "generation_mode": context["strategy"],
                 "sites": ["R1"],
+                "proposal_prior": {
+                    "proposal_mode": "bridge_driven_placeholder",
+                    "generation_priors": context.get("default_generation_priors", {}),
+                    "bridge_dimensions": context.get("default_bridge_dimensions", []),
+                },
             },
             {
                 "id": "pz_002",
@@ -78,6 +106,11 @@ class LibraryDesignerAgent(BaseAgent):
                 "generation_engine": engine,
                 "generation_mode": context["strategy"],
                 "sites": ["R2"],
+                "proposal_prior": {
+                    "proposal_mode": "simulation_driven_placeholder",
+                    "generation_priors": context.get("default_generation_priors", {}),
+                    "bridge_dimensions": context.get("default_bridge_dimensions", []),
+                },
             },
         ]
         state.generation_registry = [

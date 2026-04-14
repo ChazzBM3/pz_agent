@@ -106,8 +106,20 @@ def compute_priority_score(row: dict[str, Any], synth_weight: float = 0.55, sol_
 
 def compute_decoration_adjustment(row: dict[str, Any]) -> tuple[float, list[str]]:
     identity = row.get("identity", {})
+    proposal_prior = dict(row.get("proposal_prior") or {})
     bonus = 0.0
     rationale: list[str] = []
+
+    proposal_mode = str(proposal_prior.get("proposal_mode") or "")
+    if proposal_mode == "pt_direct_seed":
+        bonus += 0.01
+        rationale.append("pt_direct_seed_bonus")
+    elif proposal_mode == "bridge_driven_placeholder":
+        bonus += 0.015
+        rationale.append("bridge_driven_generation_bonus")
+    elif proposal_mode == "simulation_driven_placeholder":
+        bonus += 0.012
+        rationale.append("simulation_driven_generation_bonus")
 
     substituent_count = identity.get("substituent_count")
     if substituent_count is not None:
