@@ -74,3 +74,5 @@ search:
     assert "graph_metrics" in report
     assert "expansion_proposals" in report
     assert (tmp_path / 'run' / 'expansion_proposals.json').exists()
+    assert (tmp_path / 'run' / 'expansion_proposals.accepted.json').exists()
+    assert (tmp_path / 'run' / 'expansion_proposals.rejected.json').exists()

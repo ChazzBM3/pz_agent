@@ -5,6 +5,34 @@ from pz_agent.io import read_json, write_json
 from pz_agent.state import RunState
 
 
+def _critique_proposals(proposals: list[dict]) -> tuple[list[dict], list[dict]]:
+    accepted: list[dict] = []
+    rejected: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    for proposal in sorted(proposals, key=lambda item: (-float(item.get("priority", 0.0) or 0.0), item.get("candidate_id", ""), item.get("proposal_type", ""))):
+        key = (str(proposal.get("candidate_id") or ""), str(proposal.get("proposal_type") or ""))
+        if key in seen:
+            rejected.append({**proposal, "critic_decision": "reject", "critic_reason": "duplicate_candidate_and_type"})
+            continue
+        seen.add(key)
+
+        priority = float(proposal.get("priority", 0.0) or 0.0)
+        merge_tag = str(proposal.get("merge_tag") or "")
+        proposal_type = str(proposal.get("proposal_type") or "")
+
+        if proposal_type == "simulation_request_candidate" and priority >= 0.5:
+            accepted.append({**proposal, "critic_decision": "accept", "critic_reason": "high_priority_failure_validation"})
+        elif proposal_type == "bridge_case_candidate" and priority >= 0.35 and merge_tag == "inferred":
+            accepted.append({**proposal, "critic_decision": "accept", "critic_reason": "medium_transfer_bridge_followup"})
+        elif proposal_type == "evidence_query_candidate" and priority >= 0.45 and merge_tag == "speculative":
+            accepted.append({**proposal, "critic_decision": "accept", "critic_reason": "high_uncertainty_belief_followup"})
+        else:
+            rejected.append({**proposal, "critic_decision": "reject", "critic_reason": "below_supervision_threshold"})
+
+    return accepted, rejected
+
+
 class GraphExpansionAgent(BaseAgent):
     name = "graph_expansion"
 
@@ -79,7 +107,10 @@ class GraphExpansionAgent(BaseAgent):
                         }
                     )
 
-        state.expansion_registry = proposals
+        accepted, rejected = _critique_proposals(proposals)
+        state.expansion_registry = accepted
         write_json(state.run_dir / "expansion_proposals.json", proposals)
-        state.log(f"Graph expansion agent proposed {len(proposals)} supervised expansion actions")
+        write_json(state.run_dir / "expansion_proposals.accepted.json", accepted)
+        write_json(state.run_dir / "expansion_proposals.rejected.json", rejected)
+        state.log(f"Graph expansion agent proposed {len(proposals)} actions, accepted {len(accepted)}, rejected {len(rejected)}")
         return state

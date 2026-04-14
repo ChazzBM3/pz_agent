@@ -27,6 +27,8 @@ class ReporterAgent(BaseAgent):
             ],
             "critique_notes": state.critique_notes or [],
             "expansion_proposals": state.expansion_registry or [],
+            "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),
+            "expansion_proposals_rejected_path": str(state.run_dir / "expansion_proposals.rejected.json"),
             "evidence_report": str(evidence_report_path),
         }
         write_json(state.run_dir / "report.json", report)
