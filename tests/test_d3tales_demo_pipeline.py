@@ -37,6 +37,7 @@ pipeline:
     - critique
     - critique_reranker
     - knowledge_graph
+    - graph_expansion
     - reporter
     - dft_handoff
 kg:
@@ -71,3 +72,5 @@ search:
     assert any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))
     report = __import__('json').loads((tmp_path / 'run' / 'report.json').read_text())
     assert "graph_metrics" in report
+    assert "expansion_proposals" in report
+    assert (tmp_path / 'run' / 'expansion_proposals.json').exists()

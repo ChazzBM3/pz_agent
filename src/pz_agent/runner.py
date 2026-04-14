@@ -8,6 +8,7 @@ from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
 from pz_agent.agents.dft_handoff import DFTHandoffAgent
 from pz_agent.agents.document_fetch import DocumentFetchAgent
 from pz_agent.agents.figure_corpus import FigureCorpusAgent
+from pz_agent.agents.graph_expansion import GraphExpansionAgent
 from pz_agent.agents.knowledge_graph import KnowledgeGraphAgent
 from pz_agent.agents.library_designer import LibraryDesignerAgent
 from pz_agent.agents.multimodal_rerank import MultimodalRerankAgent
@@ -36,6 +37,7 @@ STAGE_MAP = {
     "page_corpus": PageCorpusAgent,
     "document_fetch": DocumentFetchAgent,
     "figure_corpus": FigureCorpusAgent,
+    "graph_expansion": GraphExpansionAgent,
     "ocr_caption": OCRCaptionAgent,
     "page_image_retrieval": PageImageRetrievalAgent,
     "multimodal_rerank": MultimodalRerankAgent,
@@ -82,6 +84,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "page_image_registry_count": len(state.page_image_registry or []),
             "multimodal_registry_count": len(state.multimodal_registry or []),
             "ocr_registry_count": len(state.ocr_registry or []),
+            "expansion_registry_count": len(state.expansion_registry or []),
         },
     )
 

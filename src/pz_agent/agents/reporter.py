@@ -26,6 +26,7 @@ class ReporterAgent(BaseAgent):
                 for pred in (state.predictions or [])
             ],
             "critique_notes": state.critique_notes or [],
+            "expansion_proposals": state.expansion_registry or [],
             "evidence_report": str(evidence_report_path),
         }
         write_json(state.run_dir / "report.json", report)
