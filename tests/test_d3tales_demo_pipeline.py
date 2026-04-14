@@ -74,7 +74,9 @@ search:
     assert "graph_metrics" in report
     assert "expansion_proposals" in report
     assert "action_queue" in report
+    assert "queued_evidence_query_count" in report
     assert (tmp_path / 'run' / 'expansion_proposals.json').exists()
     assert (tmp_path / 'run' / 'expansion_proposals.accepted.json').exists()
     assert (tmp_path / 'run' / 'expansion_proposals.rejected.json').exists()
     assert (tmp_path / 'run' / 'action_queue.json').exists()
+    assert report["queued_evidence_query_count"] >= 0

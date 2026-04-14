@@ -14,7 +14,8 @@ EVIDENCE_TIER_WEIGHTS = {
 
 from pz_agent.agents.base import BaseAgent
 from pz_agent.io import write_json
-from pz_agent.kg.retrieval import attach_critique_placeholders, synthesize_evidence_from_queries
+from pz_agent.kg.retrieval import attach_critique_placeholders, build_candidate_queries, synthesize_evidence_from_queries
+from pz_agent.kg.rag import RetrievalQuery, retrieve_context
 from pz_agent.search.backends import get_search_backend
 from pz_agent.state import RunState
 
@@ -491,19 +492,59 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
     return note
 
 
+def _queue_evidence_query_hints(state: RunState) -> dict[str, list[str]]:
+    hints: dict[str, list[str]] = {}
+    for item in state.action_queue or []:
+        if item.get("action_type") != "evidence_query":
+            continue
+        candidate_id = str(item.get("candidate_id") or "")
+        payload = item.get("payload") or {}
+        belief_status = str(payload.get("belief_status") or "belief").replace("_", " ")
+        confidence = payload.get("confidence")
+        confidence_text = f" confidence {confidence}" if confidence is not None else ""
+        hint = f"phenothiazine derivative {belief_status} literature evidence{confidence_text}".strip()
+        hints.setdefault(candidate_id, [])
+        if hint not in hints[candidate_id]:
+            hints[candidate_id].append(hint)
+    return hints
+
+
 class CritiqueAgent(BaseAgent):
     name = "critique"
 
     def run(self, state: RunState) -> RunState:
         search_fields = list(self.config.get("critique", {}).get("search_fields", []))
         enable_web_search = bool(self.config.get("critique", {}).get("enable_web_search", True))
+        max_candidates = int(self.config.get("critique", {}).get("max_candidates", 10))
+        queue_hints = _queue_evidence_query_hints(state)
         critique_notes = attach_critique_placeholders(
             shortlist=state.shortlist or [],
             enable_web_search=enable_web_search,
-            max_candidates=int(self.config.get("critique", {}).get("max_candidates", 10)),
+            max_candidates=max_candidates,
             search_fields=search_fields,
             graph_path=state.knowledge_graph_path,
         )
+
+        if queue_hints:
+            augmented_notes = []
+            for note, item in zip(critique_notes, (state.shortlist or [])[:max_candidates], strict=False):
+                candidate_id = note.get("candidate_id")
+                extra_hints = queue_hints.get(candidate_id, [])
+                if extra_hints:
+                    retrieval_query = RetrievalQuery(
+                        candidate_id=item["id"],
+                        properties_of_interest=list(search_fields or []),
+                    )
+                    kg_context = retrieve_context(state.knowledge_graph_path, retrieval_query)
+                    merged_hints = list(kg_context.query_hints)
+                    for hint in extra_hints:
+                        if hint not in merged_hints:
+                            merged_hints.append(hint)
+                    note = dict(note)
+                    note["queries"] = build_candidate_queries(item, search_fields=search_fields, query_hints=merged_hints)
+                    note["action_queue_hints"] = extra_hints
+                augmented_notes.append(note)
+            critique_notes = augmented_notes
 
         backend_name = str(self.config.get("search", {}).get("backend", "stub"))
         count = int(self.config.get("search", {}).get("count", 5))

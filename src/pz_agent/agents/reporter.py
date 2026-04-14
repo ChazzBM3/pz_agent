@@ -26,6 +26,7 @@ class ReporterAgent(BaseAgent):
                 for pred in (state.predictions or [])
             ],
             "critique_notes": state.critique_notes or [],
+            "queued_evidence_query_count": sum(1 for item in (state.action_queue or []) if item.get("action_type") == "evidence_query"),
             "expansion_proposals": state.expansion_registry or [],
             "action_queue": state.action_queue or [],
             "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),
