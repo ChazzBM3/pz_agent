@@ -8,25 +8,27 @@ from pz_agent.state import RunState
 def _priority_with_outcome_bias(proposal: dict, outcome_stats: dict | None) -> tuple[float, dict[str, float]]:
     base_priority = float(proposal.get("priority", 0.0) or 0.0)
     if not outcome_stats:
-        return base_priority, {"base": base_priority, "type_bias": 0.0, "reason_bias": 0.0, "final": base_priority}
+        return base_priority, {"base": base_priority, "type_bias": 0.0, "reason_bias": 0.0, "type_support": 0.0, "reason_support": 0.0, "final": base_priority}
 
     proposal_type = str(proposal.get("proposal_type") or "")
     reason = str(proposal.get("reason") or "")
     type_stats = (outcome_stats.get("by_proposal_type") or {}).get(proposal_type, {})
     reason_stats = (outcome_stats.get("by_proposal_reason") or {}).get(reason, {})
 
-    def _bias(stats: dict) -> float:
+    def _bias(stats: dict) -> tuple[float, float]:
         success = float(stats.get("success", 0.0) or 0.0)
         failure = float(stats.get("failure", 0.0) or 0.0)
         total = success + failure
         if total <= 0:
-            return 0.0
-        return max(-0.08, min(0.08, ((success - failure) / total) * 0.08))
+            return 0.0, 0.0
+        raw_bias = max(-0.08, min(0.08, ((success - failure) / total) * 0.08))
+        support_factor = min(1.0, total / 3.0)
+        return raw_bias * support_factor, support_factor
 
-    type_bias = _bias(type_stats)
-    reason_bias = _bias(reason_stats)
+    type_bias, type_support = _bias(type_stats)
+    reason_bias, reason_support = _bias(reason_stats)
     final_priority = max(0.0, min(1.0, base_priority + type_bias + reason_bias))
-    return final_priority, {"base": round(base_priority, 3), "type_bias": round(type_bias, 3), "reason_bias": round(reason_bias, 3), "final": round(final_priority, 3)}
+    return final_priority, {"base": round(base_priority, 3), "type_bias": round(type_bias, 3), "reason_bias": round(reason_bias, 3), "type_support": round(type_support, 3), "reason_support": round(reason_support, 3), "final": round(final_priority, 3)}
 
 
 def _frontier_priority(item: dict, outcome_stats: dict | None) -> float:
