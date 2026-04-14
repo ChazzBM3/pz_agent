@@ -63,3 +63,7 @@ search:
     assert state.ranked[0]["id"] == "rec_a"
     assert state.ranked[0]["predicted_priority_literature_adjusted"] > state.ranked[1]["predicted_priority_literature_adjusted"]
     assert "measurement_values" in state.ranked[0]["ranking_rationale"]
+    assert state.knowledge_graph_path is not None
+    graph = __import__('json').loads(state.knowledge_graph_path.read_text())
+    assert any(node["type"] == "SimulationResult" for node in graph.get("nodes", []))
+    assert any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))

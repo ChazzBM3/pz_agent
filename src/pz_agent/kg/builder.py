@@ -57,6 +57,61 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         add_node({"id": pred_id, "type": "Prediction", "attrs": pred})
         add_edge(pred['id'], pred_id, "PREDICTED_PROPERTY")
 
+        prediction_provenance = dict(pred.get("prediction_provenance") or {})
+        simulation_id = stable_node_id("simulation", pred["id"], pred.get("model", "unknown"))
+        add_node(
+            {
+                "id": simulation_id,
+                "type": "SimulationResult",
+                "attrs": {
+                    "candidate_id": pred["id"],
+                    "model": pred.get("model"),
+                    "predicted_solubility": pred.get("predicted_solubility"),
+                    "predicted_synthesizability": pred.get("predicted_synthesizability"),
+                    "prediction_provenance": prediction_provenance,
+                    "evidence_tier": "tier_E_simulation",
+                    "source_tags": {
+                        "source_type": "simulation",
+                        "source_family": "PT",
+                        "evidence_tier": "tier_E_simulation",
+                        "modality": "simulation",
+                        "extraction_method": "pipeline_model",
+                    },
+                },
+            }
+        )
+        add_edge(simulation_id, pred["id"], "SIMULATED_FOR")
+
+        condition_id = stable_node_id("condition_set", pred["id"], "surrogate_screen")
+        add_node(
+            {
+                "id": condition_id,
+                "type": "ConditionSet",
+                "attrs": {
+                    "kind": "simulation_context",
+                    "value": "surrogate_screen",
+                    "model": pred.get("model"),
+                },
+            }
+        )
+        add_edge(simulation_id, condition_id, "UNDER_CONDITION")
+
+        validation_id = stable_node_id("validation_outcome", pred["id"], "surrogate_screen")
+        confidence = prediction_provenance.get("confidence")
+        add_node(
+            {
+                "id": validation_id,
+                "type": "ValidationOutcome",
+                "attrs": {
+                    "candidate_id": pred["id"],
+                    "status": "predicted",
+                    "confidence": confidence,
+                    "notes": prediction_provenance.get("notes"),
+                },
+            }
+        )
+        add_edge(simulation_id, validation_id, "VALIDATED_BY")
+
     for item in state.library_clean or []:
         measurements = item.get("measurements") or {}
         provenance = item.get("provenance") or {}
@@ -84,6 +139,27 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
 
     for item in state.dft_queue or []:
         add_edge(item["id"], run_id, "SELECTED_FOR_DFT")
+        dft_sim_id = stable_node_id("simulation_request", item["id"], "dft_handoff")
+        add_node(
+            {
+                "id": dft_sim_id,
+                "type": "SimulationResult",
+                "attrs": {
+                    "candidate_id": item["id"],
+                    "model": "dft_handoff",
+                    "status": "requested",
+                    "evidence_tier": "tier_E_simulation",
+                    "source_tags": {
+                        "source_type": "simulation",
+                        "source_family": "PT",
+                        "evidence_tier": "tier_E_simulation",
+                        "modality": "simulation",
+                        "extraction_method": "handoff_queue",
+                    },
+                },
+            }
+        )
+        add_edge(dft_sim_id, item["id"], "SIMULATED_FOR")
 
     for note in state.critique_notes or []:
         claim_nodes = build_claim_nodes(note)
