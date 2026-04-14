@@ -304,6 +304,17 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
     bonus += specificity_bonus
     rationale.extend(specificity_rationale)
 
+    support_mix = dict(critique_note.get("support_mix") or {}) if critique_note else {}
+    transferability_score = float(support_mix.get("transferability_score", 0.0) or 0.0)
+    if transferability_score > 0:
+        transfer_bonus = min(0.05, transferability_score * 0.04)
+        bonus += transfer_bonus
+        rationale.append(f"bridge_transferability_bonus={transfer_bonus:.3f}")
+    if float(support_mix.get("quinone_bridge_support", 0.0) or 0.0) > 0:
+        rationale.append("bridge_support_from_quinone_teacher")
+    if float(support_mix.get("adjacent_scaffold_support", 0.0) or 0.0) > 0:
+        rationale.append("bridge_support_from_adjacent_scaffold")
+
     if signals.get("warns_instability"):
         bonus -= 0.08
         rationale.append("instability_warning_penalty")

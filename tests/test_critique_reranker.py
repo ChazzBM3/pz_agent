@@ -136,3 +136,29 @@ def test_apply_literature_adjustment_rewards_specific_evidence_and_penalizes_off
     assert specific["predicted_priority_literature_adjusted"] > noisy["predicted_priority_literature_adjusted"]
     assert any("property_specific_evidence_bonus" in item or "exact_hits_bonus" in item for item in specific["ranking_rationale"]["literature_adjustment"])
     assert any("off_target_evidence_penalty" in item for item in noisy["ranking_rationale"]["literature_adjustment"])
+
+
+
+def test_apply_literature_adjustment_rewards_bridge_transferability() -> None:
+    row = {"id": "cand_bridge", "predicted_priority": 0.5, "ranking_rationale": {}, "identity": {}}
+    bridged = apply_literature_adjustment(
+        row,
+        {
+            "candidate_id": "cand_bridge",
+            "evidence_tier": "analog",
+            "signals": {
+                "support_score": 0.0,
+                "contradiction_score": 0.0,
+                "exact_match_hits": 0,
+                "analog_match_hits": 1,
+            },
+            "support_mix": {
+                "adjacent_scaffold_support": 0.4,
+                "quinone_bridge_support": 0.0,
+                "transferability_score": 0.8,
+            },
+            "evidence": [{"match_type": "analog", "title": "Adjacent scaffold study", "snippet": "Redox solubility evidence."}],
+        },
+    )
+    assert bridged["predicted_priority_literature_adjusted"] > 0.5
+    assert any("bridge_transferability_bonus" in item for item in bridged["ranking_rationale"]["literature_adjustment"])

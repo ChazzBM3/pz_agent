@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from pz_agent.io import write_json
+from pz_agent.kg.claims import build_bridge_case_nodes
 from pz_agent.kg.rag import (
     get_claims_for_molecule,
     get_evidence_hits_for_candidate,
@@ -142,6 +143,32 @@ def test_support_summary_property_filter_excludes_nonmatching_claims(tmp_path: P
     summary = summarize_support_contradiction(graph_path, "cand_1", property_name="solubility")
 
     assert summary["contradictions"] == 0
+
+
+def test_build_bridge_case_nodes_for_mixed_support_note() -> None:
+    nodes = build_bridge_case_nodes(
+        {
+            "candidate_id": "cand_bridge",
+            "summary": "Mixed PT and adjacent-scaffold support for solubility/redox tuning.",
+            "signals": {"property_support": {"solubility": 2, "oxidation_potential": 1}},
+            "support_mix": {
+                "direct_pt_support": 0.6,
+                "pt_scaffold_support": 0.2,
+                "adjacent_scaffold_support": 0.4,
+                "quinone_bridge_support": 0.0,
+                "simulation_support": 0.0,
+                "metadata_support": 0.0,
+                "contradiction_count": 0,
+                "transferability_score": 0.72,
+            },
+            "evidence": [{"id": "evidence::cand_bridge::0", "source_family": "adjacent"}],
+        }
+    )
+    assert any(node["type"] == "BridgeCase" for node in nodes)
+    bridge_case = next(node for node in nodes if node["type"] == "BridgeCase")
+    assert bridge_case["attrs"]["transferability_score"] == 0.72
+    assert "solubilizing_handle" in bridge_case["attrs"]["bridge_principle_refs"]
+
 
 
 def test_evidence_match_type_is_inferred_from_exact_match_edges(tmp_path: Path) -> None:

@@ -4,6 +4,7 @@ from typing import Any
 
 from pz_agent.io import read_json
 from pz_agent.kg.claims import (
+    build_bridge_case_nodes,
     build_claim_nodes,
     build_condition_node,
     build_evidence_hit_node,
@@ -88,6 +89,21 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         claim_nodes = build_claim_nodes(note)
         evidence_tier = str(note.get("evidence_tier") or "candidate")
         scaffold_name = str((note.get("identity") or {}).get("scaffold") or "").strip()
+        bridge_nodes = build_bridge_case_nodes(note)
+        bridge_case_ids = [node["id"] for node in bridge_nodes if node.get("type") == "BridgeCase"]
+        transform_rule_ids = [node["id"] for node in bridge_nodes if node.get("type") == "TransformRule"]
+
+        for bridge_node in bridge_nodes:
+            add_node(bridge_node)
+            if bridge_node.get("type") == "BridgeCase":
+                add_edge(bridge_node["id"], note["candidate_id"], "ABOUT_MOLECULE")
+            elif bridge_node.get("type") == "TransformRule":
+                add_edge(bridge_node["id"], note["candidate_id"], "ABOUT_MOLECULE")
+                for dimension in bridge_node.get("attrs", {}).get("bridge_dimensions", []) or []:
+                    dimension_id = f"bridge_dimension::{dimension}"
+                    add_node({"id": dimension_id, "type": "BridgeDimension", "attrs": {"name": dimension}})
+                    add_edge(bridge_node["id"], dimension_id, "HAS_BRIDGE_DIMENSION")
+
         for claim_node in claim_nodes:
             note_id = claim_node["id"]
             add_node(claim_node)
@@ -122,6 +138,13 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                     },
                 })
                 add_edge(note_id, context_id, "SUPPORTED_BY")
+                for bridge_case_id in bridge_case_ids:
+                    add_edge(context_id, bridge_case_id, "SUPPORTED_BY")
+
+            for transform_rule_id in transform_rule_ids:
+                add_edge(note_id, transform_rule_id, "USES_RULE")
+            for bridge_case_id in bridge_case_ids:
+                add_edge(note_id, bridge_case_id, "BRIDGED_FROM")
 
             for idx, query in enumerate(note.get("queries", [])):
                 query_node = build_search_query_node(note["candidate_id"], idx, query, status=note.get("status"))
