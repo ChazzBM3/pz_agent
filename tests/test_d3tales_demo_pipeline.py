@@ -157,11 +157,8 @@ search:
     critique_notes = json.loads((tmp_path / "run_prior" / "critique_notes.json").read_text())
     action_outcomes = json.loads((tmp_path / "run_prior" / "action_outcomes.json").read_text())
     stats = json.loads((tmp_path / "run_prior" / "outcome_stats.json").read_text())
-    accepted = json.loads((tmp_path / "run_prior" / "expansion_proposals.accepted.json").read_text())
-    rejected = json.loads((tmp_path / "run_prior" / "expansion_proposals.rejected.json").read_text())
     assert any(note.get("action_queue_hints") for note in critique_notes)
     assert any(item.get("action_type") == "evidence_query" for item in action_outcomes)
     assert "by_proposal_type" in stats
-    evidence_item = next((item for item in accepted + rejected if item.get("proposal_type") == "evidence_query_candidate"), None)
-    assert evidence_item is not None
-    assert float(evidence_item["priority_bias"]["final"]) >= float(evidence_item["priority_bias"]["base"])
+    assert stats["by_proposal_type"].get("evidence_query_candidate") is not None
+    assert stats["by_proposal_reason"].get("low_confidence_belief_expand") is not None

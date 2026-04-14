@@ -29,6 +29,26 @@ def _priority_with_outcome_bias(proposal: dict, outcome_stats: dict | None) -> t
     return final_priority, {"base": round(base_priority, 3), "type_bias": round(type_bias, 3), "reason_bias": round(reason_bias, 3), "final": round(final_priority, 3)}
 
 
+def _frontier_priority(item: dict, outcome_stats: dict | None) -> float:
+    kind = str(item.get("kind") or "")
+    base_priority = float(item.get("priority", 0.0) or 0.0)
+    synthetic_proposal = {
+        "proposal_type": {
+            "belief": "evidence_query_candidate",
+            "failure": "simulation_request_candidate",
+            "bridge": "bridge_case_candidate",
+        }.get(kind, ""),
+        "reason": {
+            "belief": "low_confidence_belief_expand",
+            "failure": "failed_transfer_needs_validation",
+            "bridge": "medium_transferability_bridge_expand",
+        }.get(kind, ""),
+        "priority": base_priority,
+    }
+    biased, _ = _priority_with_outcome_bias(synthetic_proposal, outcome_stats)
+    return biased
+
+
 def _build_action_queue(accepted: list[dict]) -> list[dict]:
     queue: list[dict] = []
     for proposal in accepted:
@@ -107,7 +127,7 @@ class GraphExpansionAgent(BaseAgent):
                 if 0.25 <= score < 0.75:
                     frontier.append({"kind": "bridge", "node": node, "priority": score})
 
-            frontier.sort(key=lambda item: (-float(item.get("priority", 0.0) or 0.0), item["node"].get("id", "")))
+            frontier.sort(key=lambda item: (-_frontier_priority(item, state.outcome_stats), item["node"].get("id", "")))
             for item in frontier[:5]:
                 node = item["node"]
                 attrs = node.get("attrs", {})
