@@ -75,11 +75,13 @@ search:
     assert "graph_metrics" in report
     assert "expansion_proposals" in report
     assert "action_queue" in report
+    assert "action_outcomes" in report
     assert "queued_evidence_query_count" in report
     assert (tmp_path / 'run' / 'expansion_proposals.json').exists()
     assert (tmp_path / 'run' / 'expansion_proposals.accepted.json').exists()
     assert (tmp_path / 'run' / 'expansion_proposals.rejected.json').exists()
     assert (tmp_path / 'run' / 'action_queue.json').exists()
+    assert (tmp_path / 'run' / 'action_outcomes.json').exists()
     assert report["queued_evidence_query_count"] >= 0
 
 
@@ -148,4 +150,6 @@ search:
 
     run_pipeline(config_path, run_dir=tmp_path / "run_prior")
     critique_notes = json.loads((tmp_path / "run_prior" / "critique_notes.json").read_text())
+    action_outcomes = json.loads((tmp_path / "run_prior" / "action_outcomes.json").read_text())
     assert any(note.get("action_queue_hints") for note in critique_notes)
+    assert any(item.get("action_type") == "evidence_query" for item in action_outcomes)

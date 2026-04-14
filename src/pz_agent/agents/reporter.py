@@ -29,9 +29,11 @@ class ReporterAgent(BaseAgent):
             "queued_evidence_query_count": sum(1 for item in (state.action_queue or []) if item.get("action_type") == "evidence_query"),
             "expansion_proposals": state.expansion_registry or [],
             "action_queue": state.action_queue or [],
+            "action_outcomes": state.action_outcomes or [],
             "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),
             "expansion_proposals_rejected_path": str(state.run_dir / "expansion_proposals.rejected.json"),
             "action_queue_path": str(state.run_dir / "action_queue.json"),
+            "action_outcomes_path": str(state.run_dir / "action_outcomes.json"),
             "evidence_report": str(evidence_report_path),
         }
         write_json(state.run_dir / "report.json", report)

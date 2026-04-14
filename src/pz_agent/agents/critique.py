@@ -492,8 +492,9 @@ def _live_search_note(note: dict, backend_name: str, count: int) -> dict:
     return note
 
 
-def _queue_evidence_query_hints(state: RunState) -> dict[str, list[str]]:
+def _queue_evidence_query_hints(state: RunState) -> tuple[dict[str, list[str]], list[dict]]:
     hints: dict[str, list[str]] = {}
+    consumed_actions: list[dict] = []
     for item in state.action_queue or []:
         if item.get("action_type") != "evidence_query":
             continue
@@ -506,7 +507,8 @@ def _queue_evidence_query_hints(state: RunState) -> dict[str, list[str]]:
         hints.setdefault(candidate_id, [])
         if hint not in hints[candidate_id]:
             hints[candidate_id].append(hint)
-    return hints
+        consumed_actions.append(item)
+    return hints, consumed_actions
 
 
 class CritiqueAgent(BaseAgent):
@@ -516,7 +518,7 @@ class CritiqueAgent(BaseAgent):
         search_fields = list(self.config.get("critique", {}).get("search_fields", []))
         enable_web_search = bool(self.config.get("critique", {}).get("enable_web_search", True))
         max_candidates = int(self.config.get("critique", {}).get("max_candidates", 10))
-        queue_hints = _queue_evidence_query_hints(state)
+        queue_hints, consumed_actions = _queue_evidence_query_hints(state)
         critique_notes = attach_critique_placeholders(
             shortlist=state.shortlist or [],
             enable_web_search=enable_web_search,
@@ -565,6 +567,25 @@ class CritiqueAgent(BaseAgent):
             note["evidence_tier"] = _infer_evidence_tier(note.get("signals", {}))
             enriched_notes.append(note)
 
+        action_outcomes = []
+        for action in consumed_actions:
+            candidate_id = action.get("candidate_id")
+            matching_note = next((note for note in enriched_notes if note.get("candidate_id") == candidate_id), None)
+            evidence_count = len((matching_note or {}).get("evidence") or [])
+            action_outcomes.append(
+                {
+                    "candidate_id": candidate_id,
+                    "action_type": action.get("action_type"),
+                    "priority": action.get("priority"),
+                    "critic_reason": action.get("critic_reason"),
+                    "status": "consumed",
+                    "result": "evidence_found" if evidence_count > 0 else "no_evidence_found",
+                    "evidence_count": evidence_count,
+                }
+            )
+
         state.critique_notes = enriched_notes
+        state.action_outcomes = action_outcomes
         write_json(state.run_dir / "critique_notes.json", critique_notes)
+        write_json(state.run_dir / "action_outcomes.json", action_outcomes)
         return state
