@@ -12,8 +12,8 @@ def _priority_with_outcome_bias(proposal: dict, outcome_stats: dict | None) -> t
 
     proposal_type = str(proposal.get("proposal_type") or "")
     reason = str(proposal.get("reason") or "")
-    type_stats = (outcome_stats.get("by_action_type") or {}).get(proposal_type, {})
-    reason_stats = (outcome_stats.get("by_reason") or {}).get(reason, {})
+    type_stats = (outcome_stats.get("by_proposal_type") or {}).get(proposal_type, {})
+    reason_stats = (outcome_stats.get("by_proposal_reason") or {}).get(reason, {})
 
     def _bias(stats: dict) -> float:
         success = float(stats.get("success", 0.0) or 0.0)
@@ -39,6 +39,7 @@ def _build_action_queue(accepted: list[dict]) -> list[dict]:
             "priority": proposal.get("priority"),
             "source": "graph_expansion",
             "proposal_type": proposal_type,
+            "proposal_reason": proposal.get("reason"),
             "critic_reason": proposal.get("critic_reason"),
         }
         if proposal_type == "simulation_request_candidate":

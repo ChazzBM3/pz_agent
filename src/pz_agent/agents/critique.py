@@ -576,6 +576,8 @@ class CritiqueAgent(BaseAgent):
                 {
                     "candidate_id": candidate_id,
                     "action_type": action.get("action_type"),
+                    "proposal_type": action.get("proposal_type"),
+                    "proposal_reason": action.get("proposal_reason"),
                     "priority": action.get("priority"),
                     "critic_reason": action.get("critic_reason"),
                     "status": "consumed",
@@ -586,22 +588,40 @@ class CritiqueAgent(BaseAgent):
 
         outcome_stats = dict(state.outcome_stats or {})
         by_action_type = dict(outcome_stats.get("by_action_type") or {})
-        by_reason = dict(outcome_stats.get("by_reason") or {})
+        by_critic_reason = dict(outcome_stats.get("by_critic_reason") or {})
+        by_proposal_type = dict(outcome_stats.get("by_proposal_type") or {})
+        by_proposal_reason = dict(outcome_stats.get("by_proposal_reason") or {})
         for item in action_outcomes:
             action_type = str(item.get("action_type") or "")
-            reason = str(item.get("critic_reason") or "")
+            critic_reason = str(item.get("critic_reason") or "")
+            proposal_type = str(item.get("proposal_type") or "")
+            proposal_reason = str(item.get("proposal_reason") or "")
             success = 1 if item.get("result") == "evidence_found" else 0
             failure = 0 if success else 1
+
             type_bucket = dict(by_action_type.get(action_type) or {})
             type_bucket["success"] = int(type_bucket.get("success", 0)) + success
             type_bucket["failure"] = int(type_bucket.get("failure", 0)) + failure
             by_action_type[action_type] = type_bucket
-            reason_bucket = dict(by_reason.get(reason) or {})
-            reason_bucket["success"] = int(reason_bucket.get("success", 0)) + success
-            reason_bucket["failure"] = int(reason_bucket.get("failure", 0)) + failure
-            by_reason[reason] = reason_bucket
+
+            critic_bucket = dict(by_critic_reason.get(critic_reason) or {})
+            critic_bucket["success"] = int(critic_bucket.get("success", 0)) + success
+            critic_bucket["failure"] = int(critic_bucket.get("failure", 0)) + failure
+            by_critic_reason[critic_reason] = critic_bucket
+
+            proposal_type_bucket = dict(by_proposal_type.get(proposal_type) or {})
+            proposal_type_bucket["success"] = int(proposal_type_bucket.get("success", 0)) + success
+            proposal_type_bucket["failure"] = int(proposal_type_bucket.get("failure", 0)) + failure
+            by_proposal_type[proposal_type] = proposal_type_bucket
+
+            proposal_reason_bucket = dict(by_proposal_reason.get(proposal_reason) or {})
+            proposal_reason_bucket["success"] = int(proposal_reason_bucket.get("success", 0)) + success
+            proposal_reason_bucket["failure"] = int(proposal_reason_bucket.get("failure", 0)) + failure
+            by_proposal_reason[proposal_reason] = proposal_reason_bucket
         outcome_stats["by_action_type"] = by_action_type
-        outcome_stats["by_reason"] = by_reason
+        outcome_stats["by_critic_reason"] = by_critic_reason
+        outcome_stats["by_proposal_type"] = by_proposal_type
+        outcome_stats["by_proposal_reason"] = by_proposal_reason
 
         state.critique_notes = enriched_notes
         state.action_outcomes = action_outcomes
