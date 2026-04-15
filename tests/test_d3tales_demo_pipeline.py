@@ -119,7 +119,10 @@ search:
     assert any(node["id"] == "dataset_record::d3tales::rec_a" for node in graph.get("nodes", []))
     assert any(edge["source"] == "rec_a" and edge["target"] == "dataset_record::d3tales::rec_a" and edge["type"] == "DERIVED_FROM" for edge in graph.get("edges", []))
     assert any(edge["source"] == "rec_a" and edge["type"] == "HAS_REPRESENTATION" for edge in graph.get("edges", []))
+    rec_a_identity_target = next(edge["target"] for edge in graph.get("edges", []) if edge["source"] == "rec_a" and edge["type"] == "HAS_REPRESENTATION")
     assert any(edge["type"] == "EXACT_MATCH_OF" for edge in graph.get("edges", []))
+    assert any(edge["target"] == rec_a_identity_target and edge["type"] in {"EXACT_MATCH_OF", "ANALOG_OF"} for edge in graph.get("edges", []))
+    assert any(edge["target"] == rec_a_identity_target and edge["type"] == "ABOUT_REPRESENTATION" for edge in graph.get("edges", []))
     report = __import__('json').loads((tmp_path / 'run' / 'report.json').read_text())
     assert "graph_metrics" in report
     assert "expansion_proposals" in report

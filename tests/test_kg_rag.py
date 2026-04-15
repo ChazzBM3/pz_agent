@@ -226,6 +226,47 @@ def test_identity_anchor_neighborhood_includes_shared_measurements(tmp_path: Pat
     assert coverage["properties"] == ["omega"]
 
 
+def test_identity_anchor_can_carry_evidence_links(tmp_path: Path) -> None:
+    graph = {
+        "nodes": [
+            {"id": "cand_exact", "type": "Molecule", "attrs": {"id": "cand_exact", "stable_identity_key": "mol_identity::exact"}},
+            {"id": "mol_identity::exact", "type": "MolecularRepresentation", "attrs": {"kind": "stable_identity"}},
+            {
+                "id": "claim::cand_exact",
+                "type": "Claim",
+                "attrs": {
+                    "summary": "Exact-match support via shared identity anchor.",
+                    "property_name": "oxidation_potential",
+                    "signals": {"exact_match_hits": 1, "support_score": 1.0, "contradiction_score": 0.0},
+                },
+            },
+            {
+                "id": "evidence::cand_exact::0",
+                "type": "EvidenceHit",
+                "attrs": {
+                    "query": "cand_exact oxidation potential phenothiazine",
+                    "confidence": 0.9,
+                },
+            },
+        ],
+        "edges": [
+            {"source": "cand_exact", "target": "mol_identity::exact", "type": "HAS_REPRESENTATION"},
+            {"source": "claim::cand_exact", "target": "mol_identity::exact", "type": "ABOUT_REPRESENTATION"},
+            {"source": "claim::cand_exact", "target": "evidence::cand_exact::0", "type": "HAS_EVIDENCE_HIT"},
+            {"source": "evidence::cand_exact::0", "target": "mol_identity::exact", "type": "EXACT_MATCH_OF"},
+        ],
+    }
+    graph_path = tmp_path / "graph.json"
+    write_json(graph_path, graph)
+
+    hits = get_evidence_hits_for_candidate(graph_path, "cand_exact")
+    summary = summarize_support_contradiction(graph_path, "cand_exact")
+
+    assert hits[0]["attrs"]["match_type"] == "exact"
+    assert summary["exact_match_hits"] >= 1
+    assert summary["support_score"] >= 1.0
+
+
 def test_evidence_match_type_is_inferred_from_exact_match_edges(tmp_path: Path) -> None:
     graph = {
         "nodes": [

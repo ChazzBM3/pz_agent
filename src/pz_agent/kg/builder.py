@@ -75,12 +75,15 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
             )
             add_edge(dataset_record_id, DATASET_NODE_ID, "DERIVED_FROM")
 
+    stable_identity_by_candidate: dict[str, str] = {}
+
     for item in state.library_clean or []:
         attrs = dict(item)
         add_node({"id": item["id"], "type": "Molecule", "attrs": attrs})
         add_edge(item["id"], run_id, "GENERATED_IN_RUN")
         stable_identity_key = item.get("stable_identity_key") or (item.get("identity") or {}).get("stable_identity_key")
         if stable_identity_key:
+            stable_identity_by_candidate[item["id"]] = stable_identity_key
             add_node({
                 "id": stable_identity_key,
                 "type": "MolecularRepresentation",
@@ -249,6 +252,9 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                 add_edge(note_id, scaffold_id, "ABOUT_SCAFFOLD")
             else:
                 add_edge(note_id, note['candidate_id'], "ABOUT_MOLECULE")
+                stable_identity_key = stable_identity_by_candidate.get(note["candidate_id"])
+                if stable_identity_key:
+                    add_edge(note_id, stable_identity_key, "ABOUT_REPRESENTATION")
 
             property_name = claim_node.get("attrs", {}).get("property_name")
             if property_name:
@@ -309,8 +315,14 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                     add_edge(evidence_id, scaffold_id, "ABOUT_SCAFFOLD")
                 elif match_type == "exact":
                     add_edge(evidence_id, note["candidate_id"], "EXACT_MATCH_OF")
+                    stable_identity_key = stable_identity_by_candidate.get(note["candidate_id"])
+                    if stable_identity_key:
+                        add_edge(evidence_id, stable_identity_key, "EXACT_MATCH_OF")
                 elif match_type in {"analog", "family"}:
                     add_edge(evidence_id, note["candidate_id"], "ANALOG_OF")
+                    stable_identity_key = stable_identity_by_candidate.get(note["candidate_id"])
+                    if stable_identity_key:
+                        add_edge(evidence_id, stable_identity_key, "ANALOG_OF")
 
             for media in note.get("media_evidence", []):
                 media_id = media["id"]
