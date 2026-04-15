@@ -22,10 +22,36 @@ def _index_graph(graph: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], dict
     return nodes, adjacency
 
 
+def _candidate_roots(graph: dict[str, Any], candidate_id: str) -> set[str]:
+    nodes, adjacency = _index_graph(graph)
+    roots = {candidate_id}
+    candidate_node = nodes.get(candidate_id, {})
+    stable_identity_key = (
+        (candidate_node.get("attrs", {}) or {}).get("stable_identity_key")
+        or ((candidate_node.get("attrs", {}) or {}).get("identity", {}) or {}).get("stable_identity_key")
+    )
+    if stable_identity_key:
+        roots.add(str(stable_identity_key))
+
+    for edge in adjacency.get(candidate_id, []):
+        neighbor = edge["target"] if edge["source"] == candidate_id else edge["source"]
+        if edge.get("type") == "HAS_REPRESENTATION":
+            roots.add(neighbor)
+
+    shared_representation_ids = {root for root in roots if root != candidate_id}
+    if shared_representation_ids:
+        for representation_id in list(shared_representation_ids):
+            for edge in adjacency.get(representation_id, []):
+                neighbor = edge["target"] if edge["source"] == representation_id else edge["source"]
+                if edge.get("type") == "HAS_REPRESENTATION":
+                    roots.add(neighbor)
+    return roots
+
+
 def get_candidate_neighborhood(graph: dict[str, Any], candidate_id: str, hop_limit: int = 2) -> dict[str, Any]:
     nodes, adjacency = _index_graph(graph)
-    visited = {candidate_id}
-    frontier = {candidate_id}
+    visited = set(_candidate_roots(graph, candidate_id))
+    frontier = set(visited)
     collected_edges: list[dict[str, Any]] = []
 
     for _ in range(max(hop_limit, 0)):
@@ -76,12 +102,13 @@ def get_evidence_hits_for_candidate(graph_path: Path | None, candidate_id: str, 
     if graph is None:
         return []
     neighborhood = get_candidate_neighborhood(graph, candidate_id, hop_limit=hop_limit)
+    roots = _candidate_roots(graph, candidate_id)
     hits = []
     exact_hit_ids: set[str] = set()
     analog_hit_ids: set[str] = set()
 
     for edge in neighborhood.get("edges", []):
-        if edge.get("target") != candidate_id:
+        if edge.get("target") not in roots:
             continue
         source = edge.get("source")
         if not source:

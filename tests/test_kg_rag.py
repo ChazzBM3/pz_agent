@@ -198,6 +198,34 @@ def test_build_bridge_case_nodes_emit_failure_mode_for_low_transfer() -> None:
 
 
 
+def test_identity_anchor_neighborhood_includes_shared_measurements(tmp_path: Path) -> None:
+    graph = {
+        "nodes": [
+            {"id": "cand_a", "type": "Molecule", "attrs": {"id": "cand_a", "stable_identity_key": "mol_identity::shared"}},
+            {"id": "cand_b", "type": "Molecule", "attrs": {"id": "cand_b", "stable_identity_key": "mol_identity::shared"}},
+            {"id": "mol_identity::shared", "type": "MolecularRepresentation", "attrs": {"kind": "stable_identity"}},
+            {
+                "id": "measurement::cand_b::omega",
+                "type": "Measurement",
+                "attrs": {"record_id": "cand_b", "property_name": "omega", "value": 0.42},
+            },
+        ],
+        "edges": [
+            {"source": "cand_a", "target": "mol_identity::shared", "type": "HAS_REPRESENTATION"},
+            {"source": "cand_b", "target": "mol_identity::shared", "type": "HAS_REPRESENTATION"},
+            {"source": "measurement::cand_b::omega", "target": "cand_b", "type": "MEASURED_FOR"},
+            {"source": "measurement::cand_b::omega", "target": "property::omega", "type": "HAS_PROPERTY"},
+        ],
+    }
+    graph_path = tmp_path / "graph.json"
+    write_json(graph_path, graph)
+
+    coverage = summarize_property_coverage(graph_path, "cand_a")
+
+    assert coverage["measurement_count"] == 1
+    assert coverage["properties"] == ["omega"]
+
+
 def test_evidence_match_type_is_inferred_from_exact_match_edges(tmp_path: Path) -> None:
     graph = {
         "nodes": [
