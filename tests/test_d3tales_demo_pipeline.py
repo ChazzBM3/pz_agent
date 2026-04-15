@@ -137,6 +137,14 @@ search:
     assert (tmp_path / 'run' / 'action_outcomes.json').exists()
     assert (tmp_path / 'run' / 'outcome_stats.json').exists()
     assert report["queued_evidence_query_count"] >= 0
+    assert state.dft_queue is not None
+    assert state.dft_manifest is not None
+    assert state.dft_manifest["queue_size"] == len(state.dft_queue)
+    assert state.dft_queue[0]["candidate_id"] == "rec_a"
+    assert state.dft_queue[0]["status"] == "queued"
+    assert "stable_identity_key" in state.dft_queue[0]
+    assert (tmp_path / 'run' / 'dft_queue.json').exists()
+    assert (tmp_path / 'run' / 'dft_manifest.json').exists()
 
 
 def test_d3tales_demo_pipeline_loads_prior_action_queue(tmp_path: Path) -> None:

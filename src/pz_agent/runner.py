@@ -88,6 +88,8 @@ def _write_state_snapshot(state: RunState) -> None:
             "action_queue_count": len(state.action_queue or []),
             "action_outcomes_count": len(state.action_outcomes or []),
             "outcome_stats_keys": sorted((state.outcome_stats or {}).keys()),
+            "dft_queue_count": len(state.dft_queue or []),
+            "has_dft_manifest": state.dft_manifest is not None,
         },
     )
 
