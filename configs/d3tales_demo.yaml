@@ -23,6 +23,9 @@ pipeline:
     - library_designer
     - standardizer
     - visual_identity
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
     - surrogate_screen
     - benchmark
     - knowledge_graph

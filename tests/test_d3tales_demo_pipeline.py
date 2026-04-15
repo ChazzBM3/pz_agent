@@ -9,9 +9,40 @@ from pz_agent.runner import run_pipeline
 CSV_TEXT = """_id,smiles,source_group,sa_score,oxidation_potential,reduction_potential,groundState.solvation_energy,hole_reorganization_energy,electron_reorganization_energy\nrec_a,c1ccc2c(c1)Sc1ccccc1S2,demo,1.2,1.4,0.7,-0.8,0.2,0.3\nrec_b,CCN1c2ccccc2Sc2ccccc21,demo,2.1,0.4,0.2,0.1,1.1,1.2\nother,c1ccccc1,demo,1.0,2.0,1.5,-0.1,0.1,0.1\n"""
 
 
-def test_d3tales_demo_pipeline_exercises_measurement_aware_reranking(tmp_path: Path) -> None:
+def test_d3tales_demo_pipeline_exercises_measurement_aware_reranking(tmp_path: Path, monkeypatch) -> None:
     csv_path = tmp_path / "demo.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "pz_agent.agents.structure_expansion.expand_structure_with_pubchem",
+        lambda candidate, similarity_threshold=90, similarity_max_records=5, substructure_max_records=5, timeout=20: {
+            "query_smiles": candidate.get("smiles"),
+            "synonyms": ["DemoSynonym"],
+            "exact_matches": [{"cid": 1, "title": "Exact PT hit", "molecular_formula": "C12H9NS2", "pubchem_url": "https://pubchem.ncbi.nlm.nih.gov/compound/1"}],
+            "similarity_matches": [{"cid": 2, "title": "Analog PT hit", "molecular_formula": "C13H11NS2", "pubchem_url": "https://pubchem.ncbi.nlm.nih.gov/compound/2"}],
+            "substructure_matches": [],
+            "status": "ok",
+        },
+    )
+    monkeypatch.setattr(
+        "pz_agent.agents.patent_retrieval.retrieve_patent_evidence_for_candidate",
+        lambda candidate, count=5, timeout=20: {
+            "queries": [f"{candidate.get('id')} patent"],
+            "surechembl": [{"query": "pt patent", "hits": [{"title": "Phenothiazine patent", "url": "https://example.com/patent", "snippet": "battery electrolyte phenothiazine", "match_type": "analog", "confidence": 0.7}]}],
+            "patcid": [],
+            "errors": [],
+            "status": "ok",
+        },
+    )
+    monkeypatch.setattr(
+        "pz_agent.agents.scholarly_retrieval.retrieve_openalex_evidence_for_candidate",
+        lambda candidate, count=5, mode="balanced", max_queries=6, exact_query_budget=None, analog_query_budget=None, exploratory_query_budget=None: {
+            "queries": [f"{candidate.get('id')} chemistry"],
+            "openalex": [{"query": "pt chemistry", "hits": [{"title": "Phenothiazine electrochemistry", "url": "https://example.com/paper", "snippet": "oxidation potential and solubility", "match_type": "analog", "confidence": 0.8}]}],
+            "errors": [],
+            "status": "ok",
+        },
+    )
 
     config_path = tmp_path / "demo.yaml"
     config_path.write_text(
@@ -31,6 +62,9 @@ pipeline:
   stages:
     - library_designer
     - standardizer
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
     - surrogate_screen
     - benchmark
     - knowledge_graph
@@ -63,14 +97,24 @@ search:
     assert [item["id"] for item in state.library_raw] == ["rec_a", "rec_b"]
     assert all("proposal_prior" in item for item in state.library_raw)
     assert all("prior_source" in item["proposal_prior"] for item in state.library_raw)
+    assert state.structure_expansion is not None
+    assert state.patent_registry is not None
+    assert state.scholarly_registry is not None
     assert state.ranked is not None
     assert state.ranked[0]["id"] == "rec_a"
     assert state.ranked[0]["predicted_priority_literature_adjusted"] > state.ranked[1]["predicted_priority_literature_adjusted"]
     assert "measurement_values" in state.ranked[0]["ranking_rationale"]
+    assert state.critique_notes is not None
+    top_note = next(note for note in state.critique_notes if note["candidate_id"] == "rec_a")
+    assert top_note["signals"]["exact_match_hits"] >= 1
+    assert top_note["signals"]["patent_hit_count"] >= 1
+    assert top_note["signals"]["scholarly_hit_count"] >= 1
     assert state.knowledge_graph_path is not None
     graph = __import__('json').loads(state.knowledge_graph_path.read_text())
     assert any(node["type"] == "SimulationResult" for node in graph.get("nodes", []))
     assert any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))
+    assert any(node["type"] == "EvidenceHit" for node in graph.get("nodes", []))
+    assert any(edge["type"] == "EXACT_MATCH_OF" for edge in graph.get("edges", []))
     report = __import__('json').loads((tmp_path / 'run' / 'report.json').read_text())
     assert "graph_metrics" in report
     assert "expansion_proposals" in report
@@ -128,6 +172,9 @@ pipeline:
   stages:
     - library_designer
     - standardizer
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
     - surrogate_screen
     - benchmark
     - knowledge_graph
