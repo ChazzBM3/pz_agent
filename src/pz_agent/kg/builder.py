@@ -79,6 +79,19 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         attrs = dict(item)
         add_node({"id": item["id"], "type": "Molecule", "attrs": attrs})
         add_edge(item["id"], run_id, "GENERATED_IN_RUN")
+        stable_identity_key = item.get("stable_identity_key") or (item.get("identity") or {}).get("stable_identity_key")
+        if stable_identity_key:
+            add_node({
+                "id": stable_identity_key,
+                "type": "MolecularRepresentation",
+                "attrs": {
+                    "kind": "stable_identity",
+                    "canonical_smiles": (item.get("identity") or {}).get("canonical_smiles"),
+                    "inchikey": (item.get("identity") or {}).get("inchikey"),
+                    "inchi": (item.get("identity") or {}).get("inchi"),
+                },
+            })
+            add_edge(item["id"], stable_identity_key, "HAS_REPRESENTATION")
         if state.generation_registry:
             add_edge(item["id"], "generation_batch::0", "GENERATED_BY_BATCH")
         provenance = item.get("provenance") or {}
@@ -161,6 +174,9 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
             }
             if provenance.get("source_type") == "d3tales_csv" and provenance.get("source_id"):
                 attrs["dataset_record_id"] = _dataset_record_node_id(str(provenance.get("source_id")))
+            stable_identity_key = item.get("stable_identity_key") or (item.get("identity") or {}).get("stable_identity_key")
+            if stable_identity_key:
+                attrs["stable_identity_key"] = stable_identity_key
             add_node(
                 {
                     "id": measurement_id,

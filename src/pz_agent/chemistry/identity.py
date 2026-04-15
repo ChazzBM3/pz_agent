@@ -27,6 +27,7 @@ class MoleculeIdentity:
     molecular_formula: str | None = None
     electronic_bias: str | None = None
     match_tokens: list[str] | None = None
+    stable_identity_key: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

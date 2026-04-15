@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from pz_agent.chemistry.identity import MoleculeIdentity
+from pz_agent.kg.claims import stable_node_id
 from pz_agent.chemistry.naming import smiles_to_iupac_name
 
 try:
@@ -210,6 +211,16 @@ def _estimate_decoration_summary_from_mol(mol) -> tuple[str | None, int | None, 
     return summary, substituent_count, unique_tokens, unique_fragments, unique_attachments, bias, unique_positions
 
 
+def _stable_identity_key(canonical_smiles: str | None, inchikey: str | None, input_smiles: str | None) -> str | None:
+    if inchikey:
+        return stable_node_id("mol_identity", inchikey)
+    if canonical_smiles:
+        return stable_node_id("mol_identity", canonical_smiles)
+    if input_smiles:
+        return stable_node_id("mol_identity", input_smiles)
+    return None
+
+
 def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
     input_smiles = record.get("smiles")
     name = record.get("name")
@@ -258,6 +269,8 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
         except Exception:
             molecular_formula = None
 
+    stable_identity_key = _stable_identity_key(canonical_smiles=canonical_smiles, inchikey=inchikey, input_smiles=input_smiles)
+
     identity = MoleculeIdentity(
         input_smiles=input_smiles,
         canonical_smiles=canonical_smiles,
@@ -299,10 +312,13 @@ def normalize_molecule_identity(record: dict[str, Any]) -> dict[str, Any]:
             ]
             if token
         ],
+        stable_identity_key=stable_identity_key,
     )
 
     enriched = dict(record)
     enriched["identity"] = identity.to_dict()
+    if stable_identity_key:
+        enriched["stable_identity_key"] = stable_identity_key
     enriched["rdkit_available"] = RDKIT_AVAILABLE
     return enriched
 
