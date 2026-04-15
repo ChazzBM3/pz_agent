@@ -36,6 +36,23 @@ def test_merge_graphs_deduplicates_nodes_and_edges() -> None:
     assert len(merged["prediction_provenance_summary"]) == 1
 
 
+def test_merge_graphs_adds_identity_grouping_edges_non_destructively() -> None:
+    graph_a = {
+        "nodes": [
+            {"id": "cand_1", "type": "Molecule", "attrs": {"id": "cand_1", "stable_identity_key": "mol_identity::shared"}},
+            {"id": "cand_2", "type": "Molecule", "attrs": {"id": "cand_2", "stable_identity_key": "mol_identity::shared"}},
+        ],
+        "edges": [],
+        "prediction_provenance_summary": [],
+    }
+
+    merged = merge_graphs(graph_a)
+
+    assert any(node["id"] == "mol_identity::shared" and node["type"] == "MolecularRepresentation" for node in merged["nodes"])
+    assert any(edge["source"] == "cand_1" and edge["target"] == "mol_identity::shared" and edge["type"] == "HAS_REPRESENTATION" for edge in merged["edges"])
+    assert any(edge["source"] == "cand_2" and edge["target"] == "mol_identity::shared" and edge["type"] == "HAS_REPRESENTATION" for edge in merged["edges"])
+
+
 def test_append_graph_update_merges_existing_and_new_graph() -> None:
     existing = {
         "nodes": [{"id": "cand_1", "type": "Molecule", "attrs": {"id": "cand_1"}}],
