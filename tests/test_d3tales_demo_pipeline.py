@@ -129,14 +129,22 @@ search:
     assert "action_queue" in report
     assert "action_outcomes" in report
     assert "outcome_stats" in report
-    assert "queued_evidence_query_count" in report
+    assert "summary" in report
+    assert "decision_summary" in report
+    assert "artifacts" in report
+    assert report["summary"]["top_candidate_id"] == "rec_a"
+    assert report["summary"]["shortlist_count"] == 2
+    assert report["decision_summary"][0]["candidate_id"] == "rec_a"
+    assert "dft_manifest" in report
+    assert "dft_queue" in report
     assert (tmp_path / 'run' / 'expansion_proposals.json').exists()
     assert (tmp_path / 'run' / 'expansion_proposals.accepted.json').exists()
     assert (tmp_path / 'run' / 'expansion_proposals.rejected.json').exists()
     assert (tmp_path / 'run' / 'action_queue.json').exists()
     assert (tmp_path / 'run' / 'action_outcomes.json').exists()
     assert (tmp_path / 'run' / 'outcome_stats.json').exists()
-    assert report["queued_evidence_query_count"] >= 0
+    assert report["summary"]["queued_evidence_query_count"] >= 0
+    assert report["artifacts"]["dft_manifest_path"].endswith("dft_manifest.json")
     assert state.dft_queue is not None
     assert state.dft_manifest is not None
     assert state.dft_manifest["queue_size"] == len(state.dft_queue)
