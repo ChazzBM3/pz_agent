@@ -12,7 +12,6 @@ from pz_agent.io import read_json, write_json
 DATASET_NODE_ID = "dataset::d3tales"
 
 
-
 def _build_dataset_node() -> dict[str, Any]:
     return {
         "id": DATASET_NODE_ID,
@@ -23,6 +22,23 @@ def _build_dataset_node() -> dict[str, Any]:
         },
     }
 
+
+def _dataset_record_node_id(record: D3TaLESRecord) -> str:
+    return f"dataset_record::d3tales::{record.record_id}"
+
+
+def _build_dataset_record_node(record: D3TaLESRecord) -> dict[str, Any]:
+    return {
+        "id": _dataset_record_node_id(record),
+        "type": "Dataset",
+        "attrs": {
+            "record_id": record.record_id,
+            "dataset_id": DATASET_NODE_ID,
+            "source_type": "d3tales_csv",
+            "source_group": record.source_group,
+            "raw": record.raw,
+        },
+    }
 
 
 def _build_molecule_node(record: D3TaLESRecord) -> dict[str, Any]:
@@ -42,24 +58,24 @@ def _build_molecule_node(record: D3TaLESRecord) -> dict[str, Any]:
     }
 
 
-
 def _build_measurement_node(record: D3TaLESRecord, property_name: str, value: float) -> dict[str, Any]:
-    measurement_id = stable_node_id("measurement", record.record_id, property_name)
+    measurement_id = stable_node_id("measurement", "d3tales", record.record_id, property_name)
     return {
         "id": measurement_id,
         "type": "Measurement",
         "attrs": {
             "record_id": record.record_id,
+            "dataset_record_id": _dataset_record_node_id(record),
             "property_name": property_name,
             "value": value,
             "source_group": record.source_group,
             "provenance": {
                 "source_type": "d3tales_csv",
                 "source_id": record.record_id,
+                "dataset_record_id": _dataset_record_node_id(record),
             },
         },
     }
-
 
 
 def records_to_graph(records: list[D3TaLESRecord]) -> dict[str, Any]:
@@ -70,9 +86,12 @@ def records_to_graph(records: list[D3TaLESRecord]) -> dict[str, Any]:
     nodes.append(dataset_node)
 
     for record in records:
+        dataset_record_node = _build_dataset_record_node(record)
         molecule_node = _build_molecule_node(record)
+        nodes.append(dataset_record_node)
         nodes.append(molecule_node)
-        edges.append({"source": molecule_node["id"], "target": DATASET_NODE_ID, "type": "DERIVED_FROM"})
+        edges.append({"source": dataset_record_node["id"], "target": DATASET_NODE_ID, "type": "DERIVED_FROM"})
+        edges.append({"source": molecule_node["id"], "target": dataset_record_node["id"], "type": "DERIVED_FROM"})
 
         for property_name, value in record.measurements.items():
             if value is None:
@@ -83,14 +102,13 @@ def records_to_graph(records: list[D3TaLESRecord]) -> dict[str, Any]:
             nodes.append(measurement_node)
             edges.append({"source": measurement_node["id"], "target": molecule_node["id"], "type": "MEASURED_FOR"})
             edges.append({"source": measurement_node["id"], "target": property_node["id"], "type": "HAS_PROPERTY"})
-            edges.append({"source": measurement_node["id"], "target": DATASET_NODE_ID, "type": "DERIVED_FROM"})
+            edges.append({"source": measurement_node["id"], "target": dataset_record_node["id"], "type": "DERIVED_FROM"})
 
     return {
         "nodes": nodes,
         "edges": edges,
         "prediction_provenance_summary": [],
     }
-
 
 
 def ingest_d3tales_csv(

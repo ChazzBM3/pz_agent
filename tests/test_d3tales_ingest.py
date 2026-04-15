@@ -24,6 +24,18 @@ def test_records_to_graph_creates_measurement_nodes(tmp_path: Path) -> None:
     assert any(edge["type"] == "HAS_PROPERTY" for edge in graph["edges"])
 
 
+def test_records_to_graph_creates_dataset_record_nodes(tmp_path: Path) -> None:
+    path = tmp_path / "d3tales.csv"
+    path.write_text(CSV_TEXT, encoding="utf-8")
+    records = load_d3tales_csv(path)
+
+    graph = records_to_graph(records)
+
+    assert any(node["id"] == "dataset_record::d3tales::rec1" for node in graph["nodes"])
+    assert any(edge["source"] == "rec1" and edge["target"] == "dataset_record::d3tales::rec1" and edge["type"] == "DERIVED_FROM" for edge in graph["edges"])
+    assert any(edge["target"] == "dataset_record::d3tales::rec1" and edge["type"] == "DERIVED_FROM" for edge in graph["edges"])
+
+
 def test_ingest_d3tales_csv_writes_graph(tmp_path: Path) -> None:
     csv_path = tmp_path / "d3tales.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
@@ -33,4 +45,5 @@ def test_ingest_d3tales_csv_writes_graph(tmp_path: Path) -> None:
 
     assert graph_path.exists()
     assert any(node["id"] == "rec1" for node in merged["nodes"])
+    assert any(node["id"] == "dataset_record::d3tales::rec1" for node in merged["nodes"])
     assert any(node["type"] == "Measurement" for node in merged["nodes"])
