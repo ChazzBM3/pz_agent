@@ -47,6 +47,41 @@ def test_ranker_applies_critique_adjustments_to_ordering() -> None:
     assert ranked_state.ranked[0]["ranking_rationale"]["evidence_sources"]["has_critique_note"] is True
 
 
+def test_ranker_dedupes_duplicate_evidence_credit() -> None:
+    state = _state()
+    state.predictions = [
+        {"id": "cand_a", "predicted_synthesizability": 0.60, "predicted_solubility": 0.60},
+        {"id": "cand_b", "predicted_synthesizability": 0.60, "predicted_solubility": 0.60},
+    ]
+    duplicate_evidence = {
+        "match_type": "exact",
+        "title": "Phenothiazine solubility",
+        "snippet": "solubility oxidation electrolyte",
+        "query": "cand_a solubility",
+        "url": "https://example.org/paper-a",
+    }
+    state.critique_notes = [
+        {
+            "candidate_id": "cand_a",
+            "evidence_tier": "candidate",
+            "signals": {
+                "exact_match_hits": 3,
+                "analog_match_hits": 2,
+                "property_aligned_hits": 4,
+                "support_score": 4.0,
+                "contradiction_score": 0.0,
+            },
+            "evidence": [duplicate_evidence, dict(duplicate_evidence)],
+        }
+    ]
+
+    ranked_state = RankerAgent(config=state.config).run(state)
+
+    assert ranked_state.ranked is not None
+    top = next(item for item in ranked_state.ranked if item["id"] == "cand_a")
+    assert "deduped_evidence_items=1" in top["ranking_rationale"]["literature_adjustment"]
+
+
 def test_ranker_preserves_base_priority_without_critique() -> None:
     state = _state()
     state.predictions = [

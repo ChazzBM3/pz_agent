@@ -4,11 +4,49 @@ from typing import Any
 
 
 
+def _dedupe_evidence_items(critique_note: dict[str, Any] | None) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    if not critique_note:
+        return [], {"unique_exact": 0, "unique_analog": 0, "unique_property": 0, "unique_total": 0}
+
+    evidence = critique_note.get("evidence") or []
+    unique_items: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, str, str, str]] = set()
+    exact_count = 0
+    analog_count = 0
+    property_count = 0
+
+    for item in evidence:
+        match_type = str(item.get("match_type") or "unknown").lower()
+        title = str(item.get("title") or "").strip().lower()
+        query = str(item.get("query") or "").strip().lower()
+        url = str(item.get("url") or "").strip().lower()
+        key = (match_type, title, query, url)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        unique_items.append(item)
+        text = " ".join(str(item.get(k) or "") for k in ["title", "snippet", "query"]).lower()
+        if match_type == "exact":
+            exact_count += 1
+        elif match_type in {"analog", "family"}:
+            analog_count += 1
+        if any(token in text for token in ["solubility", "redox", "oxidation", "reduction", "electrochemical", "electrolyte", "battery", "voltammetry"]):
+            property_count += 1
+
+    return unique_items, {
+        "unique_exact": exact_count,
+        "unique_analog": analog_count,
+        "unique_property": property_count,
+        "unique_total": len(unique_items),
+    }
+
+
+
 def _compute_candidate_specificity_adjustment(critique_note: dict[str, Any] | None) -> tuple[float, list[str]]:
     if not critique_note:
         return 0.0, []
 
-    evidence = critique_note.get("evidence") or []
+    evidence, _ = _dedupe_evidence_items(critique_note)
     if not evidence:
         return 0.0, []
 
@@ -266,8 +304,11 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
 
     signals = critique_note.get("signals", {})
     evidence_tier = str(critique_note.get("evidence_tier") or "candidate")
+    _, dedupe_summary = _dedupe_evidence_items(critique_note)
     bonus = 0.0
     rationale: list[str] = [f"evidence_tier={evidence_tier}"]
+    if dedupe_summary["unique_total"]:
+        rationale.append(f"deduped_evidence_items={dedupe_summary['unique_total']}")
 
     if evidence_tier in {"scaffold", "general_review"}:
         signals = dict(signals)
@@ -285,10 +326,14 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
         bonus += 0.05
         rationale.append("literature_supports_synthesizability")
 
-    exact_hits = int(signals.get("exact_match_hits", 0) or 0)
-    analog_hits = int(signals.get("analog_match_hits", 0) or 0)
+    raw_exact_hits = int(signals.get("exact_match_hits", 0) or 0)
+    raw_analog_hits = int(signals.get("analog_match_hits", 0) or 0)
+    raw_property_hits = int(signals.get("property_aligned_hits", 0) or 0)
+
+    exact_hits = min(raw_exact_hits, dedupe_summary["unique_exact"] or raw_exact_hits)
+    analog_hits = min(raw_analog_hits, dedupe_summary["unique_analog"] or raw_analog_hits)
     broad_scaffold_hits = int(signals.get("broad_scaffold_hits", 0) or 0)
-    property_aligned_hits = int(signals.get("property_aligned_hits", 0) or 0)
+    property_aligned_hits = min(raw_property_hits, dedupe_summary["unique_property"] or raw_property_hits)
     review_hits = int(signals.get("review_hits", 0) or 0)
     patent_hit_count = int(signals.get("patent_hit_count", 0) or 0)
     scholarly_hit_count = int(signals.get("scholarly_hit_count", 0) or 0)
