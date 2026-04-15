@@ -114,6 +114,9 @@ search:
     assert any(node["type"] == "SimulationResult" for node in graph.get("nodes", []))
     assert any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))
     assert any(node["type"] == "EvidenceHit" for node in graph.get("nodes", []))
+    assert any(node["id"] == "dataset::d3tales" for node in graph.get("nodes", []))
+    assert any(node["id"] == "dataset_record::d3tales::rec_a" for node in graph.get("nodes", []))
+    assert any(edge["source"] == "rec_a" and edge["target"] == "dataset_record::d3tales::rec_a" and edge["type"] == "DERIVED_FROM" for edge in graph.get("edges", []))
     assert any(edge["type"] == "EXACT_MATCH_OF" for edge in graph.get("edges", []))
     report = __import__('json').loads((tmp_path / 'run' / 'report.json').read_text())
     assert "graph_metrics" in report

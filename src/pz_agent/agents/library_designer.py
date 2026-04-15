@@ -38,6 +38,18 @@ class LibraryDesignerAgent(BaseAgent):
                 limit=d3tales_limit,
                 phenothiazine_only=d3tales_phenothiazine_only,
             )
+            state.source_records = [
+                {
+                    "dataset": "d3tales",
+                    "record_id": record.record_id,
+                    "source_group": record.source_group,
+                    "smiles": record.smiles,
+                    "identity": record.identity,
+                    "measurements": record.measurements,
+                    "raw": record.raw,
+                }
+                for record in records
+            ]
             state.library_raw = [
                 {
                     **record.to_candidate(),

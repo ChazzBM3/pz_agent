@@ -17,6 +17,13 @@ from pz_agent.kg.merge import append_graph_update
 from pz_agent.state import RunState
 
 
+DATASET_NODE_ID = "dataset::d3tales"
+
+
+def _dataset_record_node_id(record_id: str) -> str:
+    return f"dataset_record::d3tales::{record_id}"
+
+
 def build_graph_snapshot(state: RunState) -> dict[str, Any]:
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
@@ -45,12 +52,38 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         add_node({"id": batch_id, "type": "GenerationBatch", "attrs": batch})
         add_edge(batch_id, run_id, "GENERATED_IN_RUN")
 
+    d3tales_records = [record for record in (state.source_records or []) if record.get("dataset") == "d3tales"]
+    if d3tales_records:
+        add_node({"id": DATASET_NODE_ID, "type": "Dataset", "attrs": {"name": "D3TaLES CSV", "source_type": "d3tales_csv"}})
+        for record in d3tales_records:
+            record_id = str(record.get("record_id") or "")
+            if not record_id:
+                continue
+            dataset_record_id = _dataset_record_node_id(record_id)
+            add_node(
+                {
+                    "id": dataset_record_id,
+                    "type": "Dataset",
+                    "attrs": {
+                        "record_id": record_id,
+                        "dataset_id": DATASET_NODE_ID,
+                        "source_type": "d3tales_csv",
+                        "source_group": record.get("source_group"),
+                        "raw": record.get("raw"),
+                    },
+                }
+            )
+            add_edge(dataset_record_id, DATASET_NODE_ID, "DERIVED_FROM")
+
     for item in state.library_clean or []:
         attrs = dict(item)
         add_node({"id": item["id"], "type": "Molecule", "attrs": attrs})
         add_edge(item["id"], run_id, "GENERATED_IN_RUN")
         if state.generation_registry:
             add_edge(item["id"], "generation_batch::0", "GENERATED_BY_BATCH")
+        provenance = item.get("provenance") or {}
+        if provenance.get("source_type") == "d3tales_csv" and provenance.get("source_id"):
+            add_edge(item["id"], _dataset_record_node_id(str(provenance.get("source_id"))), "DERIVED_FROM")
 
     for pred in state.predictions or []:
         pred_id = f"pred::{pred['id']}::{pred.get('model', 'unknown')}"
@@ -119,23 +152,28 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
             if value is None:
                 continue
             measurement_id = stable_node_id("measurement", item["id"], property_name)
+            attrs = {
+                "record_id": item["id"],
+                "property_name": property_name,
+                "value": value,
+                "source_group": item.get("identity", {}).get("source_group"),
+                "provenance": provenance,
+            }
+            if provenance.get("source_type") == "d3tales_csv" and provenance.get("source_id"):
+                attrs["dataset_record_id"] = _dataset_record_node_id(str(provenance.get("source_id")))
             add_node(
                 {
                     "id": measurement_id,
                     "type": "Measurement",
-                    "attrs": {
-                        "record_id": item["id"],
-                        "property_name": property_name,
-                        "value": value,
-                        "source_group": item.get("identity", {}).get("source_group"),
-                        "provenance": provenance,
-                    },
+                    "attrs": attrs,
                 }
             )
             property_node = build_property_node(property_name)
             add_node(property_node)
             add_edge(measurement_id, item["id"], "MEASURED_FOR")
             add_edge(measurement_id, property_node["id"], "HAS_PROPERTY")
+            if provenance.get("source_type") == "d3tales_csv" and provenance.get("source_id"):
+                add_edge(measurement_id, _dataset_record_node_id(str(provenance.get("source_id"))), "DERIVED_FROM")
 
     for item in state.dft_queue or []:
         add_edge(item["id"], run_id, "SELECTED_FOR_DFT")
