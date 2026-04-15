@@ -15,63 +15,72 @@
 7. Generate graph expansion proposals / action queue
 8. Write report and prepare DFT handoff shortlist
 
-## What is already good enough
+## What is already in place
 
 - Pipeline orchestration is coherent and testable
 - D3TaLES ingestion works for demo-scale runs
-- Structure-first retrieval path is now wired into the demo config
+- Structure-first retrieval path is wired into the demo config
 - KG-backed critique and reranking are operational
 - Adaptive graph-expansion loop is functioning as a supervised scaffold
+- D3TaLES dataset-record provenance is first-class in the KG
+- Stable cross-run molecule identity keys are present
+- Stable identity anchors are represented as `MolecularRepresentation` nodes
+- KG retrieval is identity-aware
+- KG merge reinforces identity grouping non-destructively
+- Critique claims and evidence can attach at the identity-anchor level while preserving run-local links
 
-## Main bottlenecks before production runs
+## Main bottlenecks before pseudo-production runs
 
-### 1. Production-grade scoring
-- Replace placeholder/stub scoring with credible synthesizeability and solubility models
-- Add uncertainty/confidence outputs
+### 1. Production-grade ranking and scoring
+- Replace placeholder ranker behavior with explicit evidence-aware aggregation
+- Make ranking deliberately consume:
+  - predicted properties
+  - measured-property support
+  - identity-level evidence
+  - contradiction signals
+  - uncertainty/confidence where available
 - Add benchmark thresholds that can fail a run
+- Add ranking regression fixtures so scoring changes are testable
 
-### 2. D3TaLES-native KG backbone
-- Promote D3TaLES records to first-class source-record nodes
-- Use stable cross-run IDs for records and measurements
-- Preserve dataset provenance independently of run-local candidates
-- Make measurement provenance queryable without depending on a single run snapshot
-
-### 3. Evidence reliability
+### 2. Evidence reliability and anti-double-counting
 - Improve exact-vs-analog identity resolution
 - Tighten literature/patent relevance filtering
-- Weight evidence by source quality and match type more robustly
+- Prevent over-crediting the same evidence through both candidate-local and identity-level paths
 - Make contradiction signals influence downstream ranking more explicitly
 
-### 4. DFT handoff
+### 3. DFT handoff packaging
 - Promote shortlist sorting to a true DFT queue package
 - Add compute-budget fields
 - Add rationale / confidence / exploit-vs-validate annotations
 - Add explicit job manifests and status tracking
 
-### 5. Reporting
+### 4. Reporting
 - Replace placeholder report language with decision-grade summaries
 - Add per-candidate rationale and evidence provenance summaries
 - Distinguish measured vs predicted vs inferred support in the report
 
-### 6. Acceptance tests for production behavior
+### 5. Acceptance tests for pseudo-production behavior
 - Fixed benchmark suite of known phenothiazines / D3TaLES records
 - Regression tests for retrieval specificity
 - Regression tests for evidence-tier behavior
 - Regression tests for candidate ranking stability under small retrieval changes
+- Run-level pass/fail gates for operator trust
 
-## Recommended work order
+## Revised recommended work order
 
-1. D3TaLES-native KG backbone
-2. Scoring + benchmark hardening
-3. Evidence typing / identity-resolution hardening
-4. DFT handoff packaging
-5. Reporting cleanup
-6. Production pilot runs
+1. Ranking + scoring hardening
+2. Evidence typing / anti-double-counting hardening
+3. DFT handoff packaging
+4. Reporting cleanup
+5. Acceptance gates and pilot run criteria
+6. Small pseudo-production pilot runs
 
-## Minimal definition of “production-ready enough”
+## Minimal definition of “pseudo-production-ready enough”
 
-A run should not be considered production-ready unless it:
+A run should not be considered pseudo-production-ready unless it:
 - passes calibrated benchmark checks
 - persists D3TaLES measurements/provenance as stable KG entities
+- preserves identity-aware cross-run evidence structure without collapsing run-local provenance
 - produces a shortlist with auditable evidence and confidence
 - emits a DFT-ready queue package rather than only a sorted list
+- passes ranking stability and retrieval-specificity regression tests
