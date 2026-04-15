@@ -75,6 +75,17 @@
 5. Acceptance gates and pilot run criteria
 6. Small pseudo-production pilot runs
 
+## Current pilot fixture coverage
+
+A fixed small pilot fixture now exists in test form to exercise the pseudo-production path end to end. The fixture currently checks:
+- D3TaLES-backed ingestion and stable ranking order on a fixed mini-batch
+- identity-aware KG structure (`MolecularRepresentation`, `ABOUT_REPRESENTATION`)
+- dataset-record provenance presence
+- operator-facing report generation
+- DFT queue + manifest packaging with explicit pilot defaults
+
+This is not yet a true benchmark gate, but it is now a stable pilot-run scaffold that can be tightened into one.
+
 ## Minimal definition of “pseudo-production-ready enough”
 
 A run should not be considered pseudo-production-ready unless it:

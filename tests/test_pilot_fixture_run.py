@@ -1,0 +1,122 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from pz_agent.runner import run_pipeline
+
+
+CSV_TEXT = """_id,smiles,source_group,sa_score,oxidation_potential,reduction_potential,groundState.solvation_energy,hole_reorganization_energy,electron_reorganization_energy\nrec_a,c1ccc2c(c1)Sc1ccccc1S2,demo,1.2,1.4,0.7,-0.8,0.2,0.3\nrec_b,CCN1c2ccccc2Sc2ccccc21,demo,2.1,0.4,0.2,0.1,1.1,1.2\nother,c1ccccc1,demo,1.0,2.0,1.5,-0.1,0.1,0.1\n"""
+
+
+
+def test_small_fixed_pilot_fixture_run(tmp_path: Path, monkeypatch) -> None:
+    csv_path = tmp_path / "pilot.csv"
+    csv_path.write_text(CSV_TEXT, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "pz_agent.agents.structure_expansion.expand_structure_with_pubchem",
+        lambda candidate, similarity_threshold=90, similarity_max_records=5, substructure_max_records=5, timeout=20: {
+            "query_smiles": candidate.get("smiles"),
+            "synonyms": ["PilotSynonym"],
+            "exact_matches": [{"cid": 1, "title": "Exact PT hit", "molecular_formula": "C12H9NS2", "pubchem_url": "https://pubchem.ncbi.nlm.nih.gov/compound/1"}],
+            "similarity_matches": [{"cid": 2, "title": "Analog PT hit", "molecular_formula": "C13H11NS2", "pubchem_url": "https://pubchem.ncbi.nlm.nih.gov/compound/2"}],
+            "substructure_matches": [],
+            "status": "ok",
+        },
+    )
+    monkeypatch.setattr(
+        "pz_agent.agents.patent_retrieval.retrieve_patent_evidence_for_candidate",
+        lambda candidate, count=5, timeout=20: {
+            "queries": [f"{candidate.get('id')} patent"],
+            "surechembl": [{"query": "pt patent", "hits": [{"title": "Phenothiazine patent", "url": "https://example.com/patent", "snippet": "battery electrolyte phenothiazine", "match_type": "analog", "confidence": 0.7}]}],
+            "patcid": [],
+            "errors": [],
+            "status": "ok",
+        },
+    )
+    monkeypatch.setattr(
+        "pz_agent.agents.scholarly_retrieval.retrieve_openalex_evidence_for_candidate",
+        lambda candidate, count=5, mode="balanced", max_queries=6, exact_query_budget=None, analog_query_budget=None, exploratory_query_budget=None: {
+            "queries": [f"{candidate.get('id')} chemistry"],
+            "openalex": [{"query": "pt chemistry", "hits": [{"title": "Phenothiazine electrochemistry", "url": "https://example.com/paper", "snippet": "oxidation potential and solubility", "match_type": "analog", "confidence": 0.8}]}],
+            "errors": [],
+            "status": "ok",
+        },
+    )
+
+    config_path = tmp_path / "pilot.yaml"
+    config_path.write_text(
+        f"""
+project:
+  name: pseudo-production-pilot
+generation:
+  engine: d3tales_csv
+  d3tales_csv_path: {csv_path}
+  d3tales_limit: 2
+  d3tales_phenothiazine_only: true
+  prompts:
+    objective: fixed pilot fixture run
+screening:
+  shortlist_size: 2
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - critique_reranker
+    - knowledge_graph
+    - graph_expansion
+    - dft_handoff
+    - reporter
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: true
+  max_candidates: 2
+  search_fields:
+    - oxidation_potential
+    - solvation_energy
+search:
+  backend: stub
+dft:
+  max_candidates: 2
+  job_type: geometry_optimization
+  compute_tier: pilot
+  budget_tag: fixed_fixture
+""",
+        encoding="utf-8",
+    )
+
+    state = run_pipeline(config_path, run_dir=tmp_path / "run")
+
+    assert state.ranked is not None
+    assert [item["id"] for item in state.ranked[:2]] == ["rec_a", "rec_b"]
+    assert state.dft_manifest is not None
+    assert state.dft_manifest["queue_size"] == 2
+    assert state.dft_manifest["dft_defaults"]["compute_tier"] == "pilot"
+    assert state.dft_manifest["queue"][0]["candidate_id"] == "rec_a"
+    assert state.dft_manifest["queue"][0]["dft"]["job_type"] == "geometry_optimization"
+    assert state.dft_manifest["queue"][0]["dft"]["budget_tag"] == "fixed_fixture"
+
+    graph = json.loads(state.knowledge_graph_path.read_text())
+    assert any(node["id"] == "dataset_record::d3tales::rec_a" for node in graph.get("nodes", []))
+    assert any(node["type"] == "MolecularRepresentation" for node in graph.get("nodes", []))
+    assert any(edge["type"] == "ABOUT_REPRESENTATION" for edge in graph.get("edges", []))
+
+    report = json.loads((tmp_path / "run" / "report.json").read_text())
+    assert report["summary"]["top_candidate_id"] == "rec_a"
+    assert report["summary"]["dft_queue_count"] == 2
+    assert len(report["decision_summary"]) == 2
+    assert report["decision_summary"][0]["candidate_id"] == "rec_a"
+    assert report["decision_summary"][0]["queue_status"] == "queued"
+    assert report["artifacts"]["dft_queue_path"].endswith("dft_queue.json")
+    assert report["artifacts"]["dft_manifest_path"].endswith("dft_manifest.json")
