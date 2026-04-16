@@ -16,8 +16,8 @@ class RunState:
     benchmark: dict[str, Any] | None = None
     ranked: list[dict[str, Any]] | None = None
     shortlist: list[dict[str, Any]] | None = None
-    dft_queue: list[dict[str, Any]] | None = None
-    dft_manifest: dict[str, Any] | None = None
+    simulation_queue: list[dict[str, Any]] | None = None
+    simulation_manifest: dict[str, Any] | None = None
     validation: list[dict[str, Any]] | None = None
     knowledge_graph_path: Path | None = None
     critique_notes: list[dict[str, Any]] | None = None

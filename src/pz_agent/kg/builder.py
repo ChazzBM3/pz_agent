@@ -194,16 +194,16 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
             if provenance.get("source_type") == "d3tales_csv" and provenance.get("source_id"):
                 add_edge(measurement_id, _dataset_record_node_id(str(provenance.get("source_id"))), "DERIVED_FROM")
 
-    for item in state.dft_queue or []:
-        add_edge(item["id"], run_id, "SELECTED_FOR_DFT")
-        dft_sim_id = stable_node_id("simulation_request", item["id"], "dft_handoff")
+    for item in state.simulation_queue or []:
+        add_edge(item["id"], run_id, "SELECTED_FOR_SIMULATION")
+        dft_sim_id = stable_node_id("simulation_request", item["id"], "simulation_handoff")
         add_node(
             {
                 "id": dft_sim_id,
                 "type": "SimulationResult",
                 "attrs": {
                     "candidate_id": item["id"],
-                    "model": "dft_handoff",
+                    "model": "simulation_handoff",
                     "status": "requested",
                     "evidence_tier": "tier_E_simulation",
                     "source_tags": {

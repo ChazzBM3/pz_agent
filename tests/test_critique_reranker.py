@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
 from pz_agent.analysis.pareto import apply_literature_adjustment
-from pz_agent.agents.dft_handoff import DFTHandoffAgent
+from pz_agent.agents.simulation_handoff import SimulationHandoffAgent
 from pz_agent.io import write_json
 from pz_agent.state import RunState
 
@@ -185,7 +185,7 @@ def test_apply_literature_adjustment_rewards_bridge_transferability() -> None:
 
 
 
-def test_dft_handoff_prioritizes_belief_and_simulation_priors(tmp_path: Path) -> None:
+def test_simulation_handoff_prioritizes_belief_and_simulation_priors(tmp_path: Path) -> None:
     state = RunState(config={"screening": {"shortlist_size": 3}}, run_dir=tmp_path)
     state.shortlist = [
         {
@@ -199,5 +199,5 @@ def test_dft_handoff_prioritizes_belief_and_simulation_priors(tmp_path: Path) ->
             "ranking_rationale": {"belief_state": {"transferability_score": 0.8, "simulation_support": 0.4}},
         },
     ]
-    updated = DFTHandoffAgent(config=state.config).run(state)
-    assert updated.dft_queue[0]["id"] == "cand_high"
+    updated = SimulationHandoffAgent(config=state.config).run(state)
+    assert updated.simulation_queue[0]["id"] == "cand_high"

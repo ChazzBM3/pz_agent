@@ -74,7 +74,7 @@ pipeline:
     - knowledge_graph
     - graph_expansion
     - reporter
-    - dft_handoff
+    - simulation_handoff
 kg:
   backend: json
   path: artifacts/knowledge_graph.json
@@ -135,8 +135,8 @@ search:
     assert report["summary"]["top_candidate_id"] == "rec_a"
     assert report["summary"]["shortlist_count"] == 2
     assert report["decision_summary"][0]["candidate_id"] == "rec_a"
-    assert "dft_manifest" in report
-    assert "dft_queue" in report
+    assert "simulation_manifest" in report
+    assert "simulation_queue" in report
     assert (tmp_path / 'run' / 'expansion_proposals.json').exists()
     assert (tmp_path / 'run' / 'expansion_proposals.accepted.json').exists()
     assert (tmp_path / 'run' / 'expansion_proposals.rejected.json').exists()
@@ -144,15 +144,15 @@ search:
     assert (tmp_path / 'run' / 'action_outcomes.json').exists()
     assert (tmp_path / 'run' / 'outcome_stats.json').exists()
     assert report["summary"]["queued_evidence_query_count"] >= 0
-    assert report["artifacts"]["dft_manifest_path"].endswith("dft_manifest.json")
-    assert state.dft_queue is not None
-    assert state.dft_manifest is not None
-    assert state.dft_manifest["queue_size"] == len(state.dft_queue)
-    assert state.dft_queue[0]["candidate_id"] == "rec_a"
-    assert state.dft_queue[0]["status"] == "queued"
-    assert "stable_identity_key" in state.dft_queue[0]
-    assert (tmp_path / 'run' / 'dft_queue.json').exists()
-    assert (tmp_path / 'run' / 'dft_manifest.json').exists()
+    assert report["artifacts"]["simulation_manifest_path"].endswith("simulation_manifest.json")
+    assert state.simulation_queue is not None
+    assert state.simulation_manifest is not None
+    assert state.simulation_manifest["queue_size"] == len(state.simulation_queue)
+    assert state.simulation_queue[0]["candidate_id"] == "rec_a"
+    assert state.simulation_queue[0]["status"] == "queued"
+    assert "stable_identity_key" in state.simulation_queue[0]
+    assert (tmp_path / 'run' / 'simulation_queue.json').exists()
+    assert (tmp_path / 'run' / 'simulation_manifest.json').exists()
 
 
 def test_d3tales_demo_pipeline_loads_prior_action_queue(tmp_path: Path) -> None:
@@ -208,7 +208,7 @@ pipeline:
     - knowledge_graph
     - graph_expansion
     - reporter
-    - dft_handoff
+    - simulation_handoff
 kg:
   backend: json
   path: artifacts/knowledge_graph.json

@@ -28,7 +28,7 @@ class ReporterAgent(BaseAgent):
             candidate_decisions.append(
                 {
                     "candidate_id": candidate_id,
-                    "queue_status": next((entry.get("status") for entry in (state.dft_queue or []) if entry.get("candidate_id") == candidate_id), None),
+                    "queue_status": next((entry.get("status") for entry in (state.simulation_queue or []) if entry.get("candidate_id") == candidate_id), None),
                     "predicted_priority": item.get("predicted_priority"),
                     "predicted_priority_literature_adjusted": item.get("predicted_priority_literature_adjusted", item.get("predicted_priority")),
                     "literature_adjustment": item.get("literature_adjustment", 0.0),
@@ -60,7 +60,7 @@ class ReporterAgent(BaseAgent):
                 "top_candidate_id": top_candidate_id,
                 "ranked_count": len(ranked),
                 "shortlist_count": len(shortlist),
-                "dft_queue_count": len(state.dft_queue or []),
+                "simulation_queue_count": len(state.simulation_queue or []),
                 "queued_evidence_query_count": sum(1 for item in (state.action_queue or []) if item.get("action_type") == "evidence_query"),
                 "has_identity_aware_graph": bool(state.knowledge_graph_path),
             },
@@ -81,8 +81,8 @@ class ReporterAgent(BaseAgent):
             "action_queue": state.action_queue or [],
             "action_outcomes": state.action_outcomes or [],
             "outcome_stats": state.outcome_stats or {},
-            "dft_queue": state.dft_queue or [],
-            "dft_manifest": state.dft_manifest or {},
+            "simulation_queue": state.simulation_queue or [],
+            "simulation_manifest": state.simulation_manifest or {},
             "artifacts": {
                 "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),
                 "expansion_proposals_rejected_path": str(state.run_dir / "expansion_proposals.rejected.json"),
@@ -90,8 +90,8 @@ class ReporterAgent(BaseAgent):
                 "action_outcomes_path": str(state.run_dir / "action_outcomes.json"),
                 "outcome_stats_path": str(state.run_dir / "outcome_stats.json"),
                 "evidence_report": str(evidence_report_path),
-                "dft_queue_path": str(state.run_dir / "dft_queue.json"),
-                "dft_manifest_path": str(state.run_dir / "dft_manifest.json"),
+                "simulation_queue_path": str(state.run_dir / "simulation_queue.json"),
+                "simulation_manifest_path": str(state.run_dir / "simulation_manifest.json"),
             },
         }
         write_json(state.run_dir / "report.json", report)

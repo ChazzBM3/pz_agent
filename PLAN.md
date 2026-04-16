@@ -315,7 +315,7 @@ Build and maintain a scientific knowledge graph that acts as structured long-ter
 - `SUPPORTED_BY`
 - `CONTRADICTED_BY`
 - `RANKED_IN`
-- `SELECTED_FOR_DFT`
+- `SELECTED_FOR_SIMULATION`
 - `GENERATED_FROM_RULE`
 
 ### Outputs
@@ -393,7 +393,7 @@ class RunState:
     knowledge_graph_path: str | None = None
     ranked: pd.DataFrame | None = None
     shortlist: pd.DataFrame | None = None
-    dft_queue: pd.DataFrame | None = None
+    simulation_queue: pd.DataFrame | None = None
     validation: pd.DataFrame | None = None
     logs: list[str] = field(default_factory=list)
 ```
@@ -446,7 +446,7 @@ pz_agent/
       knowledge_graph.py
       ranker.py
       reporter.py
-      dft_handoff.py
+      simulation_handoff.py
       validator.py
     models/
       base.py

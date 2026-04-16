@@ -35,7 +35,7 @@ pipeline:
     - knowledge_graph
     - graph_expansion
     - reporter
-    - dft_handoff
+    - simulation_handoff
 kg:
   backend: json
   path: artifacts/knowledge_graph.json
