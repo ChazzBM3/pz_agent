@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from pz_agent.agents.base import BaseAgent
 from pz_agent.io import write_json
+from pz_agent.simulation.backends import get_simulation_backend
 from pz_agent.state import RunState
 
 
@@ -19,20 +18,18 @@ class SimulationSubmitAgent(BaseAgent):
         submissions: list[dict] = []
         for idx, item in enumerate(queue, start=1):
             simulation = dict(item.get("simulation") or {})
-            parameters = dict(simulation.get("parameters") or {})
-            submission = {
-                "candidate_id": item.get("candidate_id"),
-                "queue_rank": item.get("queue_rank"),
-                "status": "submitted",
-                "backend": simulation.get("backend"),
-                "engine": simulation.get("engine"),
-                "skill": simulation.get("skill"),
-                "execution_mode": simulation.get("execution_mode"),
-                "remote_target": remote_target or parameters.get("remote_target"),
-                "job_spec_path": (item.get("job_package") or {}).get("job_spec_path"),
-                "submission_id": f"{submission_prefix}-{idx:03d}",
-                "submitted_at": datetime.now(timezone.utc).isoformat(),
-            }
+            backend = get_simulation_backend(str(simulation.get("backend") or "atomisticskills"))
+            submission = backend.submit(
+                candidate_id=str(item.get("candidate_id") or item.get("id") or f"candidate-{idx}"),
+                queue_rank=item.get("queue_rank"),
+                job_spec_path=str((item.get("job_package") or {}).get("job_spec_path") or ""),
+                simulation=simulation,
+                submit_config={
+                    **submit_cfg,
+                    "remote_target": remote_target,
+                    "submission_prefix": submission_prefix,
+                },
+            )
             submissions.append(submission)
             item["status"] = "submitted"
             item["submission"] = submission

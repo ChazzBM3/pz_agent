@@ -128,6 +128,7 @@ simulation:
     submissions = json.loads((tmp_path / "run" / "simulation_submissions.json").read_text())
     assert len(submissions) == 2
     assert submissions[0]["status"] == "submitted"
+    assert submissions[0]["backend"] == "atomisticskills_orca"
     assert submissions[0]["job_spec_path"].endswith("orca_job.json")
 
     graph = json.loads(state.knowledge_graph_path.read_text())
