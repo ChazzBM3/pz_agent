@@ -75,6 +75,7 @@ pipeline:
     - knowledge_graph
     - graph_expansion
     - simulation_handoff
+    - simulation_submit
     - reporter
 kg:
   backend: json
@@ -87,9 +88,9 @@ critique:
     - solvation_energy
 search:
   backend: stub
-dft:
+simulation:
   max_candidates: 2
-  job_type: geometry_optimization
+  simulation_type: geometry_optimization
   compute_tier: pilot
   budget_tag: fixed_fixture
 """,
@@ -104,17 +105,17 @@ dft:
     assert state.simulation_manifest["queue_size"] == 2
     assert state.simulation_manifest["simulation_defaults"]["compute_tier"] == "pilot"
     assert state.simulation_manifest["queue"][0]["candidate_id"] == "rec_a"
-    assert state.simulation_manifest["queue"][0]["dft"]["job_type"] == "geometry_optimization"
-    assert state.simulation_manifest["queue"][0]["dft"]["budget_tag"] == "fixed_fixture"
-    assert state.simulation_manifest["simulation_defaults"]["orca"]["backend"] == "atomisticskills_orca"
-    assert state.simulation_manifest["simulation_defaults"]["orca"]["execution_mode"] == "remote"
-    assert state.simulation_manifest["simulation_defaults"]["orca"]["skill"] == "chem-dft-orca-optimization"
-    assert state.simulation_manifest["queue"][0]["dft"]["orca"]["opt_type"] == "min"
+    assert state.simulation_manifest["queue"][0]["simulation"]["simulation_type"] == "geometry_optimization"
+    assert state.simulation_manifest["queue"][0]["simulation"]["budget_tag"] == "fixed_fixture"
+    assert state.simulation_manifest["simulation_defaults"]["backend"] == "atomisticskills_orca"
+    assert state.simulation_manifest["simulation_defaults"]["execution_mode"] == "remote"
+    assert state.simulation_manifest["simulation_defaults"]["skill"] == "chem-dft-orca-optimization"
+    assert state.simulation_manifest["queue"][0]["simulation"]["parameters"]["opt_type"] == "min"
     assert state.simulation_manifest["queue"][0]["job_package"]["job_spec_path"].endswith("orca_job.json")
 
     job_spec = json.loads((tmp_path / "run" / "orca_jobs" / "rec_a" / "orca_job.json").read_text())
     assert job_spec["candidate_id"] == "rec_a"
-    assert job_spec["job_type"] == "geometry_optimization"
+    assert job_spec["simulation_type"] == "geometry_optimization"
     assert job_spec["orca_skill"] == "chem-dft-orca-optimization"
     assert job_spec["structure_file"] == "input_structure.xyz"
     assert job_spec["parameters"]["opt_type"] == "min"
@@ -124,6 +125,10 @@ dft:
 
     structure_stub = (tmp_path / "run" / "orca_jobs" / "rec_a" / "input_structure.xyz").read_text()
     assert "rec_a" in structure_stub
+    submissions = json.loads((tmp_path / "run" / "simulation_submissions.json").read_text())
+    assert len(submissions) == 2
+    assert submissions[0]["status"] == "submitted"
+    assert submissions[0]["job_spec_path"].endswith("orca_job.json")
 
     graph = json.loads(state.knowledge_graph_path.read_text())
     assert any(node["id"] == "dataset_record::d3tales::rec_a" for node in graph.get("nodes", []))
@@ -133,8 +138,11 @@ dft:
     report = json.loads((tmp_path / "run" / "report.json").read_text())
     assert report["summary"]["top_candidate_id"] == "rec_a"
     assert report["summary"]["simulation_queue_count"] == 2
+    assert report["summary"]["simulation_submission_count"] == 2
     assert len(report["decision_summary"]) == 2
     assert report["decision_summary"][0]["candidate_id"] == "rec_a"
-    assert report["decision_summary"][0]["queue_status"] == "queued"
+    assert report["decision_summary"][0]["queue_status"] == "submitted"
+    assert report["decision_summary"][0]["submission_id"].startswith("stub-submit-")
     assert report["artifacts"]["simulation_queue_path"].endswith("simulation_queue.json")
     assert report["artifacts"]["simulation_manifest_path"].endswith("simulation_manifest.json")
+    assert report["artifacts"]["simulation_submissions_path"].endswith("simulation_submissions.json")

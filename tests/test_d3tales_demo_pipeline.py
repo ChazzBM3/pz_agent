@@ -73,8 +73,9 @@ pipeline:
     - critique_reranker
     - knowledge_graph
     - graph_expansion
-    - reporter
     - simulation_handoff
+    - simulation_submit
+    - reporter
 kg:
   backend: json
   path: artifacts/knowledge_graph.json
@@ -137,6 +138,7 @@ search:
     assert report["decision_summary"][0]["candidate_id"] == "rec_a"
     assert "simulation_manifest" in report
     assert "simulation_queue" in report
+    assert "simulation_submissions" in report
     assert (tmp_path / 'run' / 'expansion_proposals.json').exists()
     assert (tmp_path / 'run' / 'expansion_proposals.accepted.json').exists()
     assert (tmp_path / 'run' / 'expansion_proposals.rejected.json').exists()
@@ -145,14 +147,18 @@ search:
     assert (tmp_path / 'run' / 'outcome_stats.json').exists()
     assert report["summary"]["queued_evidence_query_count"] >= 0
     assert report["artifacts"]["simulation_manifest_path"].endswith("simulation_manifest.json")
+    assert report["artifacts"]["simulation_submissions_path"].endswith("simulation_submissions.json")
     assert state.simulation_queue is not None
     assert state.simulation_manifest is not None
+    assert state.simulation_submissions is not None
     assert state.simulation_manifest["queue_size"] == len(state.simulation_queue)
     assert state.simulation_queue[0]["candidate_id"] == "rec_a"
-    assert state.simulation_queue[0]["status"] == "queued"
+    assert state.simulation_queue[0]["status"] == "submitted"
+    assert state.simulation_submissions[0]["status"] == "submitted"
     assert "stable_identity_key" in state.simulation_queue[0]
     assert (tmp_path / 'run' / 'simulation_queue.json').exists()
     assert (tmp_path / 'run' / 'simulation_manifest.json').exists()
+    assert (tmp_path / 'run' / 'simulation_submissions.json').exists()
 
 
 def test_d3tales_demo_pipeline_loads_prior_action_queue(tmp_path: Path) -> None:
@@ -207,8 +213,9 @@ pipeline:
     - critique_reranker
     - knowledge_graph
     - graph_expansion
-    - reporter
     - simulation_handoff
+    - simulation_submit
+    - reporter
 kg:
   backend: json
   path: artifacts/knowledge_graph.json

@@ -6,6 +6,7 @@ from pz_agent.agents.benchmark import BenchmarkAgent
 from pz_agent.agents.critique import CritiqueAgent
 from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
 from pz_agent.agents.simulation_handoff import SimulationHandoffAgent
+from pz_agent.agents.simulation_submit import SimulationSubmitAgent
 from pz_agent.agents.document_fetch import DocumentFetchAgent
 from pz_agent.agents.figure_corpus import FigureCorpusAgent
 from pz_agent.agents.graph_expansion import GraphExpansionAgent
@@ -50,6 +51,7 @@ STAGE_MAP = {
     "critique_reranker": CritiqueRerankerAgent,
     "reporter": ReporterAgent,
     "simulation_handoff": SimulationHandoffAgent,
+    "simulation_submit": SimulationSubmitAgent,
 }
 
 
@@ -90,6 +92,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "outcome_stats_keys": sorted((state.outcome_stats or {}).keys()),
             "simulation_queue_count": len(state.simulation_queue or []),
             "has_simulation_manifest": state.simulation_manifest is not None,
+            "simulation_submission_count": len(state.simulation_submissions or []),
         },
     )
 

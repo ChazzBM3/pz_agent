@@ -29,6 +29,7 @@ class ReporterAgent(BaseAgent):
                 {
                     "candidate_id": candidate_id,
                     "queue_status": next((entry.get("status") for entry in (state.simulation_queue or []) if entry.get("candidate_id") == candidate_id), None),
+                    "submission_id": next((entry.get("submission", {}).get("submission_id") for entry in (state.simulation_queue or []) if entry.get("candidate_id") == candidate_id), None),
                     "predicted_priority": item.get("predicted_priority"),
                     "predicted_priority_literature_adjusted": item.get("predicted_priority_literature_adjusted", item.get("predicted_priority")),
                     "literature_adjustment": item.get("literature_adjustment", 0.0),
@@ -61,6 +62,7 @@ class ReporterAgent(BaseAgent):
                 "ranked_count": len(ranked),
                 "shortlist_count": len(shortlist),
                 "simulation_queue_count": len(state.simulation_queue or []),
+                "simulation_submission_count": len(state.simulation_submissions or []),
                 "queued_evidence_query_count": sum(1 for item in (state.action_queue or []) if item.get("action_type") == "evidence_query"),
                 "has_identity_aware_graph": bool(state.knowledge_graph_path),
             },
@@ -83,6 +85,7 @@ class ReporterAgent(BaseAgent):
             "outcome_stats": state.outcome_stats or {},
             "simulation_queue": state.simulation_queue or [],
             "simulation_manifest": state.simulation_manifest or {},
+            "simulation_submissions": state.simulation_submissions or [],
             "artifacts": {
                 "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),
                 "expansion_proposals_rejected_path": str(state.run_dir / "expansion_proposals.rejected.json"),
@@ -92,8 +95,9 @@ class ReporterAgent(BaseAgent):
                 "evidence_report": str(evidence_report_path),
                 "simulation_queue_path": str(state.run_dir / "simulation_queue.json"),
                 "simulation_manifest_path": str(state.run_dir / "simulation_manifest.json"),
+                "simulation_submissions_path": str(state.run_dir / "simulation_submissions.json"),
             },
         }
         write_json(state.run_dir / "report.json", report)
-        state.log("Reporter wrote operator-facing run summary with DFT handoff artifacts and candidate decisions")
+        state.log("Reporter wrote operator-facing run summary with simulation handoff/submission artifacts and candidate decisions")
         return state
