@@ -1,0 +1,79 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from pz_agent.agents.base import BaseAgent
+from pz_agent.io import read_json, write_json
+from pz_agent.state import RunState
+
+
+class ValidationIngestAgent(BaseAgent):
+    name = "validation_ingest"
+
+    def run(self, state: RunState) -> RunState:
+        ingest_cfg = dict((state.config.get("validation_ingest", {}) or {}))
+        results_relpath = ingest_cfg.get("results_path")
+        if not results_relpath:
+            state.validation = []
+            write_json(state.run_dir / "validation_results.json", state.validation)
+            state.log("Validation ingest found no configured results path and emitted empty validation results")
+            return state
+
+        results_path = Path(results_relpath)
+        if not results_path.is_absolute():
+            results_path = state.run_dir / results_path
+        if not results_path.exists():
+            raise FileNotFoundError(f"Validation ingest results file not found: {results_path}")
+
+        payload = read_json(results_path)
+        if not isinstance(payload, list):
+            raise ValueError("Validation ingest expects a JSON list of result records")
+
+        queue_by_candidate = {item.get("candidate_id"): item for item in (state.simulation_queue or []) if item.get("candidate_id")}
+        prediction_by_candidate = {item.get("id"): item for item in (state.predictions or []) if item.get("id")}
+
+        validation_records: list[dict] = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            candidate_id = item.get("candidate_id")
+            if not candidate_id:
+                continue
+            queue_item = dict(queue_by_candidate.get(candidate_id) or {})
+            prediction = dict(prediction_by_candidate.get(candidate_id) or {})
+            outputs = dict(item.get("outputs") or {})
+            predicted_energy = prediction.get("predicted_priority_literature_adjusted", prediction.get("predicted_priority"))
+            final_energy = outputs.get("final_energy")
+            delta = None
+            if isinstance(final_energy, (int, float)) and isinstance(predicted_energy, (int, float)):
+                delta = final_energy - predicted_energy
+            validation_records.append(
+                {
+                    "candidate_id": candidate_id,
+                    "status": item.get("status", "completed"),
+                    "submission_id": item.get("submission_id"),
+                    "backend": item.get("backend") or queue_item.get("simulation", {}).get("backend"),
+                    "engine": item.get("engine") or queue_item.get("simulation", {}).get("engine"),
+                    "simulation_type": item.get("simulation_type") or queue_item.get("simulation", {}).get("simulation_type"),
+                    "stable_identity_key": queue_item.get("stable_identity_key"),
+                    "requested_outputs": list(queue_item.get("simulation", {}).get("requested_outputs") or []),
+                    "outputs": outputs,
+                    "predicted_reference": {
+                        "predicted_priority": prediction.get("predicted_priority"),
+                        "predicted_priority_literature_adjusted": prediction.get("predicted_priority_literature_adjusted"),
+                    },
+                    "comparison": {
+                        "final_energy_minus_predicted_priority": delta,
+                    },
+                    "provenance": {
+                        "results_path": str(results_path),
+                        "job_spec_path": (queue_item.get("job_package") or {}).get("job_spec_path"),
+                        "remote_target": item.get("remote_target") or queue_item.get("simulation", {}).get("parameters", {}).get("remote_target"),
+                    },
+                }
+            )
+
+        state.validation = validation_records
+        write_json(state.run_dir / "validation_results.json", validation_records)
+        state.log(f"Validation ingest recorded {len(validation_records)} completed simulation results")
+        return state

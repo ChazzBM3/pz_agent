@@ -218,6 +218,50 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         )
         add_edge(dft_sim_id, item["id"], "SIMULATED_FOR")
 
+    for validation in state.validation or []:
+        candidate_id = str(validation.get("candidate_id") or "")
+        if not candidate_id:
+            continue
+        validation_result_id = stable_node_id("simulation_result", candidate_id, validation.get("submission_id") or "validation_ingest")
+        add_node(
+            {
+                "id": validation_result_id,
+                "type": "SimulationResult",
+                "attrs": {
+                    "candidate_id": candidate_id,
+                    "status": validation.get("status"),
+                    "backend": validation.get("backend"),
+                    "engine": validation.get("engine"),
+                    "simulation_type": validation.get("simulation_type"),
+                    "outputs": validation.get("outputs"),
+                    "provenance": validation.get("provenance"),
+                    "evidence_tier": "tier_E_simulation",
+                    "source_tags": {
+                        "source_type": "simulation",
+                        "source_family": "PT",
+                        "evidence_tier": "tier_E_simulation",
+                        "modality": "simulation",
+                        "extraction_method": "validation_ingest",
+                    },
+                },
+            }
+        )
+        add_edge(validation_result_id, candidate_id, "SIMULATED_FOR")
+        validation_outcome_id = stable_node_id("validated_outcome", candidate_id, validation.get("submission_id") or "validation_ingest")
+        add_node(
+            {
+                "id": validation_outcome_id,
+                "type": "ValidationOutcome",
+                "attrs": {
+                    "candidate_id": candidate_id,
+                    "status": validation.get("status"),
+                    "comparison": validation.get("comparison"),
+                    "submission_id": validation.get("submission_id"),
+                },
+            }
+        )
+        add_edge(validation_result_id, validation_outcome_id, "VALIDATED_BY")
+
     for note in state.critique_notes or []:
         claim_nodes = build_claim_nodes(note)
         evidence_tier = str(note.get("evidence_tier") or "candidate")
