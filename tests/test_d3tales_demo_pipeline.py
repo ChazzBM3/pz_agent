@@ -161,6 +161,134 @@ search:
     assert (tmp_path / 'run' / 'simulation_submissions.json').exists()
 
 
+def test_d3tales_demo_pipeline_with_validation_ingest_exercises_end_to_end_loop(tmp_path: Path, monkeypatch) -> None:
+    csv_path = tmp_path / "demo_validation.csv"
+    csv_path.write_text(CSV_TEXT, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "pz_agent.agents.structure_expansion.expand_structure_with_pubchem",
+        lambda candidate, similarity_threshold=90, similarity_max_records=5, substructure_max_records=5, timeout=20: {
+            "query_smiles": candidate.get("smiles"),
+            "synonyms": ["DemoSynonym"],
+            "exact_matches": [],
+            "similarity_matches": [],
+            "substructure_matches": [],
+            "status": "ok",
+        },
+    )
+    monkeypatch.setattr(
+        "pz_agent.agents.patent_retrieval.retrieve_patent_evidence_for_candidate",
+        lambda candidate, count=5, timeout=20: {
+            "queries": [],
+            "surechembl": [],
+            "patcid": [],
+            "errors": [],
+            "status": "ok",
+        },
+    )
+    monkeypatch.setattr(
+        "pz_agent.agents.scholarly_retrieval.retrieve_openalex_evidence_for_candidate",
+        lambda candidate, count=5, mode="balanced", max_queries=6, exact_query_budget=None, analog_query_budget=None, exploratory_query_budget=None: {
+            "queries": [],
+            "openalex": [],
+            "errors": [],
+            "status": "ok",
+        },
+    )
+
+    run_dir = tmp_path / "run_validation"
+    (run_dir / "remote_results.json").parent.mkdir(parents=True, exist_ok=True)
+    (run_dir / "remote_results.json").write_text(
+        json.dumps([
+            {
+                "candidate_id": "rec_a",
+                "submission_id": "demo-submit-001",
+                "status": "completed",
+                "backend": "atomisticskills_orca",
+                "engine": "orca",
+                "simulation_type": "geometry_optimization",
+                "remote_target": "cluster-demo",
+                "outputs": {
+                    "final_energy": -100.5,
+                    "optimized_structure": "rec_a_optimized.xyz",
+                    "status": "converged",
+                },
+            }
+        ]),
+        encoding="utf-8",
+    )
+
+    config_path = tmp_path / "demo_validation.yaml"
+    config_path.write_text(
+        f"""
+project:
+  name: demo-validation
+generation:
+  engine: d3tales_csv
+  d3tales_csv_path: {csv_path}
+  d3tales_limit: 2
+  d3tales_phenothiazine_only: true
+  prompts:
+    objective: demo validation loop
+screening:
+  shortlist_size: 2
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - critique_reranker
+    - knowledge_graph
+    - graph_expansion
+    - simulation_handoff
+    - simulation_submit
+    - validation_ingest
+    - knowledge_graph
+    - reporter
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: false
+  max_candidates: 2
+search:
+  backend: stub
+simulation:
+  max_candidates: 2
+  remote_target: cluster-demo
+simulation_submit:
+  submission_prefix: demo-submit
+validation_ingest:
+  results_path: remote_results.json
+""",
+        encoding="utf-8",
+    )
+
+    state = run_pipeline(config_path, run_dir=run_dir)
+
+    assert state.validation is not None
+    assert len(state.validation) == 1
+    assert state.validation[0]["candidate_id"] == "rec_a"
+    assert state.validation[0]["outputs"]["status"] == "converged"
+    assert (run_dir / "validation_results.json").exists()
+
+    report = json.loads((run_dir / "report.json").read_text())
+    assert report["summary"]["validation_count"] == 1
+    assert report["validation_results"][0]["candidate_id"] == "rec_a"
+    assert report["artifacts"]["validation_results_path"].endswith("validation_results.json")
+
+    graph = json.loads(state.knowledge_graph_path.read_text())
+    assert any(node["type"] == "SimulationResult" and node["attrs"].get("status") == "completed" for node in graph.get("nodes", []))
+    assert any(node["type"] == "ValidationOutcome" and node["attrs"].get("status") == "completed" for node in graph.get("nodes", []))
+
+
 def test_d3tales_demo_pipeline_loads_prior_action_queue(tmp_path: Path) -> None:
     csv_path = tmp_path / "demo.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
