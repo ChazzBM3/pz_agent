@@ -34,8 +34,9 @@ pipeline:
     - critique_reranker
     - knowledge_graph
     - graph_expansion
-    - reporter
     - simulation_handoff
+    - simulation_submit
+    - reporter
 kg:
   backend: json
   path: artifacts/knowledge_graph.json
@@ -56,3 +57,6 @@ search:
   backend: openalex
   count: 5
   production_backend: openalex
+
+simulation_submit:
+  submission_prefix: demo-submit
