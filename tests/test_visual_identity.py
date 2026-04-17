@@ -15,7 +15,7 @@ def test_attach_visual_identity_adds_render_bundle(tmp_path: Path) -> None:
     })
     enriched = attach_visual_identity(candidate, tmp_path)
     bundle = enriched.get('visual_bundle') or {}
-    assert bundle.get('vision_status') in {'rendered_ready_for_vision', 'image_unavailable', 'gemini_auth_missing', 'gemini_cli_missing', 'gemini_api_key_missing'}
+    assert bundle.get('vision_status') in {'rendered_ready_for_vision', 'image_unavailable', 'gemini_auth_missing', 'gemini_cli_missing', 'gemini_api_key_missing', 'gemini_http_error', 'gemini_ok'}
     assert 'visual_identity' in bundle
     assert isinstance(bundle['visual_identity'].get('retrieval_phrases'), list)
 

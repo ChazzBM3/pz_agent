@@ -59,5 +59,7 @@ The repo now includes a Python package scaffold for:
 - weighted and literature-aware reranking
 - a knowledge-graph builder
 - enriched critique / literature workflows
+- supervised graph expansion into action queues
+- simulation handoff packaging and submission scaffolding
 
-Next step: replace heuristics and placeholders with stronger chemistry-aware matching and real production scoring.
+Current priority: validate and harden the simulation-first execution path, then tighten scoring, evidence semantics, and downstream result ingestion.

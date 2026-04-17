@@ -8,7 +8,8 @@ The system should support:
 - directed phenothiazine library generation
 - surrogate-property prediction and benchmarking
 - multi-objective ranking / Pareto analysis
-- DFT handoff for top candidates
+- simulation handoff and remote submission for top candidates
+- validation feedback from completed simulations
 - auditability of every decision and intermediate result
 - an agent-built scientific knowledge graph that can serve as structured long-term memory
 
@@ -261,25 +262,44 @@ Generate human-readable reasoning for why a molecule survived or was rejected.
 
 ---
 
-## 8. DFT Handoff Agent
+## 8. Simulation Handoff Agent
 
 ### Responsibility
-Prepare the final shortlist for expensive validation.
+Prepare the final shortlist for expensive validation and package it for remote execution.
 
 ### Tasks
 - select top candidates within compute budget
-- generate DFT input bundles
-- attach rationale and priority score
-- track which candidates have been submitted / completed
+- generate simulation input bundles and per-candidate job specs
+- attach rationale, queue rank, and priority context
+- emit queue and manifest artifacts that are suitable for remote execution contracts
+- track which candidates have been packaged for submission
 
 ### Outputs
-- DFT-ready input directory
-- job manifest
+- simulation-ready input directory
+- queue manifest
 - validation queue
 
 ---
 
-## 9. Knowledge Graph Agent
+## 9. Simulation Submission Agent
+
+### Responsibility
+Convert packaged simulation jobs into concrete submission records for a target execution backend.
+
+### Tasks
+- resolve backend and remote target information
+- submit or stage packaged jobs for remote execution
+- persist submission metadata and identifiers
+- keep orchestration-side status tracking separate from remote execution internals
+
+### Outputs
+- submission manifest
+- submission records
+- remote-target metadata
+
+---
+
+## 10. Knowledge Graph Agent
 
 ### Responsibility
 Build and maintain a scientific knowledge graph that acts as structured long-term memory for the screening campaign.
@@ -330,16 +350,17 @@ A particularly useful pattern here is to let the **critique agent** update the K
 
 ---
 
-## 10. Validation Agent
+## 11. Validation Agent
 
 ### Responsibility
-Compare DFT results back to surrogate predictions and close the loop.
+Compare completed simulation results back to surrogate predictions and close the loop.
 
 ### Tasks
-- ingest DFT outputs
+- ingest remote simulation outputs
 - compare predicted vs validated properties
 - identify systematic surrogate bias
 - recommend next-round refinement
+- write validated outcomes back into KG structures and reports
 
 ### Outputs
 - validation report
@@ -361,7 +382,8 @@ Config / project brief
   -> Critique Agent (web/literature search on top candidates)
   -> Knowledge Graph Update
   -> Explanation / Report
-  -> DFT Handoff
+  -> Simulation Handoff
+  -> Simulation Submission
   -> Validation / Feedback
   -> Knowledge Graph Update
 ```
@@ -505,8 +527,9 @@ pz_agent/
 - KG-assisted evidence retrieval
 - ranking report and plots
 
-## Phase 6 — DFT loop
-- generate DFT input bundles for top candidates
+## Phase 6 — simulation and validation loop
+- generate simulation input bundles for top candidates
+- emit submission-ready queue and manifest artifacts
 - add validation ingestion and feedback report
 - write validated outcomes back into the KG
 
@@ -530,7 +553,10 @@ The orchestrator should enforce these:
    - candidates with high uncertainty should be flagged, not silently promoted
 
 5. **Budget gate**
-   - DFT shortlist capped by compute budget
+   - simulation shortlist capped by compute budget
+
+6. **Validation-contract gate**
+   - packaged jobs must contain the fields required for remote execution and later result ingestion
 
 ---
 
@@ -543,7 +569,7 @@ Even without LangGraph, the agent split is still valuable because each stage has
 - benchmark models
 - critique top candidates with external evidence
 - rank candidates
-- prepare validation
+- prepare simulation handoff and validation
 
 That separation helps with:
 - clean interfaces
@@ -579,7 +605,7 @@ A **similar multi-agent approach without LangGraph** should be implemented as a 
 - surrogate model benchmarking and scoring
 - critique-agent evidence gathering for top candidates
 - Pareto front analysis
-- DFT validation of top candidates
+- simulation-backed validation of top candidates
 - calibration against known phenothiazines
 
 So the best architecture is not a conversation graph; it is a **research workflow engine with explicit artifacts and quality gates**, optionally augmented by a **provenance-aware scientific knowledge graph** that serves as structured long-term memory.
@@ -619,7 +645,7 @@ For this project, the most practical interpretation is:
 
 5. **Do not replace numeric screening with the KG**
    - the KG should improve memory, provenance, and explainability
-   - the actual optimization still comes from descriptors, surrogate predictions, Pareto ranking, and DFT validation
+   - the actual optimization still comes from descriptors, surrogate predictions, Pareto ranking, and simulation-backed validation
 
 ### Practical implementation choice
 

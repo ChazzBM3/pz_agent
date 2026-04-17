@@ -93,7 +93,7 @@ class SimulationHandoffAgent(BaseAgent):
             )
         )
 
-        simulation_cfg = dict((state.config.get("simulation", {}) or state.config.get("dft", {}) or {}))
+        simulation_cfg = dict((state.config.get("simulation", {}) or {}))
         max_candidates = int(simulation_cfg.get("max_candidates", len(shortlist) or 0)) if shortlist else 0
         selected = shortlist[:max_candidates] if max_candidates > 0 else shortlist
 

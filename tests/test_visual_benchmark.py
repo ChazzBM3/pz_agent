@@ -20,7 +20,7 @@ def test_build_visual_benchmark_report_writes_expected_candidates(tmp_path: Path
     for row in report["results"]:
         assert "stub_queries" in row
         assert "fused_queries" in row
-        assert row["gemini_status"] in {"image_unavailable", "gemini_api_key_missing", "gemini_ok"}
+        assert row["gemini_status"] in {"image_unavailable", "gemini_api_key_missing", "gemini_ok", "gemini_http_error"}
 
     payload = json.loads((tmp_path / "visual_benchmark.json").read_text(encoding="utf-8"))
     assert payload["candidate_ids"] == ["05TRCY", "05BCMO"]

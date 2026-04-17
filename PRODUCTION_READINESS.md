@@ -13,7 +13,8 @@
 5. Build/update KG snapshot
 6. Rank + critique + critique rerank
 7. Generate graph expansion proposals / action queue
-8. Write report and prepare DFT handoff shortlist
+8. Write report and prepare simulation handoff shortlist
+9. Stage or emit simulation submission records
 
 ## What is already in place
 
@@ -48,11 +49,12 @@
 - Prevent over-crediting the same evidence through both candidate-local and identity-level paths
 - Make contradiction signals influence downstream ranking more explicitly
 
-### 3. DFT handoff packaging
-- Promote shortlist sorting to a true DFT queue package
+### 3. Simulation handoff and submission packaging
+- Promote shortlist sorting to a true simulation queue package
 - Add compute-budget fields
 - Add rationale / confidence / exploit-vs-validate annotations
 - Add explicit job manifests and status tracking
+- Validate that submission records are sufficient for a real remote-execution contract
 
 ### 4. Reporting
 - Replace placeholder report language with decision-grade summaries
@@ -70,8 +72,8 @@
 
 1. Ranking + scoring hardening
 2. Evidence typing / anti-double-counting hardening
-3. DFT handoff packaging
-4. Reporting cleanup
+3. Simulation handoff and submission packaging
+4. Validation-contract checks and report cleanup
 5. Acceptance gates and pilot run criteria
 6. Small pseudo-production pilot runs
 
@@ -82,7 +84,8 @@ A fixed small pilot fixture now exists in test form to exercise the pseudo-produ
 - identity-aware KG structure (`MolecularRepresentation`, `ABOUT_REPRESENTATION`)
 - dataset-record provenance presence
 - operator-facing report generation
-- DFT queue + manifest packaging with explicit pilot defaults
+- simulation queue + manifest packaging with explicit pilot defaults
+- submission-record emission for remote execution scaffolding
 
 This is not yet a true benchmark gate, but it is now a stable pilot-run scaffold that can be tightened into one.
 
@@ -93,5 +96,6 @@ A run should not be considered pseudo-production-ready unless it:
 - persists D3TaLES measurements/provenance as stable KG entities
 - preserves identity-aware cross-run evidence structure without collapsing run-local provenance
 - produces a shortlist with auditable evidence and confidence
-- emits a DFT-ready queue package rather than only a sorted list
+- emits a simulation-ready queue package rather than only a sorted list
+- emits submission records that satisfy the current remote-execution contract
 - passes ranking stability and retrieval-specificity regression tests

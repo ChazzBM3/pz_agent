@@ -1,194 +1,149 @@
 # PROJECT_SUMMARY.md
 
-## 1. Project scope, approach, novelty, and possible issues
+## 1. Project scope and current strategic direction
 
-## Scope
+`pz_agent` is a phenothiazine screening workflow built as a modular scientific pipeline rather than a chat-style agent system.
 
-This project aims to build a **phenothiazine screening workflow** centered on:
-- externally generated phenothiazine derivatives from **GenMol**
-- primary scoring on **synthesizability** and **solubility**
-- literature-aware critique and reranking
-- a **knowledge graph** that serves as structured scientific memory
-- later DFT handoff for a smaller shortlisted set
+The repo now centers on:
+- phenothiazine-focused candidate generation/import
+- chemistry normalization and stable molecule identity
+- structure-first retrieval and evidence gathering
+- KG-backed critique and reranking
+- supervised graph expansion into actionable follow-up work
+- simulation handoff and submission packaging for top candidates
 
-The scope is intentionally **not** broad de novo molecular discovery. The assumption is that GenMol already preserves the phenothiazine core and explores functional decorations around it.
+The project is intentionally **not** broad de novo discovery. It is a tightly-scoped screening and validation workflow for phenothiazine derivatives.
 
-## Approach
+## 2. Architectural stance
 
-The implementation uses a **modular multi-agent pipeline without LangGraph**.
-
-Core stages currently include:
-- library import / design
-- structure normalization
-- surrogate scoring
-- ranking
-- critique generation
-- literature-aware reranking
-- knowledge graph updates
-- report generation
-- DFT handoff scaffolding
-
-The orchestration model is:
-- plain Python modules
+The implementation uses a **plain-Python multi-agent pipeline without LangGraph**:
+- explicit stages
 - shared `RunState`
-- file-backed artifacts
-- explicit stage ordering
+- durable JSON artifacts
+- deterministic orchestration
+- config-driven stage selection
 
-This makes the system easier to debug and reproduce than a heavier orchestration framework.
+That decision still looks correct. The repo has become substantially richer, but it still benefits from being inspectable, testable, and recoverable from artifacts on disk.
 
-## Novelty
+## 3. What is now genuinely distinctive
 
-The most distinctive part of the project is not any single model, but the **combination** of ideas:
+The strongest part of the project is no longer just the stage layout. It is the combination of:
 
-1. **Phenothiazine-focused generative screening**
-   - the chemistry problem is tightly scoped around a known core and its decorations
+1. **Identity-aware chemistry and KG flow**
+   - stable molecule identity keys, representation anchors, and non-destructive KG merge behavior
 
-2. **Knowledge graph as scientific memory**
-   - molecules, predictions, literature claims, evidence hits, media artifacts, and provenance are all represented structurally
+2. **Evidence-aware ranking and critique**
+   - ranking can consume measured-property context, literature support, identity-level evidence, and belief-like support structures
 
-3. **Evidence-aware reranking**
-   - the system does not rely only on numeric scoring; it can also incorporate literature-derived support/analog evidence
+3. **Supervised self-expansion**
+   - the system can derive frontier hypotheses from KG state and turn them into structured action requests rather than free-form autonomous wandering
 
-4. **Separation of generation from screening**
-   - GenMol is assumed to run externally, while `pz_agent` focuses on import, scoring, critique, ranking, and memory
+4. **Screening-to-simulation bridge**
+   - top candidates can now be packaged into simulation queue artifacts and submission records, moving the repo closer to an operational validation loop
 
-5. **Decoration-centric chemistry reasoning**
-   - because the phenothiazine core is fixed, the project is evolving toward reasoning about functionalization patterns rather than core detection
+5. **Scientific memory with provenance**
+   - molecules, papers, predictions, evidence, dataset records, reports, and queued actions are all represented as campaign memory rather than one-off run debris
 
-## Potential areas of issue
-
-### 1. Placeholder / heuristic components still dominate
-At the moment, several pieces are still scaffolds rather than production-grade science:
-- scoring heuristics are weak placeholders
-- literature matching is still text-driven and approximate
-- critique evidence integration is stronger structurally than chemically
-
-### 2. Chemistry matching is not yet rigorous
-Even with RDKit installed, the current matching logic is still not enough for robust literature identity resolution:
-- exact matching is crude
-- analog matching is scaffold/token-based
-- substituent-level reasoning is still heuristic
-
-### 3. Literature quality control remains hard
-Web search can surface useful analog papers, but also noisy or only indirectly relevant results. The system still needs:
-- better confidence weighting
-- contradiction detection
-- stronger paper/entity normalization
-
-### 4. The KG is strong structurally but still semantically immature
-The graph now has good shape, but some important semantics are still missing:
-- canonical paper merging beyond URL/title fingerprinting
-- chemistry-native analog relations
-- deeper generation/scoring provenance propagation
-- stronger use of enriched KG content in ranking decisions
-
-### 5. Scoring realism is still limited
-The current synthesizeability and solubility scores are placeholder heuristics. This is acceptable for scaffolding, but not enough for scientific conclusions.
-
----
-
-## 2. Current repo status
+## 4. Current repo status
 
 ## Overall maturity
 
-The repo is now a **serious research scaffold**, not just notes.
-It has a coherent architecture, real artifact flow, GitHub hosting, and several working subsystems.
+The repo is now a **serious research prototype with an emerging operational loop**.
+It is no longer just an architecture scaffold. The interesting question is no longer “what should the system be?” so much as “which loop should be hardened first?”
 
 GitHub:
 - <https://github.com/ChazzBM3/pz_agent>
 
 ## What is implemented
 
-### Orchestration and pipeline
+### Orchestration and CLI
 - deterministic stage runner
-- `RunState`
-- config-driven stage order
-- file-backed artifacts
-- CLI entrypoints for run/enrichment/rebuild workflows
+- config-driven stage order with stage validation
+- `RunState` snapshots after each stage
+- CLI entrypoints for run and auxiliary workflows
 
-### Generation handling
-- external GenMol import path
-- JSON / CSV import support
-- candidate validation with Pydantic
-- generation provenance registry
-- `GenerationBatch` nodes in the KG
-
-### Chemistry layer
-- RDKit installed in repo venv
-- molecule identity schema
-- canonical SMILES generation
-- InChI / InChIKey attempts
-- Murcko scaffold extraction
+### Chemistry and identity
+- RDKit-backed normalization in the repo venv
+- stable molecule identity keys
+- canonical SMILES / InChI / InChIKey handling
 - decoration-aware identity fields
-- simple structure matching scaffold (`exact`, `analog`, `family`, `unknown`)
+- identity-aware KG retrieval and merge behavior
+- representation-level evidence attachment
 
-### Scoring
-- synthesizeability scorer scaffold
-- solubility scorer scaffold
-- heuristic baseline values
-- external score import mode
-- prediction provenance attached to outputs
+### Retrieval, critique, and reranking
+- patent and scholarly retrieval stages
+- critique generation and critique-aware reranking
+- visual identity and multimodal support paths
+- evidence deduplication improvements
+- structure-first retrieval direction is established
 
-### Ranking
-- weighted baseline ranking using synthesizeability + solubility
-- second-pass literature-aware reranking in pipeline
-- enriched-critique reranking path available separately
+### Knowledge graph and campaign memory
+- local JSON property graph with provenance-rich entities
+- molecule, representation, paper, claim, prediction, media, and dataset-record support
+- identity anchors preserved across runs
+- graph-expansion proposals can be derived from live KG state
 
-### Knowledge graph
-- local JSON property-graph approach
-- molecules, predictions, generation batches, claims, papers, evidence hits, and media artifacts represented in the graph
-- enriched KG rebuild from literature enrichment artifacts
-- paper deduplication by URL/title fingerprint
-- generated plot artifacts attached as media nodes
+### Supervised expansion and action queueing
+- supervised graph expansion from KG frontier conditions
+- proposal filtering through critic rules
+- accepted action queue entries such as:
+  - `simulation_request`
+  - `evidence_query`
+  - `bridge_expansion`
 
-### Literature / critique layer
-- critique query generation
-- live enrichment artifact path
-- normalized literature/evidence nodes in enriched graph
-- enriched reranking path
-- initial direct multimodal benchmark path for rendered-structure -> Gemini extraction
+### Simulation path
+- `simulation_handoff` packages shortlisted candidates into queue records and per-candidate job bundles
+- queue and manifest artifacts are written to disk
+- `simulation_submit` can emit backend submission records
+- simulation backend abstraction exists, with current AtomisticSkills submit path stubbed for contract validation
 
-## Retrieval direction update
+## 5. Main gaps
 
-The current best next direction is a structure-first retrieval stack rather than image-to-phrase search:
-- RDKit + RanDepict for structure-native query assets
-- PubChem for exact/similarity/substructure expansion
-- SureChEMBL + PatCID for patent-first retrieval
-- OpenAlex as the scholarly metadata/text companion after structure expansion
-- later page corpus assembly + ColPali page-image retrieval
-- Gemma 4 for multimodal reranking and justification, not first-stage search generation
+The biggest remaining gap is now **loop closure**, not architecture.
 
-This reframes multimodal vision as an evidence-ranking layer rather than the main query-generation layer.
+### 1. Validation-first hardening is incomplete
+The repo can generate simulation-ready artifacts, but the end-to-end validation path still needs to be exercised and tightened:
+- config paths need to include `simulation_submit` where appropriate
+- queue artifacts need explicit contract validation
+- submission records need to be checked against a real remote-execution design
+- eventual results-ingest/validator stages still need to be formalized
 
-## What is still scaffold-level / incomplete
+### 2. Scoring remains partially heuristic
+- synthesizability and solubility scoring are still not production-grade
+- benchmark gates are not yet strong enough to fail a run with confidence
+- ranking is stronger structurally than scientifically calibrated
 
-### Chemistry
-- substituent extraction is still heuristic
-- attachment-aware decoration reasoning is not yet implemented
-- chemistry matching is not yet robust enough for real exact-vs-analog literature alignment
+### 3. Chemistry reasoning is still uneven
+- bridge and substituent reasoning are richer than before, but still not fully chemistry-native
+- exact-vs-analog evidence alignment is improved, not solved
+- some chemistry interpretation remains heuristic
 
-### Scoring
-- current numeric scoring is still heuristic
-- no calibrated production synthesizeability model yet
-- no calibrated production solubility model yet
+### 4. Evidence semantics still need tightening
+- contradiction handling is still shallow
+- evidence weighting can still drift toward over-crediting weak or correlated signals
+- report language needs to stay explicit about measured vs inferred vs predicted support
 
-### Ranking
-- weighting is simplistic
-- true Pareto / uncertainty-aware ranking is not fully implemented yet
-- literature-aware reranking exists, but benefits are limited until evidence signals become richer
+## 6. Recommended near-term work order
 
-### Knowledge graph
-- graph semantics are improving, but not fully mature
-- evidence typing and contradiction handling are still shallow
-- enriched KG is useful, but not yet the sole source of reranking decisions
+The recommended next sequence is:
 
-## Bottom line
+1. **Validation first**
+   - run the simulation handoff/submission path end to end on a clean config
+   - inspect artifacts and contract completeness
+   - turn the current stub-backed simulation path into a testable acceptance gate
 
-The repo is in a strong **architecture-first prototype** state:
-- the pipeline shape is real
-- the KG/memory approach is real
-- RDKit-backed chemistry normalization is now present
-- the system is ready to absorb real GenMol outputs and better scoring models
+2. **Remote simulation contract hardening**
+   - define exactly what a remote ORCA or AtomisticSkills execution target must accept and return
+   - keep `pz_agent` as orchestrator, not the executor
 
-The biggest remaining gap is not architecture anymore.
-It is the transition from scaffolding to **scientifically credible chemistry/scoring/matching**.
+3. **Result ingestion and validator loop**
+   - add the downstream stage that consumes completed simulation outputs and writes them back into KG and reports
+
+4. **Then deeper bridge chemistry refinement**
+   - make bridge reasoning compete for simulation budget using actual validation outcomes instead of only internal belief structure
+
+## 7. Bottom line
+
+`pz_agent` is now best understood as a **KG-backed phenothiazine screening and validation orchestrator**.
+
+The repo already has enough architecture for the next meaningful milestone. The highest-leverage move is to harden the **screening -> simulation -> validation** loop before doing another large conceptual expansion.
