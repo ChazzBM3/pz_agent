@@ -94,6 +94,7 @@ GitHub:
 ### Simulation path
 - `simulation_handoff` packages shortlisted candidates into queue records and per-candidate job bundles
 - queue and manifest artifacts are written to disk
+- current default packaged calculation is an ORCA geometry optimization / minimum search using `PBE`, `def2-SVP`, `D3`, and implicit water via `CPCM`
 - `simulation_submit` can emit backend submission records
 - simulation backend abstraction exists, with current AtomisticSkills submit path stubbed for contract validation
 

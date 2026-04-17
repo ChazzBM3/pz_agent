@@ -63,3 +63,21 @@ The repo now includes a Python package scaffold for:
 - simulation handoff packaging and submission scaffolding
 
 Current priority: validate and harden the simulation-first execution path, then tighten scoring, evidence semantics, and downstream result ingestion.
+
+## Current simulation defaults
+
+Unless overridden in config, simulation handoff currently packages candidate jobs with these defaults:
+- engine: `orca`
+- simulation type: `geometry_optimization`
+- optimization type: `min`
+- functional: `PBE`
+- basis set: `def2-SVP`
+- dispersion correction: `D3`
+- implicit solvent model: `CPCM`
+- solvent: `water`
+- requested outputs:
+  - `optimized_structure`
+  - `final_energy`
+  - `status`
+
+These defaults live in `src/pz_agent/agents/simulation_handoff.py` and are intended as the current remote-execution packaging contract, not as a claim that the repo already runs ORCA locally.

@@ -55,6 +55,7 @@
 - Add rationale / confidence / exploit-vs-validate annotations
 - Add explicit job manifests and status tracking
 - Validate that submission records are sufficient for a real remote-execution contract
+- Keep the current packaged default calculation explicit and stable: ORCA geometry optimization with `PBE` / `def2-SVP`, `D3`, and implicit water via `CPCM`
 
 ### 4. Reporting
 - Replace placeholder report language with decision-grade summaries
