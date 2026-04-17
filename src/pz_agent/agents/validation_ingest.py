@@ -7,6 +7,35 @@ from pz_agent.io import read_json, write_json
 from pz_agent.state import RunState
 
 
+VALIDATION_STATUS_MAP = {
+    "converged": "completed",
+    "completed": "completed",
+    "ok": "completed",
+    "failed": "failed",
+    "error": "failed",
+}
+
+
+def _normalize_status(item_status: object, output_status: object) -> str:
+    for raw in (output_status, item_status):
+        text = str(raw or "").strip().lower()
+        if text:
+            return VALIDATION_STATUS_MAP.get(text, text)
+    return "completed"
+
+
+def _normalize_outputs(outputs: dict) -> dict:
+    final_energy = outputs.get("final_energy")
+    optimized_structure = outputs.get("optimized_structure")
+    status = outputs.get("status")
+    return {
+        "final_energy": final_energy if isinstance(final_energy, (int, float)) else None,
+        "optimized_structure": optimized_structure,
+        "raw_status": status,
+        "has_optimized_structure": bool(optimized_structure),
+    }
+
+
 class ValidationIngestAgent(BaseAgent):
     name = "validation_ingest"
 
@@ -42,33 +71,44 @@ class ValidationIngestAgent(BaseAgent):
             queue_item = dict(queue_by_candidate.get(candidate_id) or {})
             prediction = dict(prediction_by_candidate.get(candidate_id) or {})
             outputs = dict(item.get("outputs") or {})
-            predicted_energy = prediction.get("predicted_priority_literature_adjusted", prediction.get("predicted_priority"))
-            final_energy = outputs.get("final_energy")
-            delta = None
-            if isinstance(final_energy, (int, float)) and isinstance(predicted_energy, (int, float)):
-                delta = final_energy - predicted_energy
+            normalized_outputs = _normalize_outputs(outputs)
+            normalized_status = _normalize_status(item.get("status"), outputs.get("status"))
+            predicted_priority = prediction.get("predicted_priority")
+            predicted_priority_adjusted = prediction.get("predicted_priority_literature_adjusted", predicted_priority)
+            final_energy = normalized_outputs.get("final_energy")
+            delta_priority = None
+            delta_priority_adjusted = None
+            if isinstance(final_energy, (int, float)) and isinstance(predicted_priority, (int, float)):
+                delta_priority = final_energy - predicted_priority
+            if isinstance(final_energy, (int, float)) and isinstance(predicted_priority_adjusted, (int, float)):
+                delta_priority_adjusted = final_energy - predicted_priority_adjusted
             validation_records.append(
                 {
                     "candidate_id": candidate_id,
-                    "status": item.get("status", "completed"),
+                    "status": normalized_status,
                     "submission_id": item.get("submission_id"),
                     "backend": item.get("backend") or queue_item.get("simulation", {}).get("backend"),
                     "engine": item.get("engine") or queue_item.get("simulation", {}).get("engine"),
                     "simulation_type": item.get("simulation_type") or queue_item.get("simulation", {}).get("simulation_type"),
                     "stable_identity_key": queue_item.get("stable_identity_key"),
                     "requested_outputs": list(queue_item.get("simulation", {}).get("requested_outputs") or []),
-                    "outputs": outputs,
+                    "outputs": normalized_outputs,
                     "predicted_reference": {
-                        "predicted_priority": prediction.get("predicted_priority"),
-                        "predicted_priority_literature_adjusted": prediction.get("predicted_priority_literature_adjusted"),
+                        "predicted_priority": predicted_priority,
+                        "predicted_priority_literature_adjusted": predicted_priority_adjusted,
+                        "predicted_solubility": prediction.get("predicted_solubility"),
+                        "predicted_synthesizability": prediction.get("predicted_synthesizability"),
                     },
                     "comparison": {
-                        "final_energy_minus_predicted_priority": delta,
+                        "final_energy_minus_predicted_priority": delta_priority,
+                        "final_energy_minus_predicted_priority_literature_adjusted": delta_priority_adjusted,
+                        "optimized_structure_available": normalized_outputs.get("has_optimized_structure", False),
                     },
                     "provenance": {
                         "results_path": str(results_path),
                         "job_spec_path": (queue_item.get("job_package") or {}).get("job_spec_path"),
                         "remote_target": item.get("remote_target") or queue_item.get("simulation", {}).get("parameters", {}).get("remote_target"),
+                        "raw_status": outputs.get("status"),
                     },
                 }
             )

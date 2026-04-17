@@ -276,7 +276,7 @@ validation_ingest:
     assert state.validation is not None
     assert len(state.validation) == 1
     assert state.validation[0]["candidate_id"] == "rec_a"
-    assert state.validation[0]["outputs"]["status"] == "converged"
+    assert state.validation[0]["outputs"]["raw_status"] == "converged"
     assert (run_dir / "validation_results.json").exists()
 
     report = json.loads((run_dir / "report.json").read_text())
