@@ -109,7 +109,14 @@ def test_simulation_manifest_declares_current_default_contract(tmp_path: Path, m
     assert defaults["engine"] == "orca"
     assert defaults["skill"] == "chem-dft-orca-optimization"
     assert defaults["execution_mode"] == "remote"
-    assert defaults["requested_outputs"] == ["optimized_structure", "final_energy", "status"]
+    assert defaults["requested_outputs"] == [
+        "optimized_structure",
+        "final_energy",
+        "groundState.solvation_energy",
+        "groundState.homo",
+        "groundState.lumo",
+        "status",
+    ]
 
     assert params["opt_type"] == "min"
     assert params["functional"] == "PBE"
@@ -136,7 +143,14 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     assert job_spec["parameters"]["solvation"] == "CPCM"
     assert job_spec["parameters"]["solvent"] == "water"
     assert job_spec["parameters"]["remote_target"] == "cluster-alpha"
-    assert job_spec["requested_outputs"] == ["optimized_structure", "final_energy", "status"]
+    assert job_spec["requested_outputs"] == [
+        "optimized_structure",
+        "final_energy",
+        "groundState.solvation_energy",
+        "groundState.homo",
+        "groundState.lumo",
+        "status",
+    ]
     assert job_spec["provenance"]["remote_target"] == "cluster-alpha"
 
     assert submissions[0]["status"] == "submitted"

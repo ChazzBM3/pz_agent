@@ -21,6 +21,9 @@ RESULTS_PAYLOAD = [
         "outputs": {
             "final_energy": -123.456,
             "optimized_structure": "rec_a_optimized.xyz",
+            "groundState.solvation_energy": -0.42,
+            "groundState.homo": -5.67,
+            "groundState.lumo": -1.23,
             "status": "converged",
         },
     }
@@ -130,6 +133,12 @@ validation_ingest:
     assert state.validation[0]["outputs"]["raw_status"] == "converged"
     assert state.validation[0]["outputs"]["has_final_energy"] is True
     assert state.validation[0]["outputs"]["has_optimized_structure"] is True
+    assert state.validation[0]["outputs"]["groundState.solvation_energy"] == -0.42
+    assert state.validation[0]["outputs"]["groundState.homo"] == -5.67
+    assert state.validation[0]["outputs"]["groundState.lumo"] == -1.23
+    assert state.validation[0]["outputs"]["has_groundState.solvation_energy"] is True
+    assert state.validation[0]["outputs"]["has_groundState.homo"] is True
+    assert state.validation[0]["outputs"]["has_groundState.lumo"] is True
     assert state.validation[0]["predicted_reference"]["predicted_solubility"] is not None
     assert state.validation[0]["predicted_reference"]["predicted_synthesizability"] is not None
     assert "final_energy_minus_predicted_priority" in state.validation[0]["comparison"]
@@ -138,6 +147,9 @@ validation_ingest:
     assert state.validation[0]["quality_assessment"]["quality"] == "usable"
     assert state.validation[0]["quality_assessment"]["requested_outputs_complete"] is True
     assert state.validation[0]["quality_assessment"]["missing_requested_outputs"] == []
+    assert state.validation[0]["quality_assessment"]["available_outputs"]["groundState.solvation_energy"] is True
+    assert state.validation[0]["quality_assessment"]["available_outputs"]["groundState.homo"] is True
+    assert state.validation[0]["quality_assessment"]["available_outputs"]["groundState.lumo"] is True
     assert state.validation[0]["provenance"]["remote_target"] == "cluster-alpha"
     assert state.validation[0]["provenance"]["raw_status"] == "converged"
 

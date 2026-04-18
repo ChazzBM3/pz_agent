@@ -35,7 +35,14 @@ def _requested_outputs(simulation_cfg: dict) -> list[str]:
     outputs = simulation_cfg.get("requested_outputs")
     if isinstance(outputs, list) and outputs:
         return [str(item) for item in outputs]
-    return ["optimized_structure", "final_energy", "status"]
+    return [
+        "optimized_structure",
+        "final_energy",
+        "groundState.solvation_energy",
+        "groundState.homo",
+        "groundState.lumo",
+        "status",
+    ]
 
 
 def _write_orca_job_package(state: RunState, record: dict) -> dict:

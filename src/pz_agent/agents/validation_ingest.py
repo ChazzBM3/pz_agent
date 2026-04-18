@@ -27,13 +27,22 @@ def _normalize_status(item_status: object, output_status: object) -> str:
 def _normalize_outputs(outputs: dict) -> dict:
     final_energy = outputs.get("final_energy")
     optimized_structure = outputs.get("optimized_structure")
+    solvation_energy = outputs.get("groundState.solvation_energy")
+    homo = outputs.get("groundState.homo")
+    lumo = outputs.get("groundState.lumo")
     status = outputs.get("status")
     return {
         "final_energy": final_energy if isinstance(final_energy, (int, float)) else None,
         "optimized_structure": optimized_structure,
+        "groundState.solvation_energy": solvation_energy if isinstance(solvation_energy, (int, float)) else None,
+        "groundState.homo": homo if isinstance(homo, (int, float)) else None,
+        "groundState.lumo": lumo if isinstance(lumo, (int, float)) else None,
         "raw_status": status,
         "has_final_energy": isinstance(final_energy, (int, float)),
         "has_optimized_structure": bool(optimized_structure),
+        "has_groundState.solvation_energy": isinstance(solvation_energy, (int, float)),
+        "has_groundState.homo": isinstance(homo, (int, float)),
+        "has_groundState.lumo": isinstance(lumo, (int, float)),
     }
 
 
@@ -41,6 +50,9 @@ def _build_quality_assessment(status: str, requested_outputs: list[str], normali
     available_outputs = {
         "final_energy": bool(normalized_outputs.get("has_final_energy")),
         "optimized_structure": bool(normalized_outputs.get("has_optimized_structure")),
+        "groundState.solvation_energy": bool(normalized_outputs.get("has_groundState.solvation_energy")),
+        "groundState.homo": bool(normalized_outputs.get("has_groundState.homo")),
+        "groundState.lumo": bool(normalized_outputs.get("has_groundState.lumo")),
         "status": bool(normalized_outputs.get("raw_status")),
     }
     missing_outputs = [name for name in requested_outputs if not available_outputs.get(name, False)]

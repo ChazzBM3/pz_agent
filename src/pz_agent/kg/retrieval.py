@@ -209,7 +209,8 @@ def build_candidate_queries(
     if nomenclature_token:
         queries.append(f'"{nomenclature_token}" redox solubility synthesis')
         if iupac_bits:
-            queries.append(f'"{scaffold}" "{' '.join(iupac_bits)}" redox solubility')
+            iupac_clause = " ".join(iupac_bits)
+            queries.append(f'"{scaffold}" "{iupac_clause}" redox solubility')
     if motif_clause:
         queries.append(f'"{scaffold}" {motif_clause} ({broad_property_clause})')
         queries.append(f'{SCHOLARLY_SITE_HINT} "{scaffold}" {motif_clause}')

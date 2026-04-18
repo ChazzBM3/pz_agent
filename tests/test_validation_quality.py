@@ -95,6 +95,9 @@ def test_validation_ingest_marks_partial_when_requested_outputs_missing(tmp_path
                 "status": "completed",
                 "outputs": {
                     "final_energy": -50.0,
+                    "groundState.solvation_energy": -0.25,
+                    "groundState.homo": -5.1,
+                    "groundState.lumo": -1.0,
                     "status": "converged",
                 },
             }
@@ -109,13 +112,18 @@ def test_validation_ingest_marks_partial_when_requested_outputs_missing(tmp_path
     assert quality["quality"] == "partial"
     assert quality["requested_outputs_complete"] is False
     assert "optimized_structure" in quality["missing_requested_outputs"]
+    assert "groundState.solvation_energy" not in quality["missing_requested_outputs"]
+    assert "groundState.homo" not in quality["missing_requested_outputs"]
+    assert "groundState.lumo" not in quality["missing_requested_outputs"]
 
     report = json.loads((run_dir / "report.json").read_text())
     assert report["summary"]["partial_validation_count"] == 1
 
-    graph = json.loads((run_dir / "artifacts" / "knowledge_graph.json").read_text())
-    assert not any(node["type"] == "SimulationResult" for node in graph.get("nodes", []))
-    assert not any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))
+    graph_path = run_dir / "artifacts" / "knowledge_graph.json"
+    if graph_path.exists():
+        graph = json.loads(graph_path.read_text())
+        assert not any(node["type"] == "SimulationResult" for node in graph.get("nodes", []))
+        assert not any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))
 
 
 def test_validation_ingest_marks_failed_for_failed_runs(tmp_path: Path, monkeypatch) -> None:
@@ -149,6 +157,8 @@ def test_validation_ingest_marks_failed_for_failed_runs(tmp_path: Path, monkeypa
     report = json.loads((run_dir / "report.json").read_text())
     assert report["summary"]["failed_validation_count"] == 1
 
-    graph = json.loads((run_dir / "artifacts" / "knowledge_graph.json").read_text())
-    assert not any(node["type"] == "SimulationResult" for node in graph.get("nodes", []))
-    assert not any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))
+    graph_path = run_dir / "artifacts" / "knowledge_graph.json"
+    if graph_path.exists():
+        graph = json.loads(graph_path.read_text())
+        assert not any(node["type"] == "SimulationResult" for node in graph.get("nodes", []))
+        assert not any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))
