@@ -113,6 +113,10 @@ def test_validation_ingest_marks_partial_when_requested_outputs_missing(tmp_path
     report = json.loads((run_dir / "report.json").read_text())
     assert report["summary"]["partial_validation_count"] == 1
 
+    graph = json.loads((run_dir / "artifacts" / "knowledge_graph.json").read_text())
+    assert not any(node["type"] == "SimulationResult" for node in graph.get("nodes", []))
+    assert not any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))
+
 
 def test_validation_ingest_marks_failed_for_failed_runs(tmp_path: Path, monkeypatch) -> None:
     _patch_retrieval(monkeypatch)
@@ -144,3 +148,7 @@ def test_validation_ingest_marks_failed_for_failed_runs(tmp_path: Path, monkeypa
 
     report = json.loads((run_dir / "report.json").read_text())
     assert report["summary"]["failed_validation_count"] == 1
+
+    graph = json.loads((run_dir / "artifacts" / "knowledge_graph.json").read_text())
+    assert not any(node["type"] == "SimulationResult" for node in graph.get("nodes", []))
+    assert not any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))

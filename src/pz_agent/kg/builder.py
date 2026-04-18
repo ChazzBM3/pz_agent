@@ -222,6 +222,9 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         candidate_id = str(validation.get("candidate_id") or "")
         if not candidate_id:
             continue
+        quality_assessment = dict(validation.get("quality_assessment") or {})
+        if quality_assessment.get("quality") != "usable":
+            continue
         validation_result_id = stable_node_id("simulation_result", candidate_id, validation.get("submission_id") or "validation_ingest")
         add_node(
             {
@@ -234,6 +237,7 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                     "engine": validation.get("engine"),
                     "simulation_type": validation.get("simulation_type"),
                     "outputs": validation.get("outputs"),
+                    "quality_assessment": quality_assessment,
                     "provenance": validation.get("provenance"),
                     "evidence_tier": "tier_E_simulation",
                     "source_tags": {
@@ -256,6 +260,7 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                     "candidate_id": candidate_id,
                     "status": validation.get("status"),
                     "comparison": validation.get("comparison"),
+                    "quality_assessment": quality_assessment,
                     "submission_id": validation.get("submission_id"),
                 },
             }
