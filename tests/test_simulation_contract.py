@@ -115,6 +115,8 @@ def test_simulation_manifest_declares_current_default_contract(tmp_path: Path, m
         "groundState.solvation_energy",
         "groundState.homo",
         "groundState.lumo",
+        "groundState.homo_lumo_gap",
+        "groundState.dipole_moment",
         "status",
     ]
 
@@ -149,6 +151,8 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
         "groundState.solvation_energy",
         "groundState.homo",
         "groundState.lumo",
+        "groundState.homo_lumo_gap",
+        "groundState.dipole_moment",
         "status",
     ]
     assert job_spec["provenance"]["remote_target"] == "cluster-alpha"

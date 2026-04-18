@@ -41,6 +41,8 @@ def _requested_outputs(simulation_cfg: dict) -> list[str]:
         "groundState.solvation_energy",
         "groundState.homo",
         "groundState.lumo",
+        "groundState.homo_lumo_gap",
+        "groundState.dipole_moment",
         "status",
     ]
 

@@ -30,6 +30,8 @@ def _normalize_outputs(outputs: dict) -> dict:
     solvation_energy = outputs.get("groundState.solvation_energy")
     homo = outputs.get("groundState.homo")
     lumo = outputs.get("groundState.lumo")
+    homo_lumo_gap = outputs.get("groundState.homo_lumo_gap")
+    dipole_moment = outputs.get("groundState.dipole_moment")
     status = outputs.get("status")
     return {
         "final_energy": final_energy if isinstance(final_energy, (int, float)) else None,
@@ -37,12 +39,16 @@ def _normalize_outputs(outputs: dict) -> dict:
         "groundState.solvation_energy": solvation_energy if isinstance(solvation_energy, (int, float)) else None,
         "groundState.homo": homo if isinstance(homo, (int, float)) else None,
         "groundState.lumo": lumo if isinstance(lumo, (int, float)) else None,
+        "groundState.homo_lumo_gap": homo_lumo_gap if isinstance(homo_lumo_gap, (int, float)) else None,
+        "groundState.dipole_moment": dipole_moment if isinstance(dipole_moment, (int, float)) else None,
         "raw_status": status,
         "has_final_energy": isinstance(final_energy, (int, float)),
         "has_optimized_structure": bool(optimized_structure),
         "has_groundState.solvation_energy": isinstance(solvation_energy, (int, float)),
         "has_groundState.homo": isinstance(homo, (int, float)),
         "has_groundState.lumo": isinstance(lumo, (int, float)),
+        "has_groundState.homo_lumo_gap": isinstance(homo_lumo_gap, (int, float)),
+        "has_groundState.dipole_moment": isinstance(dipole_moment, (int, float)),
     }
 
 
@@ -53,6 +59,8 @@ def _build_quality_assessment(status: str, requested_outputs: list[str], normali
         "groundState.solvation_energy": bool(normalized_outputs.get("has_groundState.solvation_energy")),
         "groundState.homo": bool(normalized_outputs.get("has_groundState.homo")),
         "groundState.lumo": bool(normalized_outputs.get("has_groundState.lumo")),
+        "groundState.homo_lumo_gap": bool(normalized_outputs.get("has_groundState.homo_lumo_gap")),
+        "groundState.dipole_moment": bool(normalized_outputs.get("has_groundState.dipole_moment")),
         "status": bool(normalized_outputs.get("raw_status")),
     }
     missing_outputs = [name for name in requested_outputs if not available_outputs.get(name, False)]
