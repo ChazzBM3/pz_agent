@@ -128,12 +128,16 @@ validation_ingest:
     assert state.validation[0]["status"] == "completed"
     assert state.validation[0]["outputs"]["final_energy"] == -123.456
     assert state.validation[0]["outputs"]["raw_status"] == "converged"
+    assert state.validation[0]["outputs"]["has_final_energy"] is True
     assert state.validation[0]["outputs"]["has_optimized_structure"] is True
     assert state.validation[0]["predicted_reference"]["predicted_solubility"] is not None
     assert state.validation[0]["predicted_reference"]["predicted_synthesizability"] is not None
     assert "final_energy_minus_predicted_priority" in state.validation[0]["comparison"]
     assert "final_energy_minus_predicted_priority_literature_adjusted" in state.validation[0]["comparison"]
     assert state.validation[0]["comparison"]["optimized_structure_available"] is True
+    assert state.validation[0]["quality_assessment"]["quality"] == "usable"
+    assert state.validation[0]["quality_assessment"]["requested_outputs_complete"] is True
+    assert state.validation[0]["quality_assessment"]["missing_requested_outputs"] == []
     assert state.validation[0]["provenance"]["remote_target"] == "cluster-alpha"
     assert state.validation[0]["provenance"]["raw_status"] == "converged"
 
@@ -144,8 +148,12 @@ validation_ingest:
 
     report = json.loads((run_dir / "report.json").read_text())
     assert report["summary"]["validation_count"] == 1
+    assert report["summary"]["usable_validation_count"] == 1
+    assert report["summary"]["partial_validation_count"] == 0
+    assert report["summary"]["failed_validation_count"] == 0
     assert report["validation_results"][0]["candidate_id"] == "rec_a"
     assert report["validation_results"][0]["comparison"]["optimized_structure_available"] is True
+    assert report["validation_results"][0]["quality_assessment"]["quality"] == "usable"
     assert report["artifacts"]["validation_results_path"].endswith("validation_results.json")
 
     graph = json.loads(state.knowledge_graph_path.read_text())

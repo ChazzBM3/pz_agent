@@ -55,6 +55,7 @@ class ReporterAgent(BaseAgent):
             )
 
         top_candidate_id = ranked[0].get("id") if ranked else None
+        validation_results = state.validation or []
         report = {
             "summary": {
                 "status": "pseudo_production_readying",
@@ -63,7 +64,10 @@ class ReporterAgent(BaseAgent):
                 "shortlist_count": len(shortlist),
                 "simulation_queue_count": len(state.simulation_queue or []),
                 "simulation_submission_count": len(state.simulation_submissions or []),
-                "validation_count": len(state.validation or []),
+                "validation_count": len(validation_results),
+                "usable_validation_count": sum(1 for item in validation_results if (item.get("quality_assessment") or {}).get("quality") == "usable"),
+                "partial_validation_count": sum(1 for item in validation_results if (item.get("quality_assessment") or {}).get("quality") == "partial"),
+                "failed_validation_count": sum(1 for item in validation_results if (item.get("quality_assessment") or {}).get("quality") == "failed"),
                 "queued_evidence_query_count": sum(1 for item in (state.action_queue or []) if item.get("action_type") == "evidence_query"),
                 "has_identity_aware_graph": bool(state.knowledge_graph_path),
             },
@@ -87,7 +91,7 @@ class ReporterAgent(BaseAgent):
             "simulation_queue": state.simulation_queue or [],
             "simulation_manifest": state.simulation_manifest or {},
             "simulation_submissions": state.simulation_submissions or [],
-            "validation_results": state.validation or [],
+            "validation_results": validation_results,
             "artifacts": {
                 "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),
                 "expansion_proposals_rejected_path": str(state.run_dir / "expansion_proposals.rejected.json"),

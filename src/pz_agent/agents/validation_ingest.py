@@ -32,7 +32,29 @@ def _normalize_outputs(outputs: dict) -> dict:
         "final_energy": final_energy if isinstance(final_energy, (int, float)) else None,
         "optimized_structure": optimized_structure,
         "raw_status": status,
+        "has_final_energy": isinstance(final_energy, (int, float)),
         "has_optimized_structure": bool(optimized_structure),
+    }
+
+
+def _build_quality_assessment(status: str, requested_outputs: list[str], normalized_outputs: dict) -> dict:
+    available_outputs = {
+        "final_energy": bool(normalized_outputs.get("has_final_energy")),
+        "optimized_structure": bool(normalized_outputs.get("has_optimized_structure")),
+        "status": bool(normalized_outputs.get("raw_status")),
+    }
+    missing_outputs = [name for name in requested_outputs if not available_outputs.get(name, False)]
+    if status == "completed" and not missing_outputs:
+        quality = "usable"
+    elif status == "completed":
+        quality = "partial"
+    else:
+        quality = "failed"
+    return {
+        "quality": quality,
+        "requested_outputs_complete": not missing_outputs,
+        "missing_requested_outputs": missing_outputs,
+        "available_outputs": available_outputs,
     }
 
 
@@ -82,6 +104,8 @@ class ValidationIngestAgent(BaseAgent):
                 delta_priority = final_energy - predicted_priority
             if isinstance(final_energy, (int, float)) and isinstance(predicted_priority_adjusted, (int, float)):
                 delta_priority_adjusted = final_energy - predicted_priority_adjusted
+            requested_outputs = list(queue_item.get("simulation", {}).get("requested_outputs") or [])
+            quality_assessment = _build_quality_assessment(normalized_status, requested_outputs, normalized_outputs)
             validation_records.append(
                 {
                     "candidate_id": candidate_id,
@@ -91,8 +115,9 @@ class ValidationIngestAgent(BaseAgent):
                     "engine": item.get("engine") or queue_item.get("simulation", {}).get("engine"),
                     "simulation_type": item.get("simulation_type") or queue_item.get("simulation", {}).get("simulation_type"),
                     "stable_identity_key": queue_item.get("stable_identity_key"),
-                    "requested_outputs": list(queue_item.get("simulation", {}).get("requested_outputs") or []),
+                    "requested_outputs": requested_outputs,
                     "outputs": normalized_outputs,
+                    "quality_assessment": quality_assessment,
                     "predicted_reference": {
                         "predicted_priority": predicted_priority,
                         "predicted_priority_literature_adjusted": predicted_priority_adjusted,
