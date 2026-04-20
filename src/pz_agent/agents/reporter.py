@@ -67,6 +67,7 @@ class ReporterAgent(BaseAgent):
                 "simulation_check_count": len(state.simulation_checks or []),
                 "simulation_extraction_count": len(state.simulation_extractions or []),
                 "simulation_failure_count": len(state.simulation_failures or []),
+                "simulation_rerun_queue_count": len(state.simulation_rerun_queue or []),
                 "validation_count": len(validation_results),
                 "usable_validation_count": sum(1 for item in validation_results if (item.get("quality_assessment") or {}).get("quality") == "usable"),
                 "partial_validation_count": sum(1 for item in validation_results if (item.get("quality_assessment") or {}).get("quality") == "partial"),
@@ -97,6 +98,7 @@ class ReporterAgent(BaseAgent):
             "simulation_checks": state.simulation_checks or [],
             "simulation_extractions": state.simulation_extractions or [],
             "simulation_failures": state.simulation_failures or [],
+            "simulation_rerun_queue": state.simulation_rerun_queue or [],
             "validation_results": validation_results,
             "artifacts": {
                 "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),
@@ -112,6 +114,7 @@ class ReporterAgent(BaseAgent):
                 "simulation_extractions_path": str(state.run_dir / "simulation_extractions.json"),
                 "simulation_failures_path": str(state.run_dir / "simulation_failures.json"),
                 "simulation_rerun_candidates_path": str(state.run_dir / "simulation_rerun_candidates.json"),
+                "simulation_rerun_queue_path": str(state.run_dir / "simulation_rerun_queue.json"),
                 "validation_results_path": str(state.run_dir / "validation_results.json"),
             },
         }

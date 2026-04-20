@@ -22,6 +22,7 @@ class RunState:
     simulation_checks: list[dict[str, Any]] | None = None
     simulation_extractions: list[dict[str, Any]] | None = None
     simulation_failures: list[dict[str, Any]] | None = None
+    simulation_rerun_queue: list[dict[str, Any]] | None = None
     validation: list[dict[str, Any]] | None = None
     knowledge_graph_path: Path | None = None
     critique_notes: list[dict[str, Any]] | None = None

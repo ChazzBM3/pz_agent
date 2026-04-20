@@ -9,6 +9,7 @@ from pz_agent.agents.simulation_handoff import SimulationHandoffAgent
 from pz_agent.agents.simulation_submit import SimulationSubmitAgent
 from pz_agent.agents.simulation_check import SimulationCheckAgent
 from pz_agent.agents.simulation_extract import SimulationExtractAgent
+from pz_agent.agents.simulation_rerun_prepare import SimulationRerunPrepareAgent
 from pz_agent.agents.validation_ingest import ValidationIngestAgent
 from pz_agent.agents.document_fetch import DocumentFetchAgent
 from pz_agent.agents.figure_corpus import FigureCorpusAgent
@@ -57,6 +58,7 @@ STAGE_MAP = {
     "simulation_submit": SimulationSubmitAgent,
     "simulation_check": SimulationCheckAgent,
     "simulation_extract": SimulationExtractAgent,
+    "simulation_rerun_prepare": SimulationRerunPrepareAgent,
     "validation_ingest": ValidationIngestAgent,
 }
 
@@ -102,6 +104,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "simulation_check_count": len(state.simulation_checks or []),
             "simulation_extraction_count": len(state.simulation_extractions or []),
             "simulation_failure_count": len(state.simulation_failures or []),
+            "simulation_rerun_queue_count": len(state.simulation_rerun_queue or []),
             "validation_count": len(state.validation or []),
         },
     )
