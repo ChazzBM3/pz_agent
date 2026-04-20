@@ -272,4 +272,7 @@ Build this in the repo next as:
 3. a real SSH-backed AtomisticSkills backend adapter
 4. end-to-end acceptance tests around staged remote artifacts
 
+Template added in this repo:
+- `docs/remote_submit_orca_job.py`
+
 That is the cleanest path from today’s contract scaffolding to real supercomputer execution.

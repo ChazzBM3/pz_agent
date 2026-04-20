@@ -89,6 +89,12 @@ simulation:
   remote_target: cluster-alpha
 simulation_submit:
   submission_prefix: contract-submit
+  transport: ssh
+  remote_host: user@cluster.example.edu
+  remote_root: /scratch/pz_agent_jobs
+  remote_submit_command: /opt/pz_agent/bin/remote_submit_orca_job.py
+  stage_method: rsync
+  job_id_prefix: pzjob
 """,
         encoding="utf-8",
     )
@@ -166,6 +172,12 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     assert submissions[0]["response_type"] == "submission_ack"
     assert submissions[0]["status_query"]["check_only"] is True
     assert submissions[0]["status"] == "submitted"
+    assert submissions[0]["job_id"] == "pzjob-rec_a-001"
+    assert submissions[0]["staging"]["transport"] == "ssh"
+    assert submissions[0]["staging"]["stage_method"] == "rsync"
+    assert submissions[0]["staging"]["remote_job_dir"] == "/scratch/pz_agent_jobs/inbox/pzjob-rec_a-001"
+    assert submissions[0]["staging"]["remote_host"] == "user@cluster.example.edu"
+    assert submissions[0]["status_query"]["job_id"] == "pzjob-rec_a-001"
     assert checks[0]["request_type"] == "check_simulation"
     assert checks[0]["response_type"] == "status_envelope"
     assert checks[0]["check_only"] is True
