@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-"""Thin remote wrapper template for AtomisticSkills ORCA submission.
+"""Thin remote wrapper template for direct ORCA submission over Slurm.
 
 This script is intentionally conservative. It is a template for the supercomputer
 side, not a drop-in final production runner.
@@ -11,7 +11,7 @@ Expected usage:
 
 This template is intentionally split-brain:
 - this submit wrapper handles remote validation, directory movement, and scheduler submission
-- the scheduled payload script should perform the actual AtomisticSkills ORCA run and final artifact writing
+- the scheduled payload script should perform the actual ORCA run and final artifact writing
 
 Recommended behavior:
 - validate `orca_job.json` and `input_structure.xyz`
@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any
 
 
-CONTRACT_VERSION = "atomisticskills.request_response.v1"
+CONTRACT_VERSION = "orca_slurm.request_response.v1"
 
 
 def now_iso() -> str:
@@ -65,7 +65,7 @@ def status_payload(job_spec: dict[str, Any], *, status: str, job_id: str, schedu
         "authoritative": True,
         "backend": job_spec.get("backend"),
         "engine": job_spec.get("engine"),
-        "skill": job_spec.get("orca_skill"),
+        "job_driver": job_spec.get("job_driver"),
         "execution_mode": job_spec.get("execution_mode", "remote"),
         "remote_target": remote_settings.get("target"),
         "scheduler": scheduler or {},
@@ -127,17 +127,17 @@ def write_scheduler_script(running_dir: Path, job_spec: dict[str, Any]) -> Path:
         "#!/bin/bash\n"
         "set -euo pipefail\n"
         f"cd {running_dir}\n"
-        "echo 'Starting scheduled AtomisticSkills ORCA job' >> run.log\n"
-        "# TODO: activate environment and replace this command with the real AtomisticSkills invocation.\n"
+        "echo 'Starting scheduled ORCA job' >> run.log\n"
+        "# TODO: activate environment and replace this command with the real ORCA invocation.\n"
         "# Example direction only:\n"
-        "# source /path/to/venv/bin/activate\n"
-        "# python -m atomisticskills.cli ... >> run.log 2>&1\n"
+        "# module load orca\n"
+        "# orca job.inp > job.out 2>&1\n"
         "python - <<'PY'\n"
         "import json\n"
         "from pathlib import Path\n"
         "job_spec = json.loads(Path('orca_job.json').read_text())\n"
         "result = {\n"
-        "  'contract_version': 'atomisticskills.request_response.v1',\n"
+        "  'contract_version': 'orca_slurm.request_response.v1',\n"
         "  'request_type': 'extract_simulation_result',\n"
         "  'response_type': 'result_envelope',\n"
         "  'candidate_id': job_spec.get('candidate_id'),\n"
@@ -149,7 +149,7 @@ def write_scheduler_script(running_dir: Path, job_spec: dict[str, Any]) -> Path:
         "  'simulation_type': job_spec.get('simulation_type'),\n"
         "  'outputs': {\n"
         "    'status': 'completed',\n"
-        "    'note': 'Template scheduled script ran placeholder logic only. Replace with real AtomisticSkills execution.'\n"
+        "    'note': 'Template scheduled script ran placeholder logic only. Replace with real ORCA execution.'\n"
         "  },\n"
         "  'operation': job_spec.get('operation'),\n"
         "  'provenance': job_spec.get('provenance'),\n"
@@ -200,7 +200,7 @@ def main(argv: list[str]) -> int:
         shutil.move(str(inbox_job_dir), str(running_dir))
 
     run_log = running_dir / "run.log"
-    run_log.write_text("Starting remote AtomisticSkills ORCA job submission wrapper\n", encoding="utf-8")
+    run_log.write_text("Starting remote ORCA job submission wrapper\n", encoding="utf-8")
 
     scheduler_script = write_scheduler_script(running_dir, job_spec)
     scheduler_config = {

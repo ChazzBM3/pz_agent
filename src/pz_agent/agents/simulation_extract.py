@@ -15,7 +15,7 @@ def _normalize_result_envelope(item: dict, queue_item: dict, results_path: Path)
     simulation = dict(queue_item.get("simulation") or {})
     candidate_id = item.get("candidate_id") or response.get("candidate_id") or queue_item.get("candidate_id")
     return {
-        "contract_version": item.get("contract_version") or response.get("contract_version") or tracking.get("contract_version") or "atomisticskills.request_response.v1",
+        "contract_version": item.get("contract_version") or response.get("contract_version") or tracking.get("contract_version") or "orca_slurm.request_response.v1",
         "request_type": item.get("request_type") or response.get("request_type") or "extract_simulation_result",
         "response_type": "result_envelope",
         "candidate_id": candidate_id,

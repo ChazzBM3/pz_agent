@@ -107,28 +107,28 @@ simulation:
     assert state.simulation_manifest["queue"][0]["candidate_id"] == "rec_a"
     assert state.simulation_manifest["queue"][0]["simulation"]["simulation_type"] == "geometry_optimization"
     assert state.simulation_manifest["queue"][0]["simulation"]["budget_tag"] == "fixed_fixture"
-    assert state.simulation_manifest["simulation_defaults"]["backend"] == "atomisticskills_orca"
+    assert state.simulation_manifest["simulation_defaults"]["backend"] == "orca_slurm"
     assert state.simulation_manifest["simulation_defaults"]["execution_mode"] == "remote"
-    assert state.simulation_manifest["simulation_defaults"]["skill"] == "chem-dft-orca-optimization"
+    assert state.simulation_manifest["simulation_defaults"]["job_driver"] == "direct_orca"
     assert state.simulation_manifest["queue"][0]["simulation"]["parameters"]["opt_type"] == "min"
     assert state.simulation_manifest["queue"][0]["job_package"]["job_spec_path"].endswith("orca_job.json")
 
     job_spec = json.loads((tmp_path / "run" / "orca_jobs" / "rec_a" / "orca_job.json").read_text())
     assert job_spec["candidate_id"] == "rec_a"
     assert job_spec["simulation_type"] == "geometry_optimization"
-    assert job_spec["orca_skill"] == "chem-dft-orca-optimization"
+    assert job_spec["job_driver"] == "direct_orca"
     assert job_spec["structure_file"] == "input_structure.xyz"
     assert job_spec["parameters"]["opt_type"] == "min"
     assert job_spec["parameters"]["functional"] == "PBE"
     assert job_spec["parameters"]["basis_set"] == "def2-SVP"
-    assert job_spec["provenance"]["remote_backend"] == "atomisticskills_orca"
+    assert job_spec["provenance"]["remote_backend"] == "orca_slurm"
 
     structure_stub = (tmp_path / "run" / "orca_jobs" / "rec_a" / "input_structure.xyz").read_text()
     assert "rec_a" in structure_stub
     submissions = json.loads((tmp_path / "run" / "simulation_submissions.json").read_text())
     assert len(submissions) == 2
     assert submissions[0]["status"] == "submitted"
-    assert submissions[0]["backend"] == "atomisticskills_orca"
+    assert submissions[0]["backend"] == "orca_slurm"
     assert submissions[0]["job_spec_path"].endswith("orca_job.json")
 
     graph = json.loads(state.knowledge_graph_path.read_text())

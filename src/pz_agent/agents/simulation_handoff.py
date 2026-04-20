@@ -5,16 +5,16 @@ from pz_agent.io import ensure_dir, write_json
 from pz_agent.state import RunState
 
 
-CONTRACT_VERSION = "atomisticskills.request_response.v1"
+CONTRACT_VERSION = "orca_slurm.request_response.v1"
 
 
 def _orca_remote_spec(item: dict, simulation_cfg: dict) -> dict:
     identity = dict(item.get("identity") or {})
     return {
-        "backend": simulation_cfg.get("backend", "atomisticskills_orca"),
+        "backend": simulation_cfg.get("backend", "orca_slurm"),
         "engine": simulation_cfg.get("engine", "orca"),
         "execution_mode": simulation_cfg.get("execution_mode", "remote"),
-        "skill": simulation_cfg.get("skill", "chem-dft-orca-optimization"),
+        "job_driver": simulation_cfg.get("job_driver", "direct_orca") ,
         "simulation_type": simulation_cfg.get("simulation_type", "geometry_optimization"),
         "opt_type": simulation_cfg.get("opt_type", "min"),
         "charge": int(simulation_cfg.get("charge", identity.get("charge", 0)) or 0),
@@ -89,8 +89,8 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
         "candidate_id": candidate_id,
         "run_id": state.run_dir.name,
         "structure_file": structure_filename,
-        "orca_skill": simulation.get("skill", "chem-dft-orca-optimization"),
-        "backend": simulation.get("backend", "atomisticskills_orca"),
+        "job_driver": simulation.get("job_driver", "direct_orca"),
+        "backend": simulation.get("backend", "orca_slurm"),
         "engine": simulation.get("engine", "orca"),
         "execution_mode": simulation.get("execution_mode", "remote"),
         "requested_outputs": simulation.get("requested_outputs") or [],
@@ -184,9 +184,9 @@ class SimulationHandoffAgent(BaseAgent):
                     "simulation_type": per_item_spec.get("simulation_type", "geometry_optimization"),
                     "compute_tier": simulation_cfg.get("compute_tier", "screening"),
                     "budget_tag": simulation_cfg.get("budget_tag", "default"),
-                    "backend": per_item_spec.get("backend", "atomisticskills_orca"),
+                    "backend": per_item_spec.get("backend", "orca_slurm"),
                     "engine": per_item_spec.get("engine", "orca"),
-                    "skill": per_item_spec.get("skill", "chem-dft-orca-optimization"),
+                    "job_driver": per_item_spec.get("job_driver", "direct_orca"),
                     "execution_mode": per_item_spec.get("execution_mode", "remote"),
                     "parameters": per_item_parameters,
                     "requested_outputs": requested_outputs,
@@ -196,9 +196,9 @@ class SimulationHandoffAgent(BaseAgent):
                     "compute_tier": simulation_cfg.get("compute_tier", "screening"),
                     "budget_tag": simulation_cfg.get("budget_tag", "default"),
                     "orca": {
-                        "backend": per_item_spec.get("backend", "atomisticskills_orca"),
+                        "backend": per_item_spec.get("backend", "orca_slurm"),
                         "execution_mode": per_item_spec.get("execution_mode", "remote"),
-                        "skill": per_item_spec.get("skill", "chem-dft-orca-optimization"),
+                        "job_driver": per_item_spec.get("job_driver", "direct_orca"),
                         **per_item_parameters,
                     },
                 },
@@ -224,16 +224,16 @@ class SimulationHandoffAgent(BaseAgent):
                 "simulation_type": remote_spec.get("simulation_type", "geometry_optimization"),
                 "compute_tier": simulation_cfg.get("compute_tier", "screening"),
                 "budget_tag": simulation_cfg.get("budget_tag", "default"),
-                "backend": remote_spec.get("backend", "atomisticskills_orca"),
+                "backend": remote_spec.get("backend", "orca_slurm"),
                 "engine": remote_spec.get("engine", "orca"),
-                "skill": remote_spec.get("skill", "chem-dft-orca-optimization"),
+                "job_driver": remote_spec.get("job_driver", "direct_orca"),
                 "execution_mode": remote_spec.get("execution_mode", "remote"),
                 "parameters": parameters,
                 "requested_outputs": requested_outputs,
                 "orca": {
-                    "backend": remote_spec.get("backend", "atomisticskills_orca"),
+                    "backend": remote_spec.get("backend", "orca_slurm"),
                     "execution_mode": remote_spec.get("execution_mode", "remote"),
-                    "skill": remote_spec.get("skill", "chem-dft-orca-optimization"),
+                    "job_driver": remote_spec.get("job_driver", "direct_orca"),
                     **parameters,
                 },
             },

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-CONTRACT_VERSION = "atomisticskills.request_response.v1"
+CONTRACT_VERSION = "orca_slurm.request_response.v1"
 
 
 def _remote_job_id(candidate_id: str, queue_rank: int | None, submit_config: dict) -> str:
@@ -50,7 +50,7 @@ def _staging_details(*, job_id: str, submit_config: dict, job_spec_path: str) ->
 
 
 class AtomisticSkillsBackend:
-    name = "atomisticskills"
+    name = "orca_slurm"
 
     def submit(
         self,
@@ -77,7 +77,7 @@ class AtomisticSkillsBackend:
             "status": "submitted",
             "backend": simulation.get("backend"),
             "engine": simulation.get("engine"),
-            "skill": simulation.get("skill"),
+            "job_driver": simulation.get("job_driver"),
             "execution_mode": simulation.get("execution_mode"),
             "remote_target": remote_target,
             "job_spec_path": job_spec_path,
@@ -117,7 +117,7 @@ class AtomisticSkillsBackend:
             "status": status,
             "backend": submission.get("backend") or simulation.get("backend"),
             "engine": submission.get("engine") or simulation.get("engine"),
-            "skill": submission.get("skill") or simulation.get("skill"),
+            "job_driver": submission.get("job_driver") or simulation.get("job_driver"),
             "execution_mode": submission.get("execution_mode") or simulation.get("execution_mode"),
             "remote_target": remote_target,
             "check_only": True,

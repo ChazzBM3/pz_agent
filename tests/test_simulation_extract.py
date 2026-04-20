@@ -43,7 +43,7 @@ def test_simulation_extract_preserves_failed_runs_for_rerun(tmp_path: Path, monk
                 "candidate_id": "rec_a",
                 "submission_id": "extract-submit-001",
                 "status": "failed",
-                "backend": "atomisticskills_orca",
+                "backend": "orca_slurm",
                 "engine": "orca",
                 "simulation_type": "geometry_optimization",
                 "outputs": {"status": "failed"},

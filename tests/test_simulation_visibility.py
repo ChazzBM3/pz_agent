@@ -43,7 +43,7 @@ def test_report_exposes_simulation_failures_and_retries(tmp_path: Path, monkeypa
                 "candidate_id": "rec_a",
                 "submission_id": "visible-submit-001",
                 "status": "failed",
-                "backend": "atomisticskills_orca",
+                "backend": "orca_slurm",
                 "engine": "orca",
                 "simulation_type": "geometry_optimization",
                 "outputs": {"status": "failed"},
