@@ -35,7 +35,7 @@ Recommended remote layout:
   failed/<job_id>/
 ```
 
-Each job directory should contain at minimum:
+Each job directory should contain at minimum on the login-node visible submission side:
 
 ```text
 orca_job.json
@@ -47,7 +47,7 @@ run.log
 scheduler.json
 run_orca_job.sh        # generated scheduled payload script
 job.inp                # rendered ORCA input
-job.out                # ORCA stdout or main output
+job.out                # ORCA stdout or main output copied back from compute node
 ```
 
 ## Minimal lifecycle
@@ -91,6 +91,11 @@ A remote wrapper should:
 A practical split is:
 - `remote_submit_orca_job.py` handles validation, directory movement, input rendering, payload generation, and `sbatch`
 - `run_orca_job.sh` does the actual scheduled ORCA execution
+
+For Supercloud-style behavior:
+- inputs and persistent outputs live in the login-node visible submission directory
+- temporary ORCA working files should live under the compute-node temp directory exposed by the scheduler
+- the payload script should copy back the needed outputs into `SLURM_SUBMIT_DIR`
 
 ### 4. Check
 
@@ -301,6 +306,6 @@ Build this in the repo as:
 Template added in this repo:
 - `docs/remote_submit_orca_job.py`
 
-The wrapper now renders `job.inp` from `orca_job.json` and writes a Slurm payload script that runs `orca job.inp > job.out 2>&1`.
+The wrapper now renders `job.inp` from `orca_job.json` and writes a Slurm payload script that runs `orca job.inp > job.out 2>&1` using the scheduler-provided compute-node temp directory, then copies outputs back into `SLURM_SUBMIT_DIR`.
 
 That is the cleanest path from today’s contract scaffolding to a real remote ORCA execution path.
