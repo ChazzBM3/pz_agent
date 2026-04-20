@@ -114,6 +114,7 @@ validation_ingest:
     assert len(state.simulation_failures) == 1
     assert state.simulation_failures[0]["response_type"] == "failure_envelope"
     assert state.simulation_failures[0]["rerun_ready"] is True
+    assert state.simulation_failures[0]["deferred_rerun_plan"]["orca_adjustments"]["soscf_enabled"] is True
     assert state.simulation_failures[0]["rerun_bundle"]["job_spec_path"].endswith("orca_job.json")
 
     rerun_candidates = json.loads((run_dir / "simulation_rerun_candidates.json").read_text())

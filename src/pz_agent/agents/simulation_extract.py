@@ -90,6 +90,13 @@ class SimulationExtractAgent(BaseAgent):
                         "job_spec_path": (queue_item.get("job_package") or {}).get("job_spec_path"),
                         "simulation": queue_item.get("simulation"),
                     },
+                    "deferred_rerun_plan": {
+                        "policy": "deferred_manual_or_scheduled_rerun",
+                        "orca_adjustments": {
+                            "special_option": "",
+                            "soscf_enabled": True,
+                        },
+                    },
                 }
                 failures.append(failure)
                 rerun_candidates.append(failure)
@@ -106,5 +113,5 @@ class SimulationExtractAgent(BaseAgent):
         write_json(state.run_dir / "simulation_extractions.json", extractions)
         write_json(state.run_dir / "simulation_failures.json", failures)
         write_json(state.run_dir / "simulation_rerun_candidates.json", rerun_candidates)
-        state.log(f"Simulation extract normalized {len(extractions)} completed result envelopes and preserved {len(rerun_candidates)} rerun-ready failures")
+        state.log(f"Simulation extract normalized {len(extractions)} completed result envelopes and logged {len(rerun_candidates)} deferred rerun candidates")
         return state
