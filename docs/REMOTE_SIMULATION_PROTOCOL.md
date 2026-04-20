@@ -281,4 +281,6 @@ Build this in the repo as:
 Template added in this repo:
 - `docs/remote_submit_orca_job.py`
 
+The wrapper now renders `job.inp` from `orca_job.json` and writes a Slurm payload script that runs `orca job.inp > job.out 2>&1`.
+
 That is the cleanest path from today’s contract scaffolding to a real remote ORCA execution path.

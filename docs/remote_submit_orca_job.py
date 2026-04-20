@@ -73,6 +73,8 @@ def status_payload(job_spec: dict[str, Any], *, status: str, job_id: str, schedu
             "run_log": "run.log",
             "result": "result.json",
             "failure": "failure.json",
+            "orca_input": "job.inp",
+            "orca_output": "job.out",
         },
         "message": message,
         "checked_at": now_iso(),
@@ -119,6 +121,41 @@ def failure_payload(job_spec: dict[str, Any], *, job_id: str, failure_kind: str,
     }
 
 
+def render_orca_input(job_spec: dict[str, Any], structure_text: str) -> str:
+    parameters = dict(job_spec.get("parameters") or {})
+    functional = parameters.get("functional", "PBE")
+    basis_set = parameters.get("basis_set", "def2-SVP")
+    dispersion = parameters.get("dispersion", "D3")
+    solvation = parameters.get("solvation", "CPCM")
+    solvent = parameters.get("solvent", "water")
+    opt_type = parameters.get("opt_type", "min")
+    charge = int(parameters.get("charge", 0) or 0)
+    multiplicity = int(parameters.get("spin_multiplicity", 1) or 1)
+    special_option = str(parameters.get("special_option", "") or "").strip()
+    maxiter = int(parameters.get("convergence_max_iterations", 200) or 200)
+
+    keywords = [functional, basis_set, dispersion]
+    if str(job_spec.get("simulation_type", "")).strip().lower() == "geometry_optimization":
+        keywords.append("Opt")
+    if opt_type and str(opt_type).lower() != "min":
+        keywords.append(str(opt_type))
+    if special_option:
+        keywords.append(special_option)
+
+    header = f"! {' '.join(str(k) for k in keywords if k)}"
+    blocks = [
+        header,
+        f"%scf MaxIter {maxiter} end",
+        f"%pal nprocs {int(parameters.get('nprocs', 1) or 1)} end",
+        f"%cpcm smd false epsilon 80.4 end" if solvation.upper() == "CPCM" and solvent.lower() == "water" else f"%cpcm end",
+        f"* xyz {charge} {multiplicity}",
+    ]
+    xyz_lines = structure_text.splitlines()[2:] if len(structure_text.splitlines()) >= 3 else []
+    blocks.extend(xyz_lines)
+    blocks.append("*")
+    return "\n".join(blocks) + "\n"
+
+
 def write_scheduler_script(running_dir: Path, job_spec: dict[str, Any]) -> Path:
     parameters = dict(job_spec.get("parameters") or {})
     nprocs = int(parameters.get("nprocs", 1) or 1)
@@ -128,33 +165,36 @@ def write_scheduler_script(running_dir: Path, job_spec: dict[str, Any]) -> Path:
         "set -euo pipefail\n"
         f"cd {running_dir}\n"
         "echo 'Starting scheduled ORCA job' >> run.log\n"
-        "# TODO: activate environment and replace this command with the real ORCA invocation.\n"
-        "# Example direction only:\n"
-        "# module load orca\n"
-        "# orca job.inp > job.out 2>&1\n"
+        "# TODO: load the real ORCA environment on your cluster before enabling production runs.\n"
+        "# Example: module load orca\n"
+        f"export OMP_NUM_THREADS={nprocs}\n"
+        "orca job.inp > job.out 2>&1\n"
         "python - <<'PY'\n"
         "import json\n"
         "from pathlib import Path\n"
         "job_spec = json.loads(Path('orca_job.json').read_text())\n"
+        "job_out = Path('job.out').read_text(errors='ignore') if Path('job.out').exists() else ''\n"
+        "completed = 'ORCA TERMINATED NORMALLY' in job_out\n"
         "result = {\n"
         "  'contract_version': 'orca_slurm.request_response.v1',\n"
         "  'request_type': 'extract_simulation_result',\n"
-        "  'response_type': 'result_envelope',\n"
+        "  'response_type': 'result_envelope' if completed else 'failure_envelope',\n"
         "  'candidate_id': job_spec.get('candidate_id'),\n"
         "  'submission_id': (job_spec.get('operation') or {}).get('submission_id'),\n"
         "  'job_id': Path.cwd().name,\n"
-        "  'status': 'completed',\n"
+        "  'status': 'completed' if completed else 'failed',\n"
         "  'backend': job_spec.get('backend'),\n"
         "  'engine': job_spec.get('engine'),\n"
         "  'simulation_type': job_spec.get('simulation_type'),\n"
         "  'outputs': {\n"
-        "    'status': 'completed',\n"
-        "    'note': 'Template scheduled script ran placeholder logic only. Replace with real ORCA execution.'\n"
+        "    'status': 'completed' if completed else 'failed',\n"
+        "    'orca_output_path': 'job.out'\n"
         "  },\n"
         "  'operation': job_spec.get('operation'),\n"
         "  'provenance': job_spec.get('provenance'),\n"
         "}\n"
-        "Path('result.json').write_text(json.dumps(result, indent=2))\n"
+        "target = 'result.json' if completed else 'failure.json'\n"
+        "Path(target).write_text(json.dumps(result, indent=2))\n"
         "PY\n",
         encoding="utf-8",
     )
@@ -201,6 +241,9 @@ def main(argv: list[str]) -> int:
 
     run_log = running_dir / "run.log"
     run_log.write_text("Starting remote ORCA job submission wrapper\n", encoding="utf-8")
+
+    structure_text = structure_path.read_text(encoding="utf-8")
+    (running_dir / "job.inp").write_text(render_orca_input(job_spec, structure_text), encoding="utf-8")
 
     scheduler_script = write_scheduler_script(running_dir, job_spec)
     scheduler_config = {

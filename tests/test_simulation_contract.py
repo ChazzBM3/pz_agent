@@ -168,6 +168,11 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
         "status",
     ]
     assert job_spec["provenance"]["remote_target"] == "cluster-alpha"
+    assert job_spec["parameters"]["functional"] == "PBE"
+    assert job_spec["parameters"]["basis_set"] == "def2-SVP"
+    assert job_spec["parameters"]["solvation"] == "CPCM"
+    assert job_spec["parameters"]["solvent"] == "water"
+    assert job_spec["parameters"]["dispersion"] == "D3"
 
     assert submissions[0]["response_type"] == "submission_ack"
     assert submissions[0]["status_query"]["check_only"] is True
