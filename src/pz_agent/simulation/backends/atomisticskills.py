@@ -17,26 +17,36 @@ def _staging_details(*, job_id: str, submit_config: dict, job_spec_path: str) ->
     remote_root = submit_config.get("remote_root")
     remote_host = submit_config.get("remote_host")
     remote_submit_command = submit_config.get("remote_submit_command")
+    remote_scheduler = str(submit_config.get("remote_scheduler", "slurm")).strip().lower() or "slurm"
     stage_method = str(submit_config.get("stage_method", "scp")).strip().lower() or "scp"
 
     if transport == "ssh" and remote_root and remote_host:
         remote_job_dir = f"{str(remote_root).rstrip('/')}/inbox/{job_id}"
         local_job_dir = str(Path(job_spec_path).resolve().parent) if job_spec_path else None
+        stage_commands = [
+            f"mkdir -p {remote_job_dir}",
+            f"{stage_method} -r {local_job_dir}/ {remote_host}:{remote_job_dir}/" if local_job_dir else None,
+            f"ssh {remote_host} '{remote_submit_command} {remote_job_dir}'" if remote_submit_command else None,
+        ]
         return {
             "transport": "ssh",
+            "scheduler": remote_scheduler,
             "stage_method": stage_method,
             "remote_host": remote_host,
             "remote_root": remote_root,
             "remote_job_dir": remote_job_dir,
             "local_job_dir": local_job_dir,
             "remote_submit_command": remote_submit_command,
-            "stage_commands": [
-                f"mkdir -p {remote_job_dir}",
-                f"{stage_method} -r {local_job_dir}/ {remote_host}:{remote_job_dir}/" if local_job_dir else None,
-                f"ssh {remote_host} '{remote_submit_command} {remote_job_dir}'" if remote_submit_command else None,
+            "expected_remote_artifacts": [
+                "status.json",
+                "scheduler.json",
+                "run.log",
+                "result.json",
+                "failure.json",
             ],
+            "stage_commands": [command for command in stage_commands if command],
         }
-    return {"transport": transport}
+    return {"transport": transport, "scheduler": remote_scheduler if transport == "ssh" else None}
 
 
 class AtomisticSkillsBackend:

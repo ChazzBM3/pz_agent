@@ -174,9 +174,11 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     assert submissions[0]["status"] == "submitted"
     assert submissions[0]["job_id"] == "pzjob-rec_a-001"
     assert submissions[0]["staging"]["transport"] == "ssh"
+    assert submissions[0]["staging"]["scheduler"] == "slurm"
     assert submissions[0]["staging"]["stage_method"] == "rsync"
     assert submissions[0]["staging"]["remote_job_dir"] == "/scratch/pz_agent_jobs/inbox/pzjob-rec_a-001"
     assert submissions[0]["staging"]["remote_host"] == "user@cluster.example.edu"
+    assert "scheduler.json" in submissions[0]["staging"]["expected_remote_artifacts"]
     assert submissions[0]["status_query"]["job_id"] == "pzjob-rec_a-001"
     assert checks[0]["request_type"] == "check_simulation"
     assert checks[0]["response_type"] == "status_envelope"

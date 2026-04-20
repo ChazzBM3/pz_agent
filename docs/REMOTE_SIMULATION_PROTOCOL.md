@@ -44,7 +44,8 @@ status.json
 result.json            # on success
 failure.json           # on terminal failure
 run.log
-scheduler.json         # optional but strongly recommended
+scheduler.json
+run_orca_job.sh        # generated scheduled payload script
 ```
 
 ## Minimal lifecycle
@@ -76,12 +77,17 @@ Recommended transport for the first implementation:
 A remote wrapper should:
 1. validate required files exist
 2. move the job from `inbox/` to `running/`
-3. optionally submit through Slurm or another scheduler
-4. write `status.json`
-5. run AtomisticSkills ORCA execution
-6. update `status.json` as state changes
-7. write `result.json` on success or `failure.json` on failure
-8. move the job directory to `completed/` or `failed/`
+3. submit through Slurm or another scheduler
+4. write `scheduler.json`
+5. write `status.json`
+6. let the scheduled payload run AtomisticSkills ORCA execution
+7. update `status.json` as state changes
+8. write `result.json` on success or `failure.json` on failure
+9. move the job directory to `completed/` or `failed/`
+
+A practical split is:
+- `remote_submit_orca_job.py` handles validation, directory movement, and `sbatch`
+- a generated payload script such as `run_orca_job.sh` does the actual scheduled execution
 
 ### 4. Check
 
@@ -205,7 +211,7 @@ Recommended failed terminal shape:
 
 Implement the first real backend around:
 - local `scp` or `rsync`
-- local `ssh remote submit_orca_job.py <remote_job_dir>`
+- local `ssh remote_submit_orca_job.py <remote_job_dir>`
 - local `ssh cat <remote_job_dir>/status.json`
 - local `scp` or `rsync` back `result.json` or `failure.json`
 
@@ -218,8 +224,12 @@ Once phase 1 works, the remote wrapper should submit via Slurm and track:
 - scheduler state
 - working directory
 - exit code
+- payload script path
+- stdout and stderr from the `sbatch` submission call
 
 The `status.json` contract can stay stable while the remote implementation grows more sophisticated.
+
+The repo template `docs/remote_submit_orca_job.py` is now explicitly Slurm-shaped and generates a `run_orca_job.sh` payload script plus `scheduler.json`.
 
 ## Claude Code role
 
