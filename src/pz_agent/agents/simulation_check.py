@@ -14,6 +14,7 @@ class SimulationCheckAgent(BaseAgent):
         check_cfg = dict((state.config.get("simulation_check", {}) or {}))
 
         checks: list[dict] = []
+        failures: list[dict] = []
         for item in queue:
             simulation = dict(item.get("simulation") or {})
             submission = dict(item.get("submission") or {})
@@ -27,6 +28,8 @@ class SimulationCheckAgent(BaseAgent):
                 check_config=check_cfg,
             )
             checks.append(check)
+            if str(check.get("status") or "").strip().lower() == "failed":
+                failures.append(check)
             tracking = dict(item.get("tracking") or {})
             tracking["last_check"] = check
             tracking["status"] = check.get("status", tracking.get("status"))
@@ -35,8 +38,10 @@ class SimulationCheckAgent(BaseAgent):
             item["check"] = check
 
         state.simulation_checks = checks
+        state.simulation_failures = failures
         state.simulation_queue = queue
         write_json(state.run_dir / "simulation_checks.json", checks)
+        write_json(state.run_dir / "simulation_failures.json", failures)
         write_json(state.run_dir / "simulation_queue.json", queue)
-        state.log(f"Simulation check recorded {len(checks)} status envelopes for submitted jobs")
+        state.log(f"Simulation check recorded {len(checks)} status envelopes for submitted jobs and {len(failures)} failures")
         return state

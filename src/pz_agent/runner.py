@@ -98,6 +98,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "has_simulation_manifest": state.simulation_manifest is not None,
             "simulation_submission_count": len(state.simulation_submissions or []),
             "simulation_check_count": len(state.simulation_checks or []),
+            "simulation_failure_count": len(state.simulation_failures or []),
             "validation_count": len(state.validation or []),
         },
     )

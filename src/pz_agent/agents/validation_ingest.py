@@ -15,6 +15,10 @@ VALIDATION_STATUS_MAP = {
     "error": "failed",
 }
 
+TERMINAL_SUCCESS_STATUSES = {"completed"}
+FAILURE_STATUSES = {"failed"}
+NONTERMINAL_STATUSES = {"submitted", "running", "queued", "prepared", "pending", "unknown"}
+
 
 def _normalize_status(item_status: object, output_status: object) -> str:
     for raw in (output_status, item_status):
@@ -105,6 +109,7 @@ class ValidationIngestAgent(BaseAgent):
         checks_by_candidate = {item.get("candidate_id"): item for item in (state.simulation_checks or []) if item.get("candidate_id")}
 
         validation_records: list[dict] = []
+        failure_records: list[dict] = list(state.simulation_failures or [])
         for item in payload:
             if not isinstance(item, dict):
                 continue
@@ -120,6 +125,27 @@ class ValidationIngestAgent(BaseAgent):
             outputs = outputs_payload
             normalized_outputs = _normalize_outputs(outputs)
             normalized_status = _normalize_status(item.get("status") or response.get("status"), outputs.get("status"))
+            check_status = str(check_record.get("status") or tracking.get("status") or "").strip().lower()
+            check_authoritative = bool(check_record.get("authoritative"))
+            if check_status in FAILURE_STATUSES or normalized_status in FAILURE_STATUSES:
+                failure_records.append(
+                    {
+                        "candidate_id": candidate_id,
+                        "submission_id": item.get("submission_id") or response.get("submission_id") or tracking.get("submission_id"),
+                        "job_id": item.get("job_id") or response.get("job_id") or tracking.get("job_id"),
+                        "status": "failed",
+                        "backend": item.get("backend") or response.get("backend") or queue_item.get("simulation", {}).get("backend"),
+                        "engine": item.get("engine") or response.get("engine") or queue_item.get("simulation", {}).get("engine"),
+                        "simulation_type": item.get("simulation_type") or response.get("simulation_type") or queue_item.get("simulation", {}).get("simulation_type"),
+                        "remote_target": item.get("remote_target") or response.get("remote_target") or queue_item.get("simulation", {}).get("parameters", {}).get("remote_target"),
+                        "failure_source": "validation_ingest",
+                        "raw_status": outputs.get("status") or item.get("status") or response.get("status"),
+                    }
+                )
+                continue
+            if check_authoritative and check_status in NONTERMINAL_STATUSES:
+                continue
+            effective_status = normalized_status if (not check_authoritative or check_status in NONTERMINAL_STATUSES or not check_status) else check_status
             predicted_priority = prediction.get("predicted_priority")
             predicted_priority_adjusted = prediction.get("predicted_priority_literature_adjusted", predicted_priority)
             final_energy = normalized_outputs.get("final_energy")
@@ -129,6 +155,8 @@ class ValidationIngestAgent(BaseAgent):
                 delta_priority = final_energy - predicted_priority
             if isinstance(final_energy, (int, float)) and isinstance(predicted_priority_adjusted, (int, float)):
                 delta_priority_adjusted = final_energy - predicted_priority_adjusted
+            if effective_status not in TERMINAL_SUCCESS_STATUSES:
+                continue
             requested_outputs = list(queue_item.get("simulation", {}).get("requested_outputs") or [])
             quality_assessment = _build_quality_assessment(normalized_status, requested_outputs, normalized_outputs)
             validation_records.append(
@@ -173,6 +201,8 @@ class ValidationIngestAgent(BaseAgent):
             )
 
         state.validation = validation_records
+        state.simulation_failures = failure_records
         write_json(state.run_dir / "validation_results.json", validation_records)
-        state.log(f"Validation ingest recorded {len(validation_records)} completed simulation results")
+        write_json(state.run_dir / "simulation_failures.json", failure_records)
+        state.log(f"Validation ingest recorded {len(validation_records)} completed simulation results and {len(failure_records)} failures")
         return state

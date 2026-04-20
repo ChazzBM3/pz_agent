@@ -39,6 +39,7 @@ pipeline:
     - graph_expansion
     - simulation_handoff
     - simulation_submit
+    - simulation_check
     - validation_ingest
     - reporter
 kg:
@@ -126,7 +127,7 @@ def test_validation_ingest_marks_partial_when_requested_outputs_missing(tmp_path
         assert not any(node["type"] == "ValidationOutcome" for node in graph.get("nodes", []))
 
 
-def test_validation_ingest_marks_failed_for_failed_runs(tmp_path: Path, monkeypatch) -> None:
+def test_validation_ingest_skips_failed_runs(tmp_path: Path, monkeypatch) -> None:
     _patch_retrieval(monkeypatch)
     csv_path = tmp_path / "failed.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
@@ -149,13 +150,16 @@ def test_validation_ingest_marks_failed_for_failed_runs(tmp_path: Path, monkeypa
     config_path.write_text(_base_config(csv_path, "failed_results.json"), encoding="utf-8")
 
     state = run_pipeline(config_path, run_dir=run_dir)
-    quality = state.validation[0]["quality_assessment"]
-    assert state.validation[0]["status"] == "failed"
-    assert quality["quality"] == "failed"
-    assert quality["requested_outputs_complete"] is False
+    assert state.validation == []
+    assert state.simulation_failures is not None
+    assert len(state.simulation_failures) == 1
+    assert state.simulation_failures[0]["candidate_id"] == "rec_a"
+    assert state.simulation_failures[0]["status"] == "failed"
 
     report = json.loads((run_dir / "report.json").read_text())
-    assert report["summary"]["failed_validation_count"] == 1
+    assert report["summary"]["failed_validation_count"] == 0
+    assert report["summary"]["validation_count"] == 0
+    assert report["summary"]["simulation_failure_count"] == 1
 
     graph_path = run_dir / "artifacts" / "knowledge_graph.json"
     if graph_path.exists():
