@@ -115,6 +115,11 @@ simulation_rerun_prepare:
     assert state.simulation_rerun_queue[0]["retry_id"] == "retry-orca-001"
     assert state.simulation_rerun_queue[0]["status"] == "prepared_for_rerun"
     assert state.simulation_rerun_queue[0]["retry_metadata"]["previous_submission_id"] == "rerun-submit-001"
+    assert state.simulation_rerun_queue[0]["retry_metadata"]["retry_attempt"] == 1
+    assert state.simulation_rerun_queue[0]["retry_metadata"]["max_retry_attempts"] == 1
+    assert state.simulation_rerun_queue[0]["simulation"]["parameters"]["convergence_max_iterations"] > 200
+    assert state.simulation_rerun_queue[0]["simulation"]["parameters"]["special_option"] == ""
+    assert state.simulation_rerun_queue[0]["retry_metadata"]["adjustments"]["soscf_enabled"] is True
 
     rerun_queue = json.loads((run_dir / "simulation_rerun_queue.json").read_text())
     assert len(rerun_queue) == 1
@@ -202,7 +207,88 @@ simulation_rerun_prepare:
     state = run_pipeline(config_path, run_dir=run_dir)
 
     assert state.simulation_rerun_queue is not None
-    assert state.simulation_rerun_queue[0]["retry_metadata"]["retry_attempt"] == 1
+    assert state.simulation_rerun_queue[0]["retry_metadata"]["retry_attempt"] == 2
     assert state.simulation_rerun_queue[0]["retry_provenance"]["retry_of_submission_id"] == "rerun-submit-001"
+    assert state.simulation_rerun_queue[0]["retry_provenance"]["retry_attempt"] == 2
     assert state.simulation_submissions is not None
     assert state.simulation_submissions[0]["submission_id"].endswith("retry-orca-001")
+
+
+def test_simulation_rerun_prepare_respects_single_retry_limit(tmp_path: Path, monkeypatch) -> None:
+    _patch_retrieval(monkeypatch)
+    csv_path = tmp_path / "rerun_limit.csv"
+    csv_path.write_text(CSV_TEXT, encoding="utf-8")
+    run_dir = tmp_path / "run_rerun_limit"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "simulation_rerun_candidates.json").write_text(
+        json.dumps([
+            {
+                "candidate_id": "rec_a",
+                "submission_id": "rerun-submit-001",
+                "status": "failed",
+                "failure_source": "simulation_extract",
+                "rerun_ready": True,
+                "retry_metadata": {"retry_attempt": 1},
+                "rerun_bundle": {
+                    "candidate_id": "rec_a",
+                    "submission_id": "rerun-submit-001",
+                    "job_spec_path": str(run_dir / "orca_jobs" / "rec_a" / "orca_job.json"),
+                    "simulation": {
+                        "backend": "atomisticskills_orca",
+                        "engine": "orca",
+                        "simulation_type": "geometry_optimization",
+                        "parameters": {"convergence_max_iterations": 200, "special_option": "NOSOSCF"},
+                    },
+                },
+            }
+        ]),
+        encoding="utf-8",
+    )
+    config_path = tmp_path / "rerun_limit.yaml"
+    config_path.write_text(
+        f"""
+project:
+  name: simulation-rerun-limit-test
+generation:
+  engine: d3tales_csv
+  d3tales_csv_path: {csv_path}
+  d3tales_limit: 2
+  d3tales_phenothiazine_only: true
+  prompts:
+    objective: simulation rerun limit test
+screening:
+  shortlist_size: 2
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - critique_reranker
+    - knowledge_graph
+    - graph_expansion
+    - simulation_rerun_prepare
+    - reporter
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: false
+  max_candidates: 2
+search:
+  backend: stub
+simulation_rerun_prepare:
+  retry_prefix: retry-orca
+  max_retry_attempts: 1
+""",
+        encoding="utf-8",
+    )
+
+    state = run_pipeline(config_path, run_dir=run_dir)
+    assert state.simulation_rerun_queue == []
