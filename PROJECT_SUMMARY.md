@@ -110,6 +110,7 @@ The repo can now generate simulation-ready artifacts, emit submission records, i
 - submission records need to be checked against a real remote-execution design
 - result payload requirements should be tightened and documented as an acceptance contract
 - downstream validator / result-consumer stages should become more formal than simple ingest
+- a concrete file-backed remote protocol is now documented in `docs/REMOTE_SIMULATION_PROTOCOL.md` as the recommended first real integration path
 
 ### 2. Scoring remains partially heuristic
 - synthesizability and solubility scoring are still not production-grade
@@ -134,6 +135,7 @@ The recommended next sequence is:
    - define the required request/response contract for a real ORCA or AtomisticSkills target
    - inspect emitted queue, manifest, submission, and validation artifacts for completeness
    - turn the current stub-backed simulation path into a testable acceptance gate
+   - implement the documented SSH plus staged-file backend path against the supercomputer target
 
 2. **Result-ingest and validator hardening**
    - define exactly what a remote ORCA or AtomisticSkills execution target must accept and return
