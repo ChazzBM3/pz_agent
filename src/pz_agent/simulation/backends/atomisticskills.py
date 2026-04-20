@@ -20,7 +20,9 @@ class AtomisticSkillsBackend:
     ) -> dict:
         submission_prefix = str(submit_config.get("submission_prefix", "stub-submit"))
         remote_target = submit_config.get("remote_target") or simulation.get("parameters", {}).get("remote_target")
-        submission_id = f"{submission_prefix}-{(queue_rank or 0):03d}"
+        retry_suffix = str(submit_config.get("retry_suffix") or "").strip()
+        base_submission_id = f"{submission_prefix}-{(queue_rank or 0):03d}"
+        submission_id = f"{base_submission_id}-{retry_suffix}" if retry_suffix else base_submission_id
         return {
             "contract_version": CONTRACT_VERSION,
             "request_type": "submit_simulation",
@@ -43,6 +45,7 @@ class AtomisticSkillsBackend:
                 "submission_id": submission_id,
                 "job_id": None,
             },
+            "retry_suffix": retry_suffix or None,
             "submitted_at": datetime.now(timezone.utc).isoformat(),
         }
 

@@ -172,4 +172,5 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     assert checks[0]["authoritative"] is False
     assert submissions[0]["backend"] == "atomisticskills_orca"
     assert submissions[0]["remote_target"] == "cluster-alpha"
+    assert submissions[0]["retry_suffix"] is None
     assert submissions[0]["submission_id"].startswith("contract-submit-")

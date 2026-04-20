@@ -119,3 +119,90 @@ simulation_rerun_prepare:
     rerun_queue = json.loads((run_dir / "simulation_rerun_queue.json").read_text())
     assert len(rerun_queue) == 1
     assert rerun_queue[0]["job_spec_path"].endswith("orca_job.json")
+
+
+def test_simulation_submit_can_consume_rerun_queue_with_retry_lineage(tmp_path: Path, monkeypatch) -> None:
+    _patch_retrieval(monkeypatch)
+    csv_path = tmp_path / "rerun_submit.csv"
+    csv_path.write_text(CSV_TEXT, encoding="utf-8")
+    run_dir = tmp_path / "run_rerun_submit"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "remote_results.json").write_text(
+        json.dumps([
+            {
+                "candidate_id": "rec_a",
+                "submission_id": "rerun-submit-001",
+                "status": "failed",
+                "backend": "atomisticskills_orca",
+                "engine": "orca",
+                "simulation_type": "geometry_optimization",
+                "outputs": {"status": "failed"},
+            }
+        ]),
+        encoding="utf-8",
+    )
+    config_path = tmp_path / "rerun_submit.yaml"
+    config_path.write_text(
+        f"""
+project:
+  name: simulation-rerun-submit-test
+generation:
+  engine: d3tales_csv
+  d3tales_csv_path: {csv_path}
+  d3tales_limit: 2
+  d3tales_phenothiazine_only: true
+  prompts:
+    objective: simulation rerun submit test
+screening:
+  shortlist_size: 2
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - critique_reranker
+    - knowledge_graph
+    - graph_expansion
+    - simulation_handoff
+    - simulation_submit
+    - simulation_check
+    - simulation_extract
+    - simulation_rerun_prepare
+    - simulation_submit
+    - reporter
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: false
+  max_candidates: 2
+search:
+  backend: stub
+simulation:
+  max_candidates: 2
+  remote_target: cluster-alpha
+simulation_submit:
+  submission_prefix: rerun-submit
+  use_rerun_queue: true
+simulation_extract:
+  results_path: remote_results.json
+simulation_rerun_prepare:
+  retry_prefix: retry-orca
+""",
+        encoding="utf-8",
+    )
+
+    state = run_pipeline(config_path, run_dir=run_dir)
+
+    assert state.simulation_rerun_queue is not None
+    assert state.simulation_rerun_queue[0]["retry_metadata"]["retry_attempt"] == 1
+    assert state.simulation_rerun_queue[0]["retry_provenance"]["retry_of_submission_id"] == "rerun-submit-001"
+    assert state.simulation_submissions is not None
+    assert state.simulation_submissions[0]["submission_id"].endswith("retry-orca-001")
