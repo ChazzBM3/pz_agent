@@ -263,6 +263,10 @@ search:
 simulation:
   max_candidates: 2
   remote_target: cluster-demo
+  requested_outputs:
+    - optimized_structure
+    - final_energy
+    - status
 simulation_submit:
   submission_prefix: demo-submit
 validation_ingest:

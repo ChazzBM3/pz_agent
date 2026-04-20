@@ -225,7 +225,14 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         quality_assessment = dict(validation.get("quality_assessment") or {})
         if quality_assessment.get("quality") != "usable":
             continue
-        validation_result_id = stable_node_id("simulation_result", candidate_id, validation.get("submission_id") or "validation_ingest")
+
+        outputs = dict(validation.get("outputs") or {})
+        predicted_reference = dict(validation.get("predicted_reference") or {})
+        comparison = dict(validation.get("comparison") or {})
+        provenance = dict(validation.get("provenance") or {})
+        submission_id = validation.get("submission_id") or "validation_ingest"
+
+        validation_result_id = stable_node_id("simulation_result", candidate_id, submission_id)
         add_node(
             {
                 "id": validation_result_id,
@@ -236,9 +243,19 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                     "backend": validation.get("backend"),
                     "engine": validation.get("engine"),
                     "simulation_type": validation.get("simulation_type"),
-                    "outputs": validation.get("outputs"),
+                    "submission_id": submission_id,
+                    "final_energy": outputs.get("final_energy"),
+                    "optimized_structure": outputs.get("optimized_structure"),
+                    "groundState.solvation_energy": outputs.get("groundState.solvation_energy"),
+                    "groundState.homo": outputs.get("groundState.homo"),
+                    "groundState.lumo": outputs.get("groundState.lumo"),
+                    "groundState.homo_lumo_gap": outputs.get("groundState.homo_lumo_gap"),
+                    "groundState.dipole_moment": outputs.get("groundState.dipole_moment"),
+                    "outputs": outputs,
+                    "predicted_reference": predicted_reference,
+                    "comparison": comparison,
                     "quality_assessment": quality_assessment,
-                    "provenance": validation.get("provenance"),
+                    "provenance": provenance,
                     "evidence_tier": "tier_E_simulation",
                     "source_tags": {
                         "source_type": "simulation",
@@ -251,7 +268,7 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
             }
         )
         add_edge(validation_result_id, candidate_id, "SIMULATED_FOR")
-        validation_outcome_id = stable_node_id("validated_outcome", candidate_id, validation.get("submission_id") or "validation_ingest")
+        validation_outcome_id = stable_node_id("validated_outcome", candidate_id, submission_id)
         add_node(
             {
                 "id": validation_outcome_id,
@@ -259,9 +276,9 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                 "attrs": {
                     "candidate_id": candidate_id,
                     "status": validation.get("status"),
-                    "comparison": validation.get("comparison"),
+                    "comparison": comparison,
                     "quality_assessment": quality_assessment,
-                    "submission_id": validation.get("submission_id"),
+                    "submission_id": submission_id,
                 },
             }
         )
