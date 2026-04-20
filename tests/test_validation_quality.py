@@ -40,6 +40,7 @@ pipeline:
     - simulation_handoff
     - simulation_submit
     - simulation_check
+    - simulation_extract
     - validation_ingest
     - reporter
 kg:
@@ -55,6 +56,8 @@ simulation:
   remote_target: cluster-alpha
 simulation_submit:
   submission_prefix: quality-submit
+simulation_extract:
+  results_path: {results_name}
 validation_ingest:
   results_path: {results_name}
 """

@@ -254,6 +254,7 @@ pipeline:
     - simulation_handoff
     - simulation_submit
     - simulation_check
+    - simulation_extract
     - validation_ingest
     - knowledge_graph
     - reporter
@@ -274,6 +275,8 @@ simulation:
     - status
 simulation_submit:
   submission_prefix: demo-submit
+simulation_extract:
+  results_path: remote_results.json
 validation_ingest:
   results_path: remote_results.json
 """,

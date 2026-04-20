@@ -87,29 +87,22 @@ class ValidationIngestAgent(BaseAgent):
 
     def run(self, state: RunState) -> RunState:
         ingest_cfg = dict((state.config.get("validation_ingest", {}) or {}))
-        results_relpath = ingest_cfg.get("results_path")
-        if not results_relpath:
+        results_path = state.run_dir / "simulation_extractions.json"
+        if not results_path.exists():
             state.validation = []
             write_json(state.run_dir / "validation_results.json", state.validation)
-            state.log("Validation ingest found no configured results path and emitted empty validation results")
+            state.log("Validation ingest found no extraction artifacts and emitted empty validation results")
             return state
-
-        results_path = Path(results_relpath)
-        if not results_path.is_absolute():
-            results_path = state.run_dir / results_path
-        if not results_path.exists():
-            raise FileNotFoundError(f"Validation ingest results file not found: {results_path}")
 
         payload = read_json(results_path)
         if not isinstance(payload, list):
-            raise ValueError("Validation ingest expects a JSON list of result records")
+            raise ValueError("Validation ingest expects simulation_extractions.json to contain a JSON list")
 
         queue_by_candidate = {item.get("candidate_id"): item for item in (state.simulation_queue or []) if item.get("candidate_id")}
         prediction_by_candidate = {item.get("id"): item for item in (state.predictions or []) if item.get("id")}
         checks_by_candidate = {item.get("candidate_id"): item for item in (state.simulation_checks or []) if item.get("candidate_id")}
 
         validation_records: list[dict] = []
-        failure_records: list[dict] = list(state.simulation_failures or [])
         for item in payload:
             if not isinstance(item, dict):
                 continue
@@ -128,20 +121,6 @@ class ValidationIngestAgent(BaseAgent):
             check_status = str(check_record.get("status") or tracking.get("status") or "").strip().lower()
             check_authoritative = bool(check_record.get("authoritative"))
             if check_status in FAILURE_STATUSES or normalized_status in FAILURE_STATUSES:
-                failure_records.append(
-                    {
-                        "candidate_id": candidate_id,
-                        "submission_id": item.get("submission_id") or response.get("submission_id") or tracking.get("submission_id"),
-                        "job_id": item.get("job_id") or response.get("job_id") or tracking.get("job_id"),
-                        "status": "failed",
-                        "backend": item.get("backend") or response.get("backend") or queue_item.get("simulation", {}).get("backend"),
-                        "engine": item.get("engine") or response.get("engine") or queue_item.get("simulation", {}).get("engine"),
-                        "simulation_type": item.get("simulation_type") or response.get("simulation_type") or queue_item.get("simulation", {}).get("simulation_type"),
-                        "remote_target": item.get("remote_target") or response.get("remote_target") or queue_item.get("simulation", {}).get("parameters", {}).get("remote_target"),
-                        "failure_source": "validation_ingest",
-                        "raw_status": outputs.get("status") or item.get("status") or response.get("status"),
-                    }
-                )
                 continue
             if check_authoritative and check_status in NONTERMINAL_STATUSES:
                 continue
@@ -201,8 +180,6 @@ class ValidationIngestAgent(BaseAgent):
             )
 
         state.validation = validation_records
-        state.simulation_failures = failure_records
         write_json(state.run_dir / "validation_results.json", validation_records)
-        write_json(state.run_dir / "simulation_failures.json", failure_records)
-        state.log(f"Validation ingest recorded {len(validation_records)} completed simulation results and {len(failure_records)} failures")
+        state.log(f"Validation ingest recorded {len(validation_records)} completed simulation results from extraction artifacts")
         return state

@@ -8,6 +8,7 @@ from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
 from pz_agent.agents.simulation_handoff import SimulationHandoffAgent
 from pz_agent.agents.simulation_submit import SimulationSubmitAgent
 from pz_agent.agents.simulation_check import SimulationCheckAgent
+from pz_agent.agents.simulation_extract import SimulationExtractAgent
 from pz_agent.agents.validation_ingest import ValidationIngestAgent
 from pz_agent.agents.document_fetch import DocumentFetchAgent
 from pz_agent.agents.figure_corpus import FigureCorpusAgent
@@ -55,6 +56,7 @@ STAGE_MAP = {
     "simulation_handoff": SimulationHandoffAgent,
     "simulation_submit": SimulationSubmitAgent,
     "simulation_check": SimulationCheckAgent,
+    "simulation_extract": SimulationExtractAgent,
     "validation_ingest": ValidationIngestAgent,
 }
 
@@ -98,6 +100,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "has_simulation_manifest": state.simulation_manifest is not None,
             "simulation_submission_count": len(state.simulation_submissions or []),
             "simulation_check_count": len(state.simulation_checks or []),
+            "simulation_extraction_count": len(state.simulation_extractions or []),
             "simulation_failure_count": len(state.simulation_failures or []),
             "validation_count": len(state.validation or []),
         },

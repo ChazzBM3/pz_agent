@@ -31,39 +31,38 @@ def _patch_retrieval(monkeypatch) -> None:
     )
 
 
-def test_validation_ingest_skips_nonterminal_runs(tmp_path: Path, monkeypatch) -> None:
+def test_simulation_extract_preserves_failed_runs_for_rerun(tmp_path: Path, monkeypatch) -> None:
     _patch_retrieval(monkeypatch)
-    csv_path = tmp_path / "pending.csv"
+    csv_path = tmp_path / "extract.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
-    run_dir = tmp_path / "run_pending"
+    run_dir = tmp_path / "run_extract"
     run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "pending_results.json").write_text(
+    (run_dir / "remote_results.json").write_text(
         json.dumps([
             {
                 "candidate_id": "rec_a",
-                "submission_id": "gate-submit-001",
-                "status": "completed",
-                "outputs": {
-                    "final_energy": -10.5,
-                    "optimized_structure": "rec_a_optimized.xyz",
-                    "status": "converged",
-                },
+                "submission_id": "extract-submit-001",
+                "status": "failed",
+                "backend": "atomisticskills_orca",
+                "engine": "orca",
+                "simulation_type": "geometry_optimization",
+                "outputs": {"status": "failed"},
             }
         ]),
         encoding="utf-8",
     )
-    config_path = tmp_path / "pending.yaml"
+    config_path = tmp_path / "extract.yaml"
     config_path.write_text(
         f"""
 project:
-  name: validation-gating-test
+  name: simulation-extract-test
 generation:
   engine: d3tales_csv
   d3tales_csv_path: {csv_path}
   d3tales_limit: 2
   d3tales_phenothiazine_only: true
   prompts:
-    objective: validation gating test
+    objective: simulation extract test
 screening:
   shortlist_size: 2
 pipeline:
@@ -99,24 +98,24 @@ simulation:
   max_candidates: 2
   remote_target: cluster-alpha
 simulation_submit:
-  submission_prefix: gate-submit
-simulation_check:
-  default_status: running
+  submission_prefix: extract-submit
 simulation_extract:
-  results_path: pending_results.json
+  results_path: remote_results.json
 validation_ingest:
-  results_path: pending_results.json
+  results_path: remote_results.json
 """,
         encoding="utf-8",
     )
 
     state = run_pipeline(config_path, run_dir=run_dir)
 
-    assert state.simulation_checks is not None
-    assert state.simulation_checks[0]["status"] == "running"
-    assert state.simulation_checks[0]["authoritative"] is True
-    assert state.validation == []
+    assert state.simulation_extractions == []
+    assert state.simulation_failures is not None
+    assert len(state.simulation_failures) == 1
+    assert state.simulation_failures[0]["response_type"] == "failure_envelope"
+    assert state.simulation_failures[0]["rerun_ready"] is True
+    assert state.simulation_failures[0]["rerun_bundle"]["job_spec_path"].endswith("orca_job.json")
 
-    report = json.loads((run_dir / "report.json").read_text())
-    assert report["summary"]["validation_count"] == 0
-    assert report["summary"]["simulation_check_count"] == 2
+    rerun_candidates = json.loads((run_dir / "simulation_rerun_candidates.json").read_text())
+    assert len(rerun_candidates) == 1
+    assert rerun_candidates[0]["candidate_id"] == "rec_a"

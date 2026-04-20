@@ -108,6 +108,7 @@ pipeline:
     - simulation_handoff
     - simulation_submit
     - simulation_check
+    - simulation_extract
     - validation_ingest
     - knowledge_graph
     - reporter
@@ -124,6 +125,8 @@ simulation:
   remote_target: cluster-alpha
 simulation_submit:
   submission_prefix: contract-submit
+simulation_extract:
+  results_path: remote_results.json
 validation_ingest:
   results_path: remote_results.json
 """,
@@ -132,6 +135,9 @@ validation_ingest:
 
     state = run_pipeline(config_path, run_dir=run_dir)
 
+    assert state.simulation_extractions is not None
+    assert len(state.simulation_extractions) == 1
+    assert state.simulation_extractions[0]["response_type"] == "result_envelope"
     assert state.validation is not None
     assert len(state.validation) == 1
     assert state.validation[0]["candidate_id"] == "rec_a"

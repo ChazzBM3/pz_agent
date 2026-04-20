@@ -65,6 +65,7 @@ class ReporterAgent(BaseAgent):
                 "simulation_queue_count": len(state.simulation_queue or []),
                 "simulation_submission_count": len(state.simulation_submissions or []),
                 "simulation_check_count": len(state.simulation_checks or []),
+                "simulation_extraction_count": len(state.simulation_extractions or []),
                 "simulation_failure_count": len(state.simulation_failures or []),
                 "validation_count": len(validation_results),
                 "usable_validation_count": sum(1 for item in validation_results if (item.get("quality_assessment") or {}).get("quality") == "usable"),
@@ -94,6 +95,7 @@ class ReporterAgent(BaseAgent):
             "simulation_manifest": state.simulation_manifest or {},
             "simulation_submissions": state.simulation_submissions or [],
             "simulation_checks": state.simulation_checks or [],
+            "simulation_extractions": state.simulation_extractions or [],
             "simulation_failures": state.simulation_failures or [],
             "validation_results": validation_results,
             "artifacts": {
@@ -107,7 +109,9 @@ class ReporterAgent(BaseAgent):
                 "simulation_manifest_path": str(state.run_dir / "simulation_manifest.json"),
                 "simulation_submissions_path": str(state.run_dir / "simulation_submissions.json"),
                 "simulation_checks_path": str(state.run_dir / "simulation_checks.json"),
+                "simulation_extractions_path": str(state.run_dir / "simulation_extractions.json"),
                 "simulation_failures_path": str(state.run_dir / "simulation_failures.json"),
+                "simulation_rerun_candidates_path": str(state.run_dir / "simulation_rerun_candidates.json"),
                 "validation_results_path": str(state.run_dir / "validation_results.json"),
             },
         }
