@@ -117,6 +117,9 @@ simulation_rerun_prepare:
     decision = next(item for item in report["decision_summary"] if item["candidate_id"] == "rec_a")
     assert decision["simulation_history"]["failure_count"] >= 1
     assert decision["simulation_history"]["rerun_count"] >= 1
+    assert len(report["deferred_reruns"]) == 1
+    assert report["deferred_reruns"][0]["candidate_id"] == "rec_a"
+    assert report["deferred_reruns"][0]["orca_adjustments"]["soscf_enabled"] is True
 
     graph = json.loads(state.knowledge_graph_path.read_text())
     assert not any(node["type"] == "SimulationFailure" for node in graph.get("nodes", []))

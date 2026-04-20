@@ -120,6 +120,18 @@ class ReporterAgent(BaseAgent):
                 "failed_candidates": sorted({item.get("candidate_id") for item in (state.simulation_failures or []) if item.get("candidate_id")}),
                 "rerun_candidates": sorted({item.get("candidate_id") for item in (state.simulation_rerun_queue or []) if item.get("candidate_id")}),
             },
+            "deferred_reruns": [
+                {
+                    "candidate_id": item.get("candidate_id"),
+                    "failed_submission_id": (item.get("source_failure") or {}).get("submission_id"),
+                    "backend": (item.get("simulation") or {}).get("backend"),
+                    "engine": (item.get("simulation") or {}).get("engine"),
+                    "status": item.get("status"),
+                    "job_spec_path": item.get("job_spec_path"),
+                    "orca_adjustments": ((item.get("retry_metadata") or {}).get("adjustments") or {}),
+                }
+                for item in (state.simulation_rerun_queue or [])
+            ],
             "validation_results": validation_results,
             "artifacts": {
                 "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),
