@@ -18,6 +18,17 @@ class ReporterAgent(BaseAgent):
         critique_by_candidate = {note.get("candidate_id"): note for note in (state.critique_notes or []) if note.get("candidate_id")}
         prediction_by_candidate = {pred.get("id"): pred for pred in (state.predictions or []) if pred.get("id")}
 
+        failure_by_candidate = {}
+        for failure in (state.simulation_failures or []):
+            candidate_id = failure.get("candidate_id")
+            if candidate_id:
+                failure_by_candidate.setdefault(candidate_id, []).append(failure)
+        rerun_by_candidate = {}
+        for rerun in (state.simulation_rerun_queue or []):
+            candidate_id = rerun.get("candidate_id")
+            if candidate_id:
+                rerun_by_candidate.setdefault(candidate_id, []).append(rerun)
+
         candidate_decisions = []
         for item in shortlist:
             candidate_id = item.get("id")
@@ -51,6 +62,12 @@ class ReporterAgent(BaseAgent):
                     },
                     "selection_rationale": rationale.get("literature_adjustment", []),
                     "stable_identity_key": item.get("stable_identity_key") or (item.get("identity") or {}).get("stable_identity_key"),
+                    "simulation_history": {
+                        "failure_count": len(failure_by_candidate.get(candidate_id, [])),
+                        "latest_failure_submission_id": next((entry.get("submission_id") for entry in failure_by_candidate.get(candidate_id, [])), None),
+                        "rerun_count": len(rerun_by_candidate.get(candidate_id, [])),
+                        "latest_retry_id": next((entry.get("retry_id") for entry in rerun_by_candidate.get(candidate_id, [])), None),
+                    },
                 }
             )
 
@@ -99,6 +116,10 @@ class ReporterAgent(BaseAgent):
             "simulation_extractions": state.simulation_extractions or [],
             "simulation_failures": state.simulation_failures or [],
             "simulation_rerun_queue": state.simulation_rerun_queue or [],
+            "simulation_history_summary": {
+                "failed_candidates": sorted({item.get("candidate_id") for item in (state.simulation_failures or []) if item.get("candidate_id")}),
+                "rerun_candidates": sorted({item.get("candidate_id") for item in (state.simulation_rerun_queue or []) if item.get("candidate_id")}),
+            },
             "validation_results": validation_results,
             "artifacts": {
                 "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),

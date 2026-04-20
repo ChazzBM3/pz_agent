@@ -218,6 +218,56 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         )
         add_edge(dft_sim_id, item["id"], "SIMULATED_FOR")
 
+    for failure in state.simulation_failures or []:
+        candidate_id = str(failure.get("candidate_id") or "")
+        if not candidate_id:
+            continue
+        submission_id = failure.get("submission_id") or "simulation_failure"
+        failure_id = stable_node_id("simulation_failure", candidate_id, submission_id)
+        add_node(
+            {
+                "id": failure_id,
+                "type": "SimulationFailure",
+                "attrs": {
+                    "candidate_id": candidate_id,
+                    "status": failure.get("status"),
+                    "backend": failure.get("backend"),
+                    "engine": failure.get("engine"),
+                    "simulation_type": failure.get("simulation_type"),
+                    "submission_id": submission_id,
+                    "failure_source": failure.get("failure_source"),
+                    "rerun_ready": failure.get("rerun_ready"),
+                    "retry_suffix": failure.get("retry_suffix"),
+                },
+            }
+        )
+        add_edge(failure_id, candidate_id, "FAILED_FOR")
+
+    for rerun in state.simulation_rerun_queue or []:
+        candidate_id = str(rerun.get("candidate_id") or "")
+        if not candidate_id:
+            continue
+        retry_id = rerun.get("retry_id") or "retry"
+        rerun_node_id = stable_node_id("simulation_retry", candidate_id, retry_id)
+        retry_metadata = dict(rerun.get("retry_metadata") or {})
+        retry_provenance = dict(rerun.get("retry_provenance") or {})
+        add_node(
+            {
+                "id": rerun_node_id,
+                "type": "SimulationRetry",
+                "attrs": {
+                    "candidate_id": candidate_id,
+                    "retry_id": retry_id,
+                    "status": rerun.get("status"),
+                    "previous_submission_id": retry_metadata.get("previous_submission_id"),
+                    "retry_attempt": retry_metadata.get("retry_attempt"),
+                    "submitted_retry_submission_id": retry_metadata.get("submitted_retry_submission_id"),
+                    "retry_of_submission_id": retry_provenance.get("retry_of_submission_id"),
+                },
+            }
+        )
+        add_edge(rerun_node_id, candidate_id, "RETRY_FOR")
+
     for validation in state.validation or []:
         candidate_id = str(validation.get("candidate_id") or "")
         if not candidate_id:
