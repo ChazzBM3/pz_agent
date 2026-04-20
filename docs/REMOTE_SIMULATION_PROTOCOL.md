@@ -258,6 +258,16 @@ simulation_check:
   remote_root: /path/to/pz_agent_jobs
 ```
 
+Current cluster-shaped template assumptions now mirror the provided dummy Supercloud-style submission pattern:
+- partition: `xeon-p8`
+- `#SBATCH -N 1`
+- task count derived from ORCA `nprocs`
+- `--mem-per-cpu=2000`
+- `--no-requeue`
+- `module load mpi/openmpi-4.1.8`
+- ORCA directory rooted at `/home/gridsan/groups/rgb_shared/software/orca/orca_6_0_0_linux_x86-64_shared_openmpi416`
+- scratch-first execution with copy-back into `SLURM_SUBMIT_DIR`
+
 ## Acceptance criteria for first real integration
 
 The first real remote integration should be considered successful only if:

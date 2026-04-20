@@ -158,17 +158,58 @@ def render_orca_input(job_spec: dict[str, Any], structure_text: str) -> str:
 
 def write_scheduler_script(running_dir: Path, job_spec: dict[str, Any]) -> Path:
     parameters = dict(job_spec.get("parameters") or {})
+    scheduler = dict(job_spec.get("scheduler") or {})
     nprocs = int(parameters.get("nprocs", 1) or 1)
+    partition = scheduler.get("partition", "xeon-p8")
+    walltime = scheduler.get("time", "00:10:00")
+    mem_per_cpu = scheduler.get("mem_per_cpu", "2000")
+    job_name = scheduler.get("job_name") or f"orca_{job_spec.get('candidate_id', 'job')}"
+    mpi_module = scheduler.get("mpi_module", "mpi/openmpi-4.1.8")
+    orca_dir = scheduler.get("orca_dir", "/home/gridsan/groups/rgb_shared/software/orca/orca_6_0_0_linux_x86-64_shared_openmpi416")
     script_path = running_dir / "run_orca_job.sh"
     script_path.write_text(
         "#!/bin/bash\n"
-        "set -euo pipefail\n"
-        f"cd {running_dir}\n"
-        "echo 'Starting scheduled ORCA job' >> run.log\n"
-        "# TODO: load the real ORCA environment on your cluster before enabling production runs.\n"
-        "# Example: module load orca\n"
-        f"export OMP_NUM_THREADS={nprocs}\n"
-        "orca job.inp > job.out 2>&1\n"
+        f"#SBATCH -J {job_name}\n"
+        "#SBATCH -N 1\n"
+        f"#SBATCH -n {nprocs}\n"
+        f"#SBATCH -t {walltime}\n"
+        f"#SBATCH -p {partition}\n"
+        f"#SBATCH --mem-per-cpu={mem_per_cpu}\n"
+        "#SBATCH --no-requeue\n\n"
+        "set -euo pipefail\n\n"
+        "source /etc/profile\n"
+        "source ~/.bashrc\n\n"
+        f"MPI_MODULE=\"{mpi_module}\"\n"
+        f"ORCA_DIR=\"{orca_dir}\"\n"
+        "ORCA_BIN=\"${ORCA_DIR}/orca\"\n\n"
+        "module load \"${MPI_MODULE}\"\n\n"
+        "userid=$(id -u \"${USER}\")\n"
+        "if [ -d \"/localscratch/${USER}\" ]; then\n"
+        "SCRATCH_ROOT=\"/localscratch/${USER}/orcatmp\"\n"
+        "else\n"
+        "size=$(df -l /tmp | awk 'NR==2 { print $4 }')\n"
+        "if [ \"${size}\" -gt 25000000 ]; then\n"
+        "SCRATCH_ROOT=\"/tmp/user/${userid}/${USER}/orcatmp\"\n"
+        "else\n"
+        "SCRATCH_ROOT=\"/state/partition1/user/${USER}/orcatmp\"\n"
+        "fi\n"
+        "fi\n\n"
+        "mkdir -p \"${SCRATCH_ROOT}\"\n"
+        "SCRATCH_DIR=\"${SCRATCH_ROOT}/orca_${SLURM_JOB_ID}\"\n"
+        "mkdir -p \"${SCRATCH_DIR}\"\n\n"
+        "echo \"Scratch root: ${SCRATCH_ROOT}\" | tee -a run.log\n"
+        "echo \"Scratch dir: ${SCRATCH_DIR}\" | tee -a run.log\n"
+        "echo \"ORCA binary: ${ORCA_BIN}\" | tee -a run.log\n\n"
+        "cp -f job.inp \"${SCRATCH_DIR}/job.inp\"\n"
+        "cp -f input_structure.xyz \"${SCRATCH_DIR}/input_structure.xyz\"\n\n"
+        "cd \"${SCRATCH_DIR}\"\n"
+        "export PATH=\"${ORCA_DIR}:${PATH}\"\n"
+        "export LD_LIBRARY_PATH=\"${ORCA_DIR}:${LD_LIBRARY_PATH:-}\"\n"
+        "export OMP_NUM_THREADS=1\n\n"
+        "\"${ORCA_BIN}\" job.inp > \"${SLURM_SUBMIT_DIR}/job.out\" 2>&1\n\n"
+        "cp -f job.inp \"${SLURM_SUBMIT_DIR}/\"\n"
+        "cp -f ./* \"${SLURM_SUBMIT_DIR}/\" 2>/dev/null || true\n"
+        "rm -rf \"${SCRATCH_DIR}\"\n\n"
         "python - <<'PY'\n"
         "import json\n"
         "from pathlib import Path\n"
@@ -250,6 +291,11 @@ def main(argv: list[str]) -> int:
         "system": "slurm",
         "submit_command": ["sbatch", str(scheduler_script.name)],
         "script_path": str(scheduler_script),
+        "partition": "xeon-p8",
+        "time": "00:10:00",
+        "mem_per_cpu": "2000",
+        "mpi_module": "mpi/openmpi-4.1.8",
+        "orca_dir": "/home/gridsan/groups/rgb_shared/software/orca/orca_6_0_0_linux_x86-64_shared_openmpi416",
     }
     write_json(running_dir / "scheduler.json", scheduler_config)
     write_json(running_dir / "status.json", status_payload(job_spec, status="staged", job_id=job_id, scheduler=scheduler_config))
