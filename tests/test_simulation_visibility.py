@@ -31,7 +31,7 @@ def _patch_retrieval(monkeypatch) -> None:
     )
 
 
-def test_report_and_kg_expose_simulation_failures_and_retries(tmp_path: Path, monkeypatch) -> None:
+def test_report_exposes_simulation_failures_and_retries(tmp_path: Path, monkeypatch) -> None:
     _patch_retrieval(monkeypatch)
     csv_path = tmp_path / "visibility.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
@@ -119,5 +119,5 @@ simulation_rerun_prepare:
     assert decision["simulation_history"]["rerun_count"] >= 1
 
     graph = json.loads(state.knowledge_graph_path.read_text())
-    assert any(node["type"] == "SimulationFailure" and node["attrs"].get("candidate_id") == "rec_a" for node in graph.get("nodes", []))
-    assert any(node["type"] == "SimulationRetry" and node["attrs"].get("candidate_id") == "rec_a" for node in graph.get("nodes", []))
+    assert not any(node["type"] == "SimulationFailure" for node in graph.get("nodes", []))
+    assert not any(node["type"] == "SimulationRetry" for node in graph.get("nodes", []))
