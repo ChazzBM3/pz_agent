@@ -31,6 +31,17 @@ class SimulationSubmitAgent(BaseAgent):
                 },
             )
             submissions.append(submission)
+            tracking = dict(item.get("tracking") or {})
+            tracking.update(
+                {
+                    "submission_id": submission.get("submission_id"),
+                    "job_id": submission.get("job_id"),
+                    "status": submission.get("status", "submitted"),
+                    "remote_target": submission.get("remote_target") or tracking.get("remote_target"),
+                    "last_submission": submission,
+                }
+            )
+            item["tracking"] = tracking
             item["status"] = "submitted"
             item["submission"] = submission
 

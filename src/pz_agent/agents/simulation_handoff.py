@@ -5,6 +5,9 @@ from pz_agent.io import ensure_dir, write_json
 from pz_agent.state import RunState
 
 
+CONTRACT_VERSION = "atomisticskills.request_response.v1"
+
+
 def _orca_remote_spec(item: dict, simulation_cfg: dict) -> dict:
     identity = dict(item.get("identity") or {})
     return {
@@ -47,6 +50,25 @@ def _requested_outputs(simulation_cfg: dict) -> list[str]:
     ]
 
 
+def _tracking(record: dict, simulation: dict, state: RunState) -> dict:
+    parameters = dict(simulation.get("parameters") or {})
+    candidate_id = record.get("candidate_id") or record.get("id") or "unknown_candidate"
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "request_id": f"simreq::{state.run_dir.name}::{candidate_id}",
+        "job_id": None,
+        "submission_id": None,
+        "check_only": False,
+        "status": "prepared",
+        "execution_mode": simulation.get("execution_mode", "remote"),
+        "remote_target": parameters.get("remote_target"),
+        "poll": {
+            "strategy": "submission_id_or_job_id",
+            "status_values": ["prepared", "submitted", "running", "completed", "failed"],
+        },
+    }
+
+
 def _write_orca_job_package(state: RunState, record: dict) -> dict:
     candidate_id = record.get("candidate_id") or "unknown_candidate"
     job_dir = state.run_dir / "orca_jobs" / candidate_id
@@ -58,7 +80,10 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
 
     simulation = dict(record.get("simulation") or {})
     parameters = dict(simulation.get("parameters") or {})
+    tracking = dict(record.get("tracking") or {})
     job_spec = {
+        "contract_version": CONTRACT_VERSION,
+        "request_type": "submit_simulation",
         "job_type": simulation.get("simulation_type"),
         "simulation_type": simulation.get("simulation_type"),
         "candidate_id": candidate_id,
@@ -70,6 +95,15 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
         "execution_mode": simulation.get("execution_mode", "remote"),
         "requested_outputs": simulation.get("requested_outputs") or [],
         "parameters": parameters,
+        "operation": {
+            "execution_mode": simulation.get("execution_mode", "remote"),
+            "check_only": False,
+            "job_id": tracking.get("job_id"),
+            "submission_id": tracking.get("submission_id"),
+            "remote_settings": {
+                "target": parameters.get("remote_target"),
+            },
+        },
         "provenance": {
             "stable_identity_key": record.get("stable_identity_key"),
             "smiles": record.get("smiles"),
@@ -78,6 +112,7 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
             "engine": simulation.get("engine"),
             "execution_mode": simulation.get("execution_mode"),
             "remote_target": parameters.get("remote_target"),
+            "request_id": tracking.get("request_id"),
         },
     }
     write_json(job_dir / "orca_job.json", job_spec)
@@ -144,6 +179,7 @@ class SimulationHandoffAgent(BaseAgent):
                     "belief_state": ranking_rationale.get("belief_state", {}),
                 },
                 "status": "queued",
+                "tracking": {},
                 "simulation": {
                     "simulation_type": per_item_spec.get("simulation_type", "geometry_optimization"),
                     "compute_tier": simulation_cfg.get("compute_tier", "screening"),
@@ -167,6 +203,7 @@ class SimulationHandoffAgent(BaseAgent):
                     },
                 },
             }
+            record["tracking"] = _tracking(record, record["simulation"], state)
             record["job_package"] = _write_orca_job_package(state, record)
             queue_records.append(record)
 
@@ -182,6 +219,7 @@ class SimulationHandoffAgent(BaseAgent):
                 ],
                 "max_candidates": max_candidates,
             },
+            "contract_version": CONTRACT_VERSION,
             "simulation_defaults": {
                 "simulation_type": remote_spec.get("simulation_type", "geometry_optimization"),
                 "compute_tier": simulation_cfg.get("compute_tier", "screening"),

@@ -107,14 +107,17 @@ class ValidationIngestAgent(BaseAgent):
         for item in payload:
             if not isinstance(item, dict):
                 continue
-            candidate_id = item.get("candidate_id")
+            response = dict(item.get("response") or {}) if isinstance(item.get("response"), dict) else {}
+            outputs_payload = dict(item.get("outputs") or response.get("outputs") or {})
+            candidate_id = item.get("candidate_id") or response.get("candidate_id")
             if not candidate_id:
                 continue
             queue_item = dict(queue_by_candidate.get(candidate_id) or {})
             prediction = dict(prediction_by_candidate.get(candidate_id) or {})
-            outputs = dict(item.get("outputs") or {})
+            tracking = dict(queue_item.get("tracking") or {})
+            outputs = outputs_payload
             normalized_outputs = _normalize_outputs(outputs)
-            normalized_status = _normalize_status(item.get("status"), outputs.get("status"))
+            normalized_status = _normalize_status(item.get("status") or response.get("status"), outputs.get("status"))
             predicted_priority = prediction.get("predicted_priority")
             predicted_priority_adjusted = prediction.get("predicted_priority_literature_adjusted", predicted_priority)
             final_energy = normalized_outputs.get("final_energy")
@@ -130,10 +133,11 @@ class ValidationIngestAgent(BaseAgent):
                 {
                     "candidate_id": candidate_id,
                     "status": normalized_status,
-                    "submission_id": item.get("submission_id"),
-                    "backend": item.get("backend") or queue_item.get("simulation", {}).get("backend"),
-                    "engine": item.get("engine") or queue_item.get("simulation", {}).get("engine"),
-                    "simulation_type": item.get("simulation_type") or queue_item.get("simulation", {}).get("simulation_type"),
+                    "submission_id": item.get("submission_id") or response.get("submission_id") or tracking.get("submission_id"),
+                    "job_id": item.get("job_id") or response.get("job_id") or tracking.get("job_id"),
+                    "backend": item.get("backend") or response.get("backend") or queue_item.get("simulation", {}).get("backend"),
+                    "engine": item.get("engine") or response.get("engine") or queue_item.get("simulation", {}).get("engine"),
+                    "simulation_type": item.get("simulation_type") or response.get("simulation_type") or queue_item.get("simulation", {}).get("simulation_type"),
                     "stable_identity_key": queue_item.get("stable_identity_key"),
                     "requested_outputs": requested_outputs,
                     "outputs": normalized_outputs,
@@ -149,11 +153,19 @@ class ValidationIngestAgent(BaseAgent):
                         "final_energy_minus_predicted_priority_literature_adjusted": delta_priority_adjusted,
                         "optimized_structure_available": normalized_outputs.get("has_optimized_structure", False),
                     },
+                    "operation": {
+                        "contract_version": item.get("contract_version") or response.get("contract_version") or tracking.get("contract_version"),
+                        "request_type": item.get("request_type") or response.get("request_type"),
+                        "response_type": item.get("response_type") or response.get("response_type") or "result_envelope",
+                        "check_only": bool(item.get("check_only") if item.get("check_only") is not None else response.get("check_only", False)),
+                        "status_query": item.get("status_query") or response.get("status_query") or tracking.get("last_submission", {}).get("status_query"),
+                    },
                     "provenance": {
                         "results_path": str(results_path),
                         "job_spec_path": (queue_item.get("job_package") or {}).get("job_spec_path"),
-                        "remote_target": item.get("remote_target") or queue_item.get("simulation", {}).get("parameters", {}).get("remote_target"),
+                        "remote_target": item.get("remote_target") or response.get("remote_target") or queue_item.get("simulation", {}).get("parameters", {}).get("remote_target"),
                         "raw_status": outputs.get("status"),
+                        "request_id": item.get("request_id") or response.get("request_id") or tracking.get("request_id"),
                     },
                 }
             )

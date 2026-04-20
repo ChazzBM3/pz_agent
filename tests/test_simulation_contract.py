@@ -104,6 +104,7 @@ def test_simulation_manifest_declares_current_default_contract(tmp_path: Path, m
     defaults = manifest["simulation_defaults"]
     params = defaults["parameters"]
 
+    assert manifest["contract_version"] == "atomisticskills.request_response.v1"
     assert defaults["simulation_type"] == "geometry_optimization"
     assert defaults["backend"] == "atomisticskills_orca"
     assert defaults["engine"] == "orca"
@@ -141,6 +142,9 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     assert queue[0]["simulation"]["parameters"]["solvent"] == "water"
     assert queue[0]["simulation"]["parameters"]["remote_target"] == "cluster-alpha"
 
+    assert job_spec["contract_version"] == "atomisticskills.request_response.v1"
+    assert job_spec["request_type"] == "submit_simulation"
+    assert job_spec["operation"]["check_only"] is False
     assert job_spec["parameters"]["dispersion"] == "D3"
     assert job_spec["parameters"]["solvation"] == "CPCM"
     assert job_spec["parameters"]["solvent"] == "water"
@@ -157,6 +161,8 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     ]
     assert job_spec["provenance"]["remote_target"] == "cluster-alpha"
 
+    assert submissions[0]["response_type"] == "submission_ack"
+    assert submissions[0]["status_query"]["check_only"] is True
     assert submissions[0]["status"] == "submitted"
     assert submissions[0]["backend"] == "atomisticskills_orca"
     assert submissions[0]["remote_target"] == "cluster-alpha"

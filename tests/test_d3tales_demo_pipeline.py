@@ -201,6 +201,9 @@ def test_d3tales_demo_pipeline_with_validation_ingest_exercises_end_to_end_loop(
     (run_dir / "remote_results.json").write_text(
         json.dumps([
             {
+                "contract_version": "atomisticskills.request_response.v1",
+                "request_type": "submit_simulation",
+                "response_type": "result_envelope",
                 "candidate_id": "rec_a",
                 "submission_id": "demo-submit-001",
                 "status": "completed",
@@ -208,6 +211,7 @@ def test_d3tales_demo_pipeline_with_validation_ingest_exercises_end_to_end_loop(
                 "engine": "orca",
                 "simulation_type": "geometry_optimization",
                 "remote_target": "cluster-demo",
+                "status_query": {"check_only": True, "submission_id": "demo-submit-001", "job_id": None},
                 "outputs": {
                     "final_energy": -100.5,
                     "optimized_structure": "rec_a_optimized.xyz",

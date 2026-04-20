@@ -11,6 +11,9 @@ CSV_TEXT = """_id,smiles,source_group,sa_score,oxidation_potential,reduction_pot
 
 RESULTS_PAYLOAD = [
     {
+        "contract_version": "atomisticskills.request_response.v1",
+        "request_type": "submit_simulation",
+        "response_type": "result_envelope",
         "candidate_id": "rec_a",
         "submission_id": "contract-submit-001",
         "status": "completed",
@@ -18,6 +21,7 @@ RESULTS_PAYLOAD = [
         "engine": "orca",
         "simulation_type": "geometry_optimization",
         "remote_target": "cluster-alpha",
+        "status_query": {"check_only": True, "submission_id": "contract-submit-001", "job_id": None},
         "outputs": {
             "final_energy": -123.456,
             "optimized_structure": "rec_a_optimized.xyz",
@@ -145,6 +149,9 @@ validation_ingest:
     assert state.validation[0]["outputs"]["has_groundState.lumo"] is True
     assert state.validation[0]["outputs"]["has_groundState.homo_lumo_gap"] is True
     assert state.validation[0]["outputs"]["has_groundState.dipole_moment"] is True
+    assert state.validation[0]["operation"]["contract_version"] == "atomisticskills.request_response.v1"
+    assert state.validation[0]["operation"]["response_type"] == "result_envelope"
+    assert state.validation[0]["operation"]["status_query"]["check_only"] is True
     assert state.validation[0]["predicted_reference"]["predicted_solubility"] is not None
     assert state.validation[0]["predicted_reference"]["predicted_synthesizability"] is not None
     assert "final_energy_minus_predicted_priority" in state.validation[0]["comparison"]
@@ -163,6 +170,7 @@ validation_ingest:
 
     validation_results = json.loads((run_dir / "validation_results.json").read_text())
     assert validation_results[0]["candidate_id"] == "rec_a"
+    assert validation_results[0]["operation"]["response_type"] == "result_envelope"
     assert validation_results[0]["submission_id"] == "contract-submit-001"
     assert validation_results[0]["outputs"]["has_optimized_structure"] is True
 
