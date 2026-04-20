@@ -16,3 +16,13 @@ class SimulationBackend(Protocol):
         submit_config: dict,
     ) -> dict:
         ...
+
+    def check(
+        self,
+        *,
+        candidate_id: str,
+        submission: dict,
+        simulation: dict,
+        check_config: dict,
+    ) -> dict:
+        ...

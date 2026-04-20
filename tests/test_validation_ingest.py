@@ -107,6 +107,7 @@ pipeline:
     - graph_expansion
     - simulation_handoff
     - simulation_submit
+    - simulation_check
     - validation_ingest
     - knowledge_graph
     - reporter

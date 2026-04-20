@@ -45,3 +45,31 @@ class AtomisticSkillsBackend:
             },
             "submitted_at": datetime.now(timezone.utc).isoformat(),
         }
+
+    def check(
+        self,
+        *,
+        candidate_id: str,
+        submission: dict,
+        simulation: dict,
+        check_config: dict,
+    ) -> dict:
+        remote_target = submission.get("remote_target") or simulation.get("parameters", {}).get("remote_target")
+        status = str(check_config.get("default_status", submission.get("status", "submitted")))
+        return {
+            "contract_version": CONTRACT_VERSION,
+            "request_type": "check_simulation",
+            "response_type": "status_envelope",
+            "candidate_id": candidate_id,
+            "submission_id": submission.get("submission_id"),
+            "job_id": submission.get("job_id"),
+            "status": status,
+            "backend": submission.get("backend") or simulation.get("backend"),
+            "engine": submission.get("engine") or simulation.get("engine"),
+            "skill": submission.get("skill") or simulation.get("skill"),
+            "execution_mode": submission.get("execution_mode") or simulation.get("execution_mode"),
+            "remote_target": remote_target,
+            "check_only": True,
+            "remote_settings": {"target": remote_target},
+            "checked_at": datetime.now(timezone.utc).isoformat(),
+        }

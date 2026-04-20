@@ -75,6 +75,7 @@ pipeline:
     - graph_expansion
     - simulation_handoff
     - simulation_submit
+    - simulation_check
 kg:
   backend: json
   path: artifacts/knowledge_graph.json
@@ -135,6 +136,7 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
 
     queue = json.loads((run_dir / "simulation_queue.json").read_text())
     submissions = json.loads((run_dir / "simulation_submissions.json").read_text())
+    checks = json.loads((run_dir / "simulation_checks.json").read_text())
     job_spec = json.loads((run_dir / "orca_jobs" / "rec_a" / "orca_job.json").read_text())
 
     assert queue[0]["simulation"]["parameters"]["dispersion"] == "D3"
@@ -164,6 +166,9 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     assert submissions[0]["response_type"] == "submission_ack"
     assert submissions[0]["status_query"]["check_only"] is True
     assert submissions[0]["status"] == "submitted"
+    assert checks[0]["request_type"] == "check_simulation"
+    assert checks[0]["response_type"] == "status_envelope"
+    assert checks[0]["check_only"] is True
     assert submissions[0]["backend"] == "atomisticskills_orca"
     assert submissions[0]["remote_target"] == "cluster-alpha"
     assert submissions[0]["submission_id"].startswith("contract-submit-")

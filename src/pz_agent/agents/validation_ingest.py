@@ -102,6 +102,7 @@ class ValidationIngestAgent(BaseAgent):
 
         queue_by_candidate = {item.get("candidate_id"): item for item in (state.simulation_queue or []) if item.get("candidate_id")}
         prediction_by_candidate = {item.get("id"): item for item in (state.predictions or []) if item.get("id")}
+        checks_by_candidate = {item.get("candidate_id"): item for item in (state.simulation_checks or []) if item.get("candidate_id")}
 
         validation_records: list[dict] = []
         for item in payload:
@@ -115,6 +116,7 @@ class ValidationIngestAgent(BaseAgent):
             queue_item = dict(queue_by_candidate.get(candidate_id) or {})
             prediction = dict(prediction_by_candidate.get(candidate_id) or {})
             tracking = dict(queue_item.get("tracking") or {})
+            check_record = dict(checks_by_candidate.get(candidate_id) or {})
             outputs = outputs_payload
             normalized_outputs = _normalize_outputs(outputs)
             normalized_status = _normalize_status(item.get("status") or response.get("status"), outputs.get("status"))
@@ -158,7 +160,7 @@ class ValidationIngestAgent(BaseAgent):
                         "request_type": item.get("request_type") or response.get("request_type"),
                         "response_type": item.get("response_type") or response.get("response_type") or "result_envelope",
                         "check_only": bool(item.get("check_only") if item.get("check_only") is not None else response.get("check_only", False)),
-                        "status_query": item.get("status_query") or response.get("status_query") or tracking.get("last_submission", {}).get("status_query"),
+                        "status_query": item.get("status_query") or response.get("status_query") or check_record or tracking.get("last_submission", {}).get("status_query"),
                     },
                     "provenance": {
                         "results_path": str(results_path),
