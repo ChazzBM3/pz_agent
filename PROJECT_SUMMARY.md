@@ -39,7 +39,7 @@ The strongest part of the project is no longer just the stage layout. It is the 
    - the system can derive frontier hypotheses from KG state and turn them into structured action requests rather than free-form autonomous wandering
 
 4. **Screening-to-simulation bridge**
-   - top candidates can now be packaged into simulation queue artifacts and submission records, moving the repo closer to an operational validation loop
+   - top candidates can now be packaged into simulation queue artifacts and submission records, and usable validation results can be ingested back into reports and the KG
 
 5. **Scientific memory with provenance**
    - molecules, papers, predictions, evidence, dataset records, reports, and queued actions are all represented as campaign memory rather than one-off run debris
@@ -48,8 +48,8 @@ The strongest part of the project is no longer just the stage layout. It is the 
 
 ## Overall maturity
 
-The repo is now a **serious research prototype with an emerging operational loop**.
-It is no longer just an architecture scaffold. The interesting question is no longer “what should the system be?” so much as “which loop should be hardened first?”
+The repo is now a **serious research prototype with a working but still-stubbed operational loop**.
+It is no longer just an architecture scaffold. The interesting question is no longer “what should the system be?” so much as “which part of the loop should be hardened next?”
 
 GitHub:
 - <https://github.com/ChazzBM3/pz_agent>
@@ -91,23 +91,25 @@ GitHub:
   - `evidence_query`
   - `bridge_expansion`
 
-### Simulation path
+### Simulation and validation path
 - `simulation_handoff` packages shortlisted candidates into queue records and per-candidate job bundles
 - queue and manifest artifacts are written to disk
 - current default packaged calculation is an ORCA geometry optimization / minimum search using `PBE`, `def2-SVP`, `D3`, and implicit water via `CPCM`
-- `simulation_submit` can emit backend submission records
-- simulation backend abstraction exists, with current AtomisticSkills submit path stubbed for contract validation
+- `simulation_submit` emits backend submission records through a simulation backend abstraction
+- `validation_ingest` reads remote result payloads, normalizes outputs/status, classifies result quality, and writes `validation_results.json`
+- usable validation results are added back into the KG as `SimulationResult` and `ValidationOutcome` nodes
+- current AtomisticSkills submit path remains stubbed for contract validation rather than live remote execution
 
 ## 5. Main gaps
 
-The biggest remaining gap is now **loop closure**, not architecture.
+The biggest remaining gap is now **remote execution hardening and downstream rigor**, not basic loop closure.
 
-### 1. Validation-first hardening is incomplete
-The repo can generate simulation-ready artifacts, but the end-to-end validation path still needs to be exercised and tightened:
-- config paths need to include `simulation_submit` where appropriate
-- queue artifacts need explicit contract validation
+### 1. Validation path now works, but needs stronger contract hardening
+The repo can now generate simulation-ready artifacts, emit submission records, ingest completed results, and write usable validation outcomes back into the KG and reports. The next hardening work is around making that path operationally trustworthy:
+- queue artifacts still need explicit contract validation against a real executor
 - submission records need to be checked against a real remote-execution design
-- eventual results-ingest/validator stages still need to be formalized
+- result payload requirements should be tightened and documented as an acceptance contract
+- downstream validator / result-consumer stages should become more formal than simple ingest
 
 ### 2. Scoring remains partially heuristic
 - synthesizability and solubility scoring are still not production-grade
@@ -128,23 +130,20 @@ The repo can generate simulation-ready artifacts, but the end-to-end validation 
 
 The recommended next sequence is:
 
-1. **Validation first**
-   - run the simulation handoff/submission path end to end on a clean config
-   - inspect artifacts and contract completeness
+1. **Remote simulation contract hardening**
+   - define the required request/response contract for a real ORCA or AtomisticSkills target
+   - inspect emitted queue, manifest, submission, and validation artifacts for completeness
    - turn the current stub-backed simulation path into a testable acceptance gate
 
-2. **Remote simulation contract hardening**
+2. **Result-ingest and validator hardening**
    - define exactly what a remote ORCA or AtomisticSkills execution target must accept and return
    - keep `pz_agent` as orchestrator, not the executor
 
-3. **Result ingestion and validator loop**
-   - add the downstream stage that consumes completed simulation outputs and writes them back into KG and reports
-
-4. **Then deeper bridge chemistry refinement**
+3. **Then deeper bridge chemistry refinement**
    - make bridge reasoning compete for simulation budget using actual validation outcomes instead of only internal belief structure
 
 ## 7. Bottom line
 
 `pz_agent` is now best understood as a **KG-backed phenothiazine screening and validation orchestrator**.
 
-The repo already has enough architecture for the next meaningful milestone. The highest-leverage move is to harden the **screening -> simulation -> validation** loop before doing another large conceptual expansion.
+The repo already has enough architecture for the next meaningful milestone. The highest-leverage move is to harden the now-working **screening -> simulation -> validation** loop into a real remote-execution contract before doing another large conceptual expansion.
