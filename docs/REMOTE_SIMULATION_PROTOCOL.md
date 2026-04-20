@@ -258,15 +258,25 @@ simulation_check:
   remote_root: /path/to/pz_agent_jobs
 ```
 
-Current cluster-shaped template assumptions now mirror the provided dummy Supercloud-style submission pattern:
-- partition: `xeon-p8`
-- `#SBATCH -N 1`
-- task count derived from ORCA `nprocs`
-- `--mem-per-cpu=2000`
-- `--no-requeue`
-- `module load mpi/openmpi-4.1.8`
-- ORCA directory rooted at `/home/gridsan/groups/rgb_shared/software/orca/orca_6_0_0_linux_x86-64_shared_openmpi416`
-- scratch-first execution with copy-back into `SLURM_SUBMIT_DIR`
+Scheduler and environment settings should now be carried in `orca_job.json` under a `scheduler` block, then consumed by the remote wrapper.
+
+A representative config shape is:
+
+```yaml
+simulation:
+  scheduler:
+    system: slurm
+    partition: xeon-p8
+    nodes: 1
+    time: 00:10:00
+    mem_per_cpu: 2000
+    no_requeue: true
+    job_name_prefix: pztest
+    mpi_module: mpi/openmpi-4.1.8
+    orca_dir: /home/gridsan/groups/rgb_shared/software/orca/orca_6_0_0_linux_x86-64_shared_openmpi416
+```
+
+The wrapper should treat the job spec, not its own hard-coded defaults, as the source of truth.
 
 ## Acceptance criteria for first real integration
 

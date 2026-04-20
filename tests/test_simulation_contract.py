@@ -87,6 +87,16 @@ search:
 simulation:
   max_candidates: 2
   remote_target: cluster-alpha
+  scheduler:
+    system: slurm
+    partition: xeon-p8
+    nodes: 1
+    time: 00:10:00
+    mem_per_cpu: 2000
+    no_requeue: true
+    job_name_prefix: pztest
+    mpi_module: mpi/openmpi-4.1.8
+    orca_dir: /home/gridsan/groups/rgb_shared/software/orca/orca_6_0_0_linux_x86-64_shared_openmpi416
 simulation_submit:
   submission_prefix: contract-submit
   transport: ssh
@@ -173,6 +183,10 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     assert job_spec["parameters"]["solvation"] == "CPCM"
     assert job_spec["parameters"]["solvent"] == "water"
     assert job_spec["parameters"]["dispersion"] == "D3"
+    assert job_spec["scheduler"]["system"] == "slurm"
+    assert job_spec["scheduler"]["partition"] == "xeon-p8"
+    assert job_spec["scheduler"]["job_name"] == "pztest_rec_a"
+    assert job_spec["scheduler"]["mpi_module"] == "mpi/openmpi-4.1.8"
 
     assert submissions[0]["response_type"] == "submission_ack"
     assert submissions[0]["status_query"]["check_only"] is True

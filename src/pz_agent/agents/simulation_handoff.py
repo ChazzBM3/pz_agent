@@ -8,8 +8,24 @@ from pz_agent.state import RunState
 CONTRACT_VERSION = "orca_slurm.request_response.v1"
 
 
+def _scheduler_settings(simulation_cfg: dict, candidate_id: str) -> dict:
+    scheduler_cfg = dict(simulation_cfg.get("scheduler") or {})
+    return {
+        "system": scheduler_cfg.get("system", "slurm"),
+        "partition": scheduler_cfg.get("partition", "xeon-p8"),
+        "nodes": int(scheduler_cfg.get("nodes", 1) or 1),
+        "time": str(scheduler_cfg.get("time", "00:10:00")),
+        "mem_per_cpu": str(scheduler_cfg.get("mem_per_cpu", "2000")),
+        "no_requeue": bool(scheduler_cfg.get("no_requeue", True)),
+        "job_name": str(scheduler_cfg.get("job_name_prefix", "orca") ) + f"_{candidate_id}",
+        "mpi_module": scheduler_cfg.get("mpi_module", "mpi/openmpi-4.1.8"),
+        "orca_dir": scheduler_cfg.get("orca_dir", "/home/gridsan/groups/rgb_shared/software/orca/orca_6_0_0_linux_x86-64_shared_openmpi416"),
+    }
+
+
 def _orca_remote_spec(item: dict, simulation_cfg: dict) -> dict:
     identity = dict(item.get("identity") or {})
+    candidate_id = str(item.get("id") or item.get("candidate_id") or "job")
     return {
         "backend": simulation_cfg.get("backend", "orca_slurm"),
         "engine": simulation_cfg.get("engine", "orca"),
@@ -31,6 +47,7 @@ def _orca_remote_spec(item: dict, simulation_cfg: dict) -> dict:
         "calculator_settings": simulation_cfg.get("calculator_settings"),
         "optimizer_settings": simulation_cfg.get("optimizer_settings"),
         "remote_target": simulation_cfg.get("remote_target"),
+        "scheduler": _scheduler_settings(simulation_cfg, candidate_id),
     }
 
 
@@ -95,6 +112,7 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
         "execution_mode": simulation.get("execution_mode", "remote"),
         "requested_outputs": simulation.get("requested_outputs") or [],
         "parameters": parameters,
+        "scheduler": dict(simulation.get("scheduler") or {}),
         "operation": {
             "execution_mode": simulation.get("execution_mode", "remote"),
             "check_only": False,
@@ -145,7 +163,7 @@ class SimulationHandoffAgent(BaseAgent):
         parameters = {
             key: value
             for key, value in remote_spec.items()
-            if key not in {"backend", "engine", "execution_mode", "skill", "simulation_type"}
+            if key not in {"backend", "engine", "execution_mode", "skill", "simulation_type", "scheduler"}
         }
         requested_outputs = _requested_outputs(simulation_cfg)
 
@@ -157,7 +175,7 @@ class SimulationHandoffAgent(BaseAgent):
             per_item_parameters = {
                 key: value
                 for key, value in per_item_spec.items()
-                if key not in {"backend", "engine", "execution_mode", "skill", "simulation_type"}
+                if key not in {"backend", "engine", "execution_mode", "skill", "simulation_type", "scheduler"}
             }
             record = {
                 "id": item.get("id"),
@@ -190,6 +208,7 @@ class SimulationHandoffAgent(BaseAgent):
                     "execution_mode": per_item_spec.get("execution_mode", "remote"),
                     "parameters": per_item_parameters,
                     "requested_outputs": requested_outputs,
+                    "scheduler": per_item_spec.get("scheduler", {}),
                 },
                 "dft": {
                     "job_type": per_item_spec.get("simulation_type", "geometry_optimization"),

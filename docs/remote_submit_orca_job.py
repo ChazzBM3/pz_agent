@@ -288,14 +288,9 @@ def main(argv: list[str]) -> int:
 
     scheduler_script = write_scheduler_script(running_dir, job_spec)
     scheduler_config = {
-        "system": "slurm",
+        **dict(job_spec.get("scheduler") or {}),
         "submit_command": ["sbatch", str(scheduler_script.name)],
         "script_path": str(scheduler_script),
-        "partition": "xeon-p8",
-        "time": "00:10:00",
-        "mem_per_cpu": "2000",
-        "mpi_module": "mpi/openmpi-4.1.8",
-        "orca_dir": "/home/gridsan/groups/rgb_shared/software/orca/orca_6_0_0_linux_x86-64_shared_openmpi416",
     }
     write_json(running_dir / "scheduler.json", scheduler_config)
     write_json(running_dir / "status.json", status_payload(job_spec, status="staged", job_id=job_id, scheduler=scheduler_config))
