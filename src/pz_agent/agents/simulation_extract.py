@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
 
 from pz_agent.agents.base import BaseAgent
@@ -44,22 +46,78 @@ def _artifact_path(queue_item: dict, artifact_name: str) -> Path | None:
     return Path(job_dir) / artifact_name
 
 
-def _artifact_payloads(state: RunState) -> tuple[list[dict], Path | None]:
+def _run_remote_cat(command: str) -> dict:
+    result = subprocess.run(command, shell=True, text=True, capture_output=True)
+    return {
+        "command": command,
+        "returncode": result.returncode,
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "ok": result.returncode == 0,
+    }
+
+
+def _artifact_payloads(state: RunState, extract_cfg: dict) -> tuple[list[dict], Path | None]:
     payload: list[dict] = []
+    remote_fetches: list[dict] = []
+    seen_keys: set[tuple[str | None, str | None, str | None]] = set()
+    transport = str(extract_cfg.get("transport", "")).strip().lower()
+    remote_host_override = extract_cfg.get("remote_host")
+
     for queue_item in list(state.simulation_queue or []):
         result_path = _artifact_path(queue_item, "result.json")
         failure_path = _artifact_path(queue_item, "failure.json")
         if result_path and result_path.exists():
             item = read_json(result_path)
             if isinstance(item, dict):
-                payload.append(item)
-        elif failure_path and failure_path.exists():
+                key = (item.get("candidate_id"), item.get("submission_id"), item.get("job_id"))
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    payload.append(item)
+            continue
+        if failure_path and failure_path.exists():
             item = read_json(failure_path)
             if isinstance(item, dict):
-                payload.append(item)
+                key = (item.get("candidate_id"), item.get("submission_id"), item.get("job_id"))
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    payload.append(item)
+            continue
+
+        submission = dict(queue_item.get("submission") or {})
+        staging = dict(submission.get("staging") or {})
+        remote_job_dir = staging.get("remote_job_dir")
+        remote_host = remote_host_override or staging.get("remote_host")
+        remote_transport = transport or str(staging.get("transport") or "").strip().lower()
+        if remote_transport != "ssh" or not remote_job_dir or not remote_host:
+            continue
+
+        for artifact_name in ("result.json", "failure.json"):
+            command = f"ssh {remote_host} 'cat {remote_job_dir.rstrip('/')}/{artifact_name}'"
+            fetched = _run_remote_cat(command)
+            if not fetched.get("ok") or not str(fetched.get("stdout") or "").strip():
+                remote_fetches.append({"artifact": artifact_name, **fetched})
+                continue
+            try:
+                item = json.loads(fetched.get("stdout") or "{}")
+            except Exception:
+                remote_fetches.append({"artifact": artifact_name, **fetched, "ok": False, "stderr": "invalid json from remote artifact fetch"})
+                continue
+            if isinstance(item, dict):
+                key = (item.get("candidate_id"), item.get("submission_id"), item.get("job_id"))
+                remote_fetches.append({"artifact": artifact_name, **fetched})
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    payload.append(item)
+                break
 
     if payload:
-        return payload, state.run_dir / "simulation_artifact_results.json"
+        results_path = state.run_dir / "simulation_artifact_results.json"
+        write_json(results_path, payload)
+        write_json(state.run_dir / "simulation_remote_fetch_log.json", remote_fetches)
+        return payload, results_path
+    if remote_fetches:
+        write_json(state.run_dir / "simulation_remote_fetch_log.json", remote_fetches)
     return [], None
 
 
@@ -68,7 +126,7 @@ class SimulationExtractAgent(BaseAgent):
 
     def run(self, state: RunState) -> RunState:
         extract_cfg = dict((state.config.get("simulation_extract", {}) or {}))
-        payload, results_path = _artifact_payloads(state)
+        payload, results_path = _artifact_payloads(state, extract_cfg)
 
         if not payload:
             results_relpath = extract_cfg.get("results_path") or (state.config.get("validation_ingest", {}) or {}).get("results_path")

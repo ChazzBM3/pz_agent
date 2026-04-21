@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 from pz_agent.runner import run_pipeline
@@ -214,3 +215,112 @@ simulation_extract:
     assert state.simulation_extractions[0]["candidate_id"] == "rec_a"
     assert state.simulation_extractions[0]["outputs"]["final_energy"] == -111.1
     assert state.simulation_extractions[0]["provenance"]["results_path"].endswith("simulation_artifact_results.json")
+
+
+def test_simulation_extract_can_fetch_remote_artifact_over_ssh(tmp_path: Path, monkeypatch) -> None:
+    _patch_retrieval(monkeypatch)
+    csv_path = tmp_path / "remote_artifact_extract.csv"
+    csv_path.write_text(CSV_TEXT, encoding="utf-8")
+    run_dir = tmp_path / "run_remote_artifact_extract"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    config_path = tmp_path / "remote_artifact_extract.yaml"
+    config_path.write_text(
+        f"""
+project:
+  name: simulation-remote-artifact-extract-test
+generation:
+  engine: d3tales_csv
+  d3tales_csv_path: {csv_path}
+  d3tales_limit: 2
+  d3tales_phenothiazine_only: true
+  prompts:
+    objective: simulation remote artifact extract test
+screening:
+  shortlist_size: 2
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - critique_reranker
+    - knowledge_graph
+    - graph_expansion
+    - simulation_handoff
+    - simulation_submit
+    - simulation_check
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: false
+  max_candidates: 2
+search:
+  backend: stub
+simulation:
+  max_candidates: 2
+  remote_target: cluster-alpha
+simulation_submit:
+  submission_prefix: remote-artifact-submit
+  transport: ssh
+  remote_host: user@cluster.example.edu
+  remote_root: /scratch/pz_agent_jobs
+  remote_submit_command: /opt/pz_agent/bin/remote_submit_orca_job.py
+  stage_method: rsync
+  job_id_prefix: pzjob
+simulation_extract:
+  results_path: remote_results.json
+  transport: ssh
+  remote_host: user@cluster.example.edu
+""",
+        encoding="utf-8",
+    )
+
+    state = run_pipeline(config_path, run_dir=run_dir)
+
+    def fake_run(command, shell, text, capture_output):
+        assert shell is True
+        if command.endswith("/result.json'"):
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=json.dumps(
+                    {
+                        "contract_version": "orca_slurm.request_response.v1",
+                        "request_type": "extract_simulation_result",
+                        "response_type": "result_envelope",
+                        "candidate_id": "rec_a",
+                        "submission_id": "remote-artifact-submit-001",
+                        "job_id": "pzjob-rec_a-001",
+                        "status": "completed",
+                        "backend": "orca_slurm",
+                        "engine": "orca",
+                        "simulation_type": "geometry_optimization",
+                        "outputs": {
+                            "status": "completed",
+                            "final_energy": -222.2,
+                            "optimized_structure": "rec_a_remote.xyz"
+                        }
+                    }
+                ),
+                stderr="",
+            )
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr="missing")
+
+    monkeypatch.setattr("pz_agent.agents.simulation_extract.subprocess.run", fake_run)
+
+    from pz_agent.agents.simulation_extract import SimulationExtractAgent
+
+    state = SimulationExtractAgent(config=state.config).run(state)
+
+    assert len(state.simulation_extractions or []) == 1
+    assert state.simulation_extractions[0]["candidate_id"] == "rec_a"
+    assert state.simulation_extractions[0]["outputs"]["final_energy"] == -222.2
+    assert (run_dir / "simulation_remote_fetch_log.json").exists()
