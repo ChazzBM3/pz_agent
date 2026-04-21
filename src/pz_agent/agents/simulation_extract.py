@@ -7,6 +7,7 @@ from pathlib import Path
 from pz_agent.agents.base import BaseAgent
 from pz_agent.io import read_json, write_json
 from pz_agent.state import RunState
+from pz_agent.simulation.backends import get_simulation_backend
 
 
 def _normalize_result_envelope(item: dict, queue_item: dict, results_path: Path) -> dict:
@@ -65,6 +66,26 @@ def _artifact_payloads(state: RunState, extract_cfg: dict) -> tuple[list[dict], 
     remote_host_override = extract_cfg.get("remote_host")
 
     for queue_item in list(state.simulation_queue or []):
+        simulation = dict(queue_item.get("simulation") or {})
+        submission = dict(queue_item.get("submission") or {})
+        if submission:
+            backend_name = str(simulation.get("backend") or submission.get("backend") or "")
+            if backend_name:
+                backend = get_simulation_backend(backend_name)
+                extract_method = getattr(backend, "extract", None)
+                if callable(extract_method):
+                    extracted = extract_method(
+                        candidate_id=str(queue_item.get("candidate_id") or queue_item.get("id") or "unknown_candidate"),
+                        submission=submission,
+                        simulation=simulation,
+                        extract_config=extract_cfg,
+                    )
+                    if isinstance(extracted, dict):
+                        key = (extracted.get("candidate_id"), extracted.get("submission_id"), extracted.get("job_id"))
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            payload.append(extracted)
+                        continue
         result_path = _artifact_path(queue_item, "result.json")
         failure_path = _artifact_path(queue_item, "failure.json")
         if result_path and result_path.exists():
@@ -84,7 +105,6 @@ def _artifact_payloads(state: RunState, extract_cfg: dict) -> tuple[list[dict], 
                     payload.append(item)
             continue
 
-        submission = dict(queue_item.get("submission") or {})
         staging = dict(submission.get("staging") or {})
         remote_job_dir = staging.get("remote_job_dir")
         remote_host = remote_host_override or staging.get("remote_host")
