@@ -120,3 +120,97 @@ validation_ingest:
     rerun_candidates = json.loads((run_dir / "simulation_rerun_candidates.json").read_text())
     assert len(rerun_candidates) == 1
     assert rerun_candidates[0]["candidate_id"] == "rec_a"
+
+
+def test_simulation_extract_prefers_local_artifact_results(tmp_path: Path, monkeypatch) -> None:
+    _patch_retrieval(monkeypatch)
+    csv_path = tmp_path / "artifact_extract.csv"
+    csv_path.write_text(CSV_TEXT, encoding="utf-8")
+    run_dir = tmp_path / "run_artifact_extract"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    config_path = tmp_path / "artifact_extract.yaml"
+    config_path.write_text(
+        f"""
+project:
+  name: simulation-artifact-extract-test
+generation:
+  engine: d3tales_csv
+  d3tales_csv_path: {csv_path}
+  d3tales_limit: 2
+  d3tales_phenothiazine_only: true
+  prompts:
+    objective: simulation artifact extract test
+screening:
+  shortlist_size: 2
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - critique_reranker
+    - knowledge_graph
+    - graph_expansion
+    - simulation_handoff
+    - simulation_submit
+    - simulation_check
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: false
+  max_candidates: 2
+search:
+  backend: stub
+simulation:
+  max_candidates: 2
+  remote_target: cluster-alpha
+simulation_submit:
+  submission_prefix: artifact-submit
+simulation_extract:
+  results_path: remote_results.json
+""",
+        encoding="utf-8",
+    )
+
+    state = run_pipeline(config_path, run_dir=run_dir)
+    result_path = run_dir / "orca_jobs" / "rec_a" / "result.json"
+    result_path.write_text(
+        json.dumps(
+            {
+                "contract_version": "orca_slurm.request_response.v1",
+                "request_type": "extract_simulation_result",
+                "response_type": "result_envelope",
+                "candidate_id": "rec_a",
+                "submission_id": "artifact-submit-001",
+                "job_id": "stubjob-rec_a",
+                "status": "completed",
+                "backend": "orca_slurm",
+                "engine": "orca",
+                "simulation_type": "geometry_optimization",
+                "outputs": {
+                    "status": "completed",
+                    "final_energy": -111.1,
+                    "optimized_structure": "rec_a_opt.xyz"
+                }
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    from pz_agent.agents.simulation_extract import SimulationExtractAgent
+
+    state = SimulationExtractAgent(config=state.config).run(state)
+
+    assert len(state.simulation_extractions or []) == 1
+    assert state.simulation_extractions[0]["candidate_id"] == "rec_a"
+    assert state.simulation_extractions[0]["outputs"]["final_energy"] == -111.1
+    assert state.simulation_extractions[0]["provenance"]["results_path"].endswith("simulation_artifact_results.json")

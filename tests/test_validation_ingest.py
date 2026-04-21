@@ -194,3 +194,110 @@ validation_ingest:
     graph = json.loads(state.knowledge_graph_path.read_text())
     assert any(node["type"] == "SimulationResult" and node["attrs"].get("status") == "completed" for node in graph.get("nodes", []))
     assert any(node["type"] == "ValidationOutcome" and node["attrs"].get("status") == "completed" for node in graph.get("nodes", []))
+
+
+def test_validation_ingest_can_flow_from_local_artifact_result(tmp_path: Path, monkeypatch) -> None:
+    csv_path = tmp_path / "validation_artifact.csv"
+    csv_path.write_text(CSV_TEXT, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "pz_agent.agents.structure_expansion.expand_structure_with_pubchem",
+        lambda candidate, similarity_threshold=90, similarity_max_records=5, substructure_max_records=5, timeout=20: {
+            "query_smiles": candidate.get("smiles"),
+            "synonyms": [],
+            "exact_matches": [],
+            "similarity_matches": [],
+            "substructure_matches": [],
+            "status": "ok",
+        },
+    )
+    monkeypatch.setattr(
+        "pz_agent.agents.patent_retrieval.retrieve_patent_evidence_for_candidate",
+        lambda candidate, count=5, timeout=20: {
+            "queries": [],
+            "surechembl": [],
+            "patcid": [],
+            "errors": [],
+            "status": "ok",
+        },
+    )
+    monkeypatch.setattr(
+        "pz_agent.agents.scholarly_retrieval.retrieve_openalex_evidence_for_candidate",
+        lambda candidate, count=5, mode="balanced", max_queries=6, exact_query_budget=None, analog_query_budget=None, exploratory_query_budget=None: {
+            "queries": [],
+            "openalex": [],
+            "errors": [],
+            "status": "ok",
+        },
+    )
+
+    run_dir = tmp_path / "run_artifact"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    config_path = tmp_path / "validation_ingest_artifact.yaml"
+    config_path.write_text(
+        f"""
+project:
+  name: validation-ingest-artifact-test
+generation:
+  engine: d3tales_csv
+  d3tales_csv_path: {csv_path}
+  d3tales_limit: 2
+  d3tales_phenothiazine_only: true
+  prompts:
+    objective: validation ingest artifact test
+screening:
+  shortlist_size: 2
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - critique_reranker
+    - knowledge_graph
+    - graph_expansion
+    - simulation_handoff
+    - simulation_submit
+    - simulation_check
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: false
+  max_candidates: 2
+search:
+  backend: stub
+simulation:
+  max_candidates: 2
+  remote_target: cluster-alpha
+simulation_submit:
+  submission_prefix: artifact-submit
+simulation_extract:
+  results_path: remote_results.json
+validation_ingest:
+  results_path: remote_results.json
+""",
+        encoding="utf-8",
+    )
+
+    state = run_pipeline(config_path, run_dir=run_dir)
+    result_path = run_dir / "orca_jobs" / "rec_a" / "result.json"
+    result_path.write_text(json.dumps(RESULTS_PAYLOAD[0]), encoding="utf-8")
+
+    from pz_agent.agents.simulation_extract import SimulationExtractAgent
+    from pz_agent.agents.validation_ingest import ValidationIngestAgent
+
+    state = SimulationExtractAgent(config=state.config).run(state)
+    state = ValidationIngestAgent(config=state.config).run(state)
+
+    assert len(state.simulation_extractions or []) == 1
+    assert len(state.validation or []) == 1
+    assert state.validation[0]["candidate_id"] == "rec_a"
+    assert state.validation[0]["outputs"]["final_energy"] == -123.456
