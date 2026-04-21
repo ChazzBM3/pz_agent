@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pz_agent.agents.base import BaseAgent
+from pz_agent.chemistry.geometry import GeometryGenerationError, smiles_to_xyz
 from pz_agent.io import ensure_dir, write_json
 from pz_agent.state import RunState
 
@@ -91,9 +92,17 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
     job_dir = state.run_dir / "orca_jobs" / candidate_id
     ensure_dir(job_dir)
 
+    smiles = str(record.get("canonical_smiles") or record.get("smiles") or "").strip()
+    if not smiles:
+        raise ValueError(f"Simulation handoff requires SMILES for candidate {candidate_id}")
+    try:
+        geometry = smiles_to_xyz(smiles)
+    except GeometryGenerationError as exc:
+        raise ValueError(f"Failed to generate XYZ for candidate {candidate_id}: {exc}") from exc
+
     structure_filename = "input_structure.xyz"
     structure_path = job_dir / structure_filename
-    structure_path.write_text(f"1\n{candidate_id}\nC 0.0 0.0 0.0\n", encoding="utf-8")
+    structure_path.write_text(geometry.xyz_text, encoding="utf-8")
 
     simulation = dict(record.get("simulation") or {})
     parameters = dict(simulation.get("parameters") or {})
@@ -125,12 +134,14 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
         "provenance": {
             "stable_identity_key": record.get("stable_identity_key"),
             "smiles": record.get("smiles"),
+            "canonical_smiles": geometry.canonical_smiles,
             "selection_basis": record.get("selection_basis", {}),
             "remote_backend": simulation.get("backend"),
             "engine": simulation.get("engine"),
             "execution_mode": simulation.get("execution_mode"),
             "remote_target": parameters.get("remote_target"),
             "request_id": tracking.get("request_id"),
+            "geometry_embed_method": geometry.embed_method,
         },
     }
     write_json(job_dir / "orca_job.json", job_spec)
@@ -138,6 +149,10 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
         "job_dir": str(job_dir),
         "structure_path": str(structure_path),
         "job_spec_path": str(job_dir / "orca_job.json"),
+        "geometry_source": "smiles_to_xyz",
+        "geometry_embed_method": geometry.embed_method,
+        "canonical_smiles": geometry.canonical_smiles,
+        "atom_count": geometry.atom_count,
     }
 
 

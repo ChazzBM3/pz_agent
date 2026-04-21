@@ -109,7 +109,13 @@ class HtvsBackend:
         source_jobconfig = str(submit_config.get("source_jobconfig") or "seed_xyz_import").strip()
         source_method = str(submit_config.get("source_method") or "seed_xyz_import").strip()
         source_mode = str(submit_config.get("source_mode") or "geoms").strip()
-        geometry_path = str(submit_config.get("geometry_path") or job_spec_path or "").strip()
+        job_package = dict(submit_config.get("job_package") or {})
+        geometry_path = str(
+            submit_config.get("geometry_path")
+            or job_package.get("structure_path")
+            or job_spec_path
+            or ""
+        ).strip()
         job_roots = list(submit_config.get("job_roots") or [])
         request_limit = submit_config.get("request_limit")
         build_limit = submit_config.get("build_limit")

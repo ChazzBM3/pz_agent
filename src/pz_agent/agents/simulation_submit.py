@@ -24,16 +24,18 @@ class SimulationSubmitAgent(BaseAgent):
             retry_suffix = None
             if use_rerun_queue:
                 retry_suffix = str(item.get("retry_id") or retry_metadata.get("retry_prefix") or f"retry-{idx:03d}")
+            job_package = dict(item.get("job_package") or {})
             submission = backend.submit(
                 candidate_id=str(item.get("candidate_id") or item.get("id") or f"candidate-{idx}"),
                 queue_rank=item.get("queue_rank") or item.get("retry_index") or idx,
-                job_spec_path=str((item.get("job_package") or {}).get("job_spec_path") or item.get("job_spec_path") or ""),
+                job_spec_path=str(job_package.get("job_spec_path") or item.get("job_spec_path") or ""),
                 simulation=simulation,
                 submit_config={
                     **submit_cfg,
                     "remote_target": remote_target,
                     "submission_prefix": submission_prefix,
                     "retry_suffix": retry_suffix,
+                    "job_package": job_package,
                 },
             )
             submissions.append(submission)
