@@ -1,0 +1,22 @@
+[
+  {
+    "id": "demo-phenoxazine-001",
+    "smiles": "c1ccc2nc3ccccc3oc2c1",
+    "stable_identity_key": "mol_identity_demo_phenoxazine_001",
+    "predicted_priority": -1.23,
+    "predicted_priority_literature_adjusted": -1.11,
+    "ranking_rationale": {
+      "measurement_summary": "demo adapter candidate",
+      "measurement_values": {},
+      "literature_adjustment": [],
+      "evidence_sources": {},
+      "belief_state": {
+        "transferability_score": 0.7,
+        "simulation_support": 0.6
+      }
+    },
+    "identity": {
+      "canonical_smiles": "c1ccc2nc3ccccc3oc2c1"
+    }
+  }
+]

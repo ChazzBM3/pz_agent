@@ -1,0 +1,71 @@
+pipeline:
+  stages:
+    - simulation_handoff
+    - simulation_submit
+    - simulation_check
+    - simulation_extract
+
+simulation:
+  max_candidates: 1
+  backend: htvs_supercloud
+  engine: orca
+  execution_mode: remote
+  job_driver: htvs_manage_py
+  simulation_type: geometry_optimization
+  remote_target: supercloud
+  compute_tier: screening
+  budget_tag: htvs_demo
+  charge: 0
+  spin_multiplicity: 1
+  functional: PBE
+  basis_set: def2-SVP
+  dispersion: D3ZERO
+  solvation: CPCM
+  solvent: water
+  nprocs: 4
+  requested_outputs:
+    - optimized_structure
+    - final_energy
+    - status
+  scheduler:
+    system: slurm
+    partition: xeon-p8
+    time: "00:10:00"
+    mem_per_cpu: "2000"
+
+simulation_submit:
+  remote_target: supercloud
+  submission_prefix: htvs-demo
+  ssh_host: cmusgrave@txe1-login.mit.edu
+  htvs_root: /home/gridsan/cmusgrave/htvs
+  python_bin: /home/gridsan/cmusgrave/miniforge3/envs/htvs/bin/python
+  settings_module: djangochem.settings.orgel
+  project: openclaw_htvs_demo
+  source_jobconfig: seed_xyz_import
+  source_method: seed_xyz_import
+  source_mode: geoms
+  job_config: dft_opt_orca
+  compute_platform: supercloud
+  request_limit: 1
+  build_limit: 1
+  details:
+    compute_platform: supercloud
+    partitions: [xeon-p8]
+    functional: PBE
+    basisset: def2-SVP
+    orca_version: 6.0.0
+    nprocs: 4
+    maxcore: 1500
+    max_time: 60
+    scf_convergence: TightSCF
+    geom_convergence: TightOpt
+    convergence_strategy: NormalConv
+    usesym: false
+    uks: false
+    dispersion: D3ZERO
+    solvent: water
+  local_job_root_base: /Users/chazzm3/.openclaw/workspace/pz_agent/artifacts/htvs_adapter_demo/remote_jobs
+  remote_job_root_base: /home/gridsan/cmusgrave/htvs_tmp/pz_agent_htvs_adapter_demo
+
+simulation_check: {}
+simulation_extract: {}
