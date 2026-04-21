@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 try:
     from rdkit import Chem
@@ -23,6 +24,35 @@ class XyzGeometry:
 
 class GeometryGenerationError(RuntimeError):
     pass
+
+
+def normalize_xyz_text(xyz_text: str) -> XyzGeometry:
+    lines = [line.rstrip() for line in str(xyz_text or "").splitlines() if line.strip()]
+    if len(lines) < 3:
+        raise GeometryGenerationError("XYZ text is too short")
+    try:
+        atom_count = int(lines[0].strip())
+    except Exception as exc:
+        raise GeometryGenerationError("XYZ text is missing a valid atom count") from exc
+    atom_lines = lines[2:]
+    if len(atom_lines) != atom_count:
+        raise GeometryGenerationError(
+            f"XYZ atom count mismatch: header says {atom_count}, body has {len(atom_lines)} atoms"
+        )
+    return XyzGeometry(
+        atom_count=atom_count,
+        xyz_text="\n".join([str(atom_count), lines[1], *atom_lines]) + "\n",
+        embed_method="provided_xyz",
+        smiles="",
+        canonical_smiles=None,
+    )
+
+
+def load_xyz_file(path: str | Path) -> XyzGeometry:
+    xyz_path = Path(path).expanduser()
+    if not xyz_path.exists():
+        raise GeometryGenerationError(f"XYZ file not found: {xyz_path}")
+    return normalize_xyz_text(xyz_path.read_text(encoding="utf-8"))
 
 
 def smiles_to_xyz(smiles: str, *, random_seed: int = 0xF00D, optimize: bool = True) -> XyzGeometry:

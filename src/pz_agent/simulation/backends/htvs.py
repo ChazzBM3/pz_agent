@@ -117,11 +117,19 @@ class HtvsBackend:
             or ""
         ).strip()
         job_roots = list(submit_config.get("job_roots") or [])
+        local_job_root_base = str(submit_config.get("local_job_root_base") or "").strip()
+        remote_job_root_base = str(submit_config.get("remote_job_root_base") or "").strip()
         request_limit = submit_config.get("request_limit")
         build_limit = submit_config.get("build_limit")
         queue_rank = int(queue_rank or 0)
         submission_id = _submission_id(candidate_id, queue_rank, submit_config)
-        job_root = _candidate_job_root(job_roots, submission_id)
+        if job_roots:
+            job_root = Path(job_roots[0]).expanduser()
+        elif local_job_root_base:
+            job_root = Path(local_job_root_base).expanduser() / submission_id / "jobs"
+        else:
+            job_root = Path(submission_id) / "jobs"
+        remote_job_root = f"{remote_job_root_base.rstrip('/')}/{submission_id}/jobs" if remote_job_root_base else str(job_root)
         details = dict(submit_config.get("details") or {})
         compute_platform = str(details.get("compute_platform") or submit_config.get("compute_platform") or "supercloud")
 
@@ -135,7 +143,7 @@ class HtvsBackend:
             f"HTVS_ROOT={shlex.quote(htvs_root)}",
             f"PYTHON={shlex.quote(python_bin)}",
             f"PROJECT={shlex.quote(project)}",
-            f"JOB_ROOT={shlex.quote(str(job_root))}",
+            f"JOB_ROOT={shlex.quote(remote_job_root)}",
             f"GEOM_PATH={shlex.quote(geometry_path)}",
             "cd \"$HTVS_ROOT/djangochem\"",
             "export PYTHONPATH=\"$HTVS_ROOT:$HTVS_ROOT/djangochem\"",
@@ -235,6 +243,7 @@ class HtvsBackend:
                 "settings_module": settings_module,
                 "project": project,
                 "job_root": str(job_root),
+                "remote_job_root": remote_job_root,
                 "compute_platform": compute_platform,
             },
             "handoff_execution": {

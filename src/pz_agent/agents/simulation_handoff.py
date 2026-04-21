@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pz_agent.agents.base import BaseAgent
-from pz_agent.chemistry.geometry import GeometryGenerationError, smiles_to_xyz
+from pz_agent.chemistry.geometry import GeometryGenerationError, load_xyz_file, normalize_xyz_text, smiles_to_xyz
 from pz_agent.io import ensure_dir, write_json
 from pz_agent.state import RunState
 
@@ -87,18 +87,31 @@ def _tracking(record: dict, simulation: dict, state: RunState) -> dict:
     }
 
 
+def _resolve_geometry(record: dict) -> tuple[object, str]:
+    geometry_block = dict(record.get("geometry") or {})
+    xyz_text = geometry_block.get("xyz_text") or record.get("xyz_text")
+    xyz_path = geometry_block.get("xyz_path") or record.get("xyz_path")
+    if xyz_text:
+        return normalize_xyz_text(str(xyz_text)), "provided_xyz_text"
+    if xyz_path:
+        return load_xyz_file(str(xyz_path)), "provided_xyz_path"
+
+    smiles = str(record.get("canonical_smiles") or record.get("smiles") or "").strip()
+    if not smiles:
+        candidate_id = record.get("candidate_id") or "unknown_candidate"
+        raise ValueError(f"Simulation handoff requires SMILES or XYZ geometry for candidate {candidate_id}")
+    return smiles_to_xyz(smiles), "smiles_to_xyz"
+
+
 def _write_orca_job_package(state: RunState, record: dict) -> dict:
     candidate_id = record.get("candidate_id") or "unknown_candidate"
     job_dir = state.run_dir / "orca_jobs" / candidate_id
     ensure_dir(job_dir)
 
-    smiles = str(record.get("canonical_smiles") or record.get("smiles") or "").strip()
-    if not smiles:
-        raise ValueError(f"Simulation handoff requires SMILES for candidate {candidate_id}")
     try:
-        geometry = smiles_to_xyz(smiles)
+        geometry, geometry_source = _resolve_geometry(record)
     except GeometryGenerationError as exc:
-        raise ValueError(f"Failed to generate XYZ for candidate {candidate_id}: {exc}") from exc
+        raise ValueError(f"Failed to prepare XYZ for candidate {candidate_id}: {exc}") from exc
 
     structure_filename = "input_structure.xyz"
     structure_path = job_dir / structure_filename
@@ -142,6 +155,7 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
             "remote_target": parameters.get("remote_target"),
             "request_id": tracking.get("request_id"),
             "geometry_embed_method": geometry.embed_method,
+            "geometry_source": geometry_source,
         },
     }
     write_json(job_dir / "orca_job.json", job_spec)
@@ -149,7 +163,7 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
         "job_dir": str(job_dir),
         "structure_path": str(structure_path),
         "job_spec_path": str(job_dir / "orca_job.json"),
-        "geometry_source": "smiles_to_xyz",
+        "geometry_source": geometry_source,
         "geometry_embed_method": geometry.embed_method,
         "canonical_smiles": geometry.canonical_smiles,
         "atom_count": geometry.atom_count,
