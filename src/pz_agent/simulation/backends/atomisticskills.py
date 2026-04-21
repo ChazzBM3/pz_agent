@@ -77,6 +77,40 @@ def _run_stage_command(command: str, *, cwd: str | None = None) -> dict:
     }
 
 
+def _remote_status_fetch(submission: dict, check_config: dict) -> dict | None:
+    staging = dict(submission.get("staging") or {})
+    remote_job_dir = staging.get("remote_job_dir")
+    remote_host = check_config.get("remote_host") or staging.get("remote_host")
+    transport = str(check_config.get("transport") or staging.get("transport") or "").strip().lower()
+    if transport != "ssh" or not remote_job_dir or not remote_host:
+        return None
+
+    command = f"ssh {remote_host} 'cat {remote_job_dir.rstrip('/')}/status.json'"
+    result = _run_stage_command(command)
+    if not result.get("ok") or not result.get("stdout"):
+        return {
+            "ok": False,
+            "command": command,
+            "error": result.get("stderr") or result.get("stdout") or "remote status fetch failed",
+        }
+
+    import json as _json
+
+    try:
+        parsed = _json.loads(result.get("stdout") or "{}")
+    except Exception as exc:
+        return {
+            "ok": False,
+            "command": command,
+            "error": f"invalid remote status json: {exc}",
+        }
+    return {
+        "ok": True,
+        "command": command,
+        "payload": parsed,
+    }
+
+
 class AtomisticSkillsBackend:
     name = "orca_slurm"
 
@@ -179,6 +213,28 @@ class AtomisticSkillsBackend:
             payload["status_path"] = str(status_path)
             return payload
 
+        remote_fetch = _remote_status_fetch(submission, check_config)
+        if remote_fetch and remote_fetch.get("ok"):
+            payload = dict(remote_fetch.get("payload") or {})
+            payload.setdefault("contract_version", CONTRACT_VERSION)
+            payload.setdefault("request_type", "check_simulation")
+            payload.setdefault("response_type", "status_envelope")
+            payload.setdefault("candidate_id", candidate_id)
+            payload.setdefault("submission_id", submission.get("submission_id"))
+            payload.setdefault("job_id", submission.get("job_id"))
+            payload.setdefault("backend", submission.get("backend") or simulation.get("backend"))
+            payload.setdefault("engine", submission.get("engine") or simulation.get("engine"))
+            payload.setdefault("job_driver", submission.get("job_driver") or simulation.get("job_driver"))
+            payload.setdefault("execution_mode", submission.get("execution_mode") or simulation.get("execution_mode"))
+            payload.setdefault("remote_target", remote_target)
+            payload["check_only"] = True
+            payload["authoritative"] = bool(payload.get("authoritative", True))
+            payload["remote_settings"] = {"target": remote_target}
+            payload["checked_at"] = datetime.now(timezone.utc).isoformat()
+            payload["status_source"] = "remote_status_ssh"
+            payload["status_fetch"] = {"command": remote_fetch.get("command")}
+            return payload
+
         status = str(check_config.get("default_status", submission.get("status", "submitted")))
         authoritative = "default_status" in check_config
         return {
@@ -199,4 +255,5 @@ class AtomisticSkillsBackend:
             "remote_settings": {"target": remote_target},
             "checked_at": datetime.now(timezone.utc).isoformat(),
             "status_source": "default_status",
+            "status_fetch_error": remote_fetch.get("error") if remote_fetch else None,
         }

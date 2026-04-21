@@ -342,3 +342,58 @@ def test_simulation_submit_marks_failed_handoff_command(tmp_path: Path, monkeypa
     assert submission["handoff_execution"]["error_message"] == "rsync failed"
     assert len(submission["handoff_execution"]["command_results"]) == 2
     assert submission["handoff_execution"]["command_results"][1]["ok"] is False
+
+
+def test_simulation_check_can_fetch_remote_status_over_ssh(tmp_path: Path, monkeypatch) -> None:
+    run_dir = _run_contract_fixture(tmp_path, monkeypatch)
+
+    def fake_run(command, shell, text, capture_output, cwd=None):
+        assert command == "ssh user@cluster.example.edu 'cat /scratch/pz_agent_jobs/inbox/pzjob-rec_a-001/status.json'"
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(
+                {
+                    "contract_version": "orca_slurm.request_response.v1",
+                    "request_type": "check_simulation",
+                    "response_type": "status_envelope",
+                    "candidate_id": "rec_a",
+                    "submission_id": "contract-submit-001",
+                    "job_id": "pzjob-rec_a-001",
+                    "status": "running",
+                    "authoritative": True,
+                    "backend": "orca_slurm",
+                    "engine": "orca",
+                    "job_driver": "direct_orca",
+                    "execution_mode": "remote",
+                    "remote_target": "cluster-alpha"
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr("pz_agent.simulation.backends.atomisticskills.subprocess.run", fake_run)
+
+    from pz_agent.simulation.backends.atomisticskills import AtomisticSkillsBackend
+
+    queue = json.loads((run_dir / "simulation_queue.json").read_text())
+    queue_item = queue[0]
+    status_path = run_dir / "orca_jobs" / "rec_a" / "status.json"
+    if status_path.exists():
+        status_path.unlink()
+
+    backend = AtomisticSkillsBackend()
+    check = backend.check(
+        candidate_id="rec_a",
+        submission=queue_item["submission"],
+        simulation=queue_item["simulation"],
+        check_config={
+            "transport": "ssh",
+            "remote_host": "user@cluster.example.edu",
+        },
+    )
+
+    assert check["status"] == "running"
+    assert check["authoritative"] is True
+    assert check["status_source"] == "remote_status_ssh"
+    assert check["status_fetch"]["command"].startswith("ssh user@cluster.example.edu 'cat ")
