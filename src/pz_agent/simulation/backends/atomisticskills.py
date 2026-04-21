@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -59,6 +60,23 @@ def _remote_artifact_local_path(submission: dict, artifact_name: str) -> Path | 
     return Path(local_job_dir) / artifact_name
 
 
+def _run_stage_command(command: str, *, cwd: str | None = None) -> dict:
+    result = subprocess.run(
+        command,
+        shell=True,
+        text=True,
+        capture_output=True,
+        cwd=cwd,
+    )
+    return {
+        "command": command,
+        "returncode": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip(),
+        "ok": result.returncode == 0,
+    }
+
+
 class AtomisticSkillsBackend:
     name = "orca_slurm"
 
@@ -78,13 +96,32 @@ class AtomisticSkillsBackend:
         submission_id = f"{base_submission_id}-{retry_suffix}" if retry_suffix else base_submission_id
         job_id = _remote_job_id(candidate_id, queue_rank, submit_config)
         staging = _staging_details(job_id=job_id, submit_config=submit_config, job_spec_path=job_spec_path)
+        execute_handoff = bool(submit_config.get("execute_handoff", False))
+        command_results: list[dict] = []
+        status = "submitted"
+        response_type = "submission_ack"
+        error_message = None
+
+        if execute_handoff and staging.get("transport") == "ssh":
+            local_job_dir = staging.get("local_job_dir")
+            if local_job_dir:
+                Path(local_job_dir, ".submit_handoff_started").write_text(datetime.now(timezone.utc).isoformat(), encoding="utf-8")
+            for command in staging.get("stage_commands", []):
+                result = _run_stage_command(command)
+                command_results.append(result)
+                if not result.get("ok"):
+                    status = "failed"
+                    response_type = "submission_failure"
+                    error_message = result.get("stderr") or result.get("stdout") or "remote handoff command failed"
+                    break
+
         return {
             "contract_version": CONTRACT_VERSION,
             "request_type": "submit_simulation",
-            "response_type": "submission_ack",
+            "response_type": response_type,
             "candidate_id": candidate_id,
             "queue_rank": queue_rank,
-            "status": "submitted",
+            "status": status,
             "backend": simulation.get("backend"),
             "engine": simulation.get("engine"),
             "job_driver": simulation.get("job_driver"),
@@ -96,6 +133,11 @@ class AtomisticSkillsBackend:
             "check_only": False,
             "remote_settings": {"target": remote_target},
             "staging": staging,
+            "handoff_execution": {
+                "executed": execute_handoff and staging.get("transport") == "ssh",
+                "command_results": command_results,
+                "error_message": error_message,
+            },
             "status_query": {
                 "check_only": True,
                 "submission_id": submission_id,

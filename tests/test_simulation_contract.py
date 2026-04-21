@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 from pz_agent.runner import run_pipeline
@@ -253,3 +254,91 @@ def test_simulation_check_prefers_local_remote_status_artifact(tmp_path: Path, m
     assert check["authoritative"] is True
     assert check["status_source"] == "remote_status_artifact"
     assert check["status_path"].endswith("orca_jobs/rec_a/status.json")
+
+
+def test_simulation_submit_can_execute_real_handoff_commands(tmp_path: Path, monkeypatch) -> None:
+    run_dir = _run_contract_fixture(tmp_path, monkeypatch)
+
+    command_log: list[str] = []
+
+    def fake_run(command, shell, text, capture_output, cwd=None):
+        assert shell is True
+        assert text is True
+        assert capture_output is True
+        command_log.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    monkeypatch.setattr("pz_agent.simulation.backends.atomisticskills.subprocess.run", fake_run)
+
+    from pz_agent.simulation.backends.atomisticskills import AtomisticSkillsBackend
+
+    queue = json.loads((run_dir / "simulation_queue.json").read_text())
+    queue_item = queue[0]
+    backend = AtomisticSkillsBackend()
+    submission = backend.submit(
+        candidate_id="rec_a",
+        queue_rank=1,
+        job_spec_path=queue_item["job_package"]["job_spec_path"],
+        simulation=queue_item["simulation"],
+        submit_config={
+            "submission_prefix": "contract-submit",
+            "transport": "ssh",
+            "remote_host": "user@cluster.example.edu",
+            "remote_root": "/scratch/pz_agent_jobs",
+            "remote_submit_command": "/opt/pz_agent/bin/remote_submit_orca_job.py",
+            "stage_method": "rsync",
+            "job_id_prefix": "pzjob",
+            "remote_target": "cluster-alpha",
+            "execute_handoff": True,
+        },
+    )
+
+    assert submission["status"] == "submitted"
+    assert submission["response_type"] == "submission_ack"
+    assert submission["handoff_execution"]["executed"] is True
+    assert len(submission["handoff_execution"]["command_results"]) == 3
+    assert all(item["ok"] is True for item in submission["handoff_execution"]["command_results"])
+    assert command_log[0].startswith("mkdir -p /scratch/pz_agent_jobs/inbox/pzjob-rec_a-001")
+    assert "rsync -r" in command_log[1]
+    assert "ssh user@cluster.example.edu '/opt/pz_agent/bin/remote_submit_orca_job.py /scratch/pz_agent_jobs/inbox/pzjob-rec_a-001'" == command_log[2]
+
+
+def test_simulation_submit_marks_failed_handoff_command(tmp_path: Path, monkeypatch) -> None:
+    run_dir = _run_contract_fixture(tmp_path, monkeypatch)
+
+    def fake_run(command, shell, text, capture_output, cwd=None):
+        if command.startswith("rsync"):
+            return subprocess.CompletedProcess(command, 23, stdout="", stderr="rsync failed")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    monkeypatch.setattr("pz_agent.simulation.backends.atomisticskills.subprocess.run", fake_run)
+
+    from pz_agent.simulation.backends.atomisticskills import AtomisticSkillsBackend
+
+    queue = json.loads((run_dir / "simulation_queue.json").read_text())
+    queue_item = queue[0]
+    backend = AtomisticSkillsBackend()
+    submission = backend.submit(
+        candidate_id="rec_a",
+        queue_rank=1,
+        job_spec_path=queue_item["job_package"]["job_spec_path"],
+        simulation=queue_item["simulation"],
+        submit_config={
+            "submission_prefix": "contract-submit",
+            "transport": "ssh",
+            "remote_host": "user@cluster.example.edu",
+            "remote_root": "/scratch/pz_agent_jobs",
+            "remote_submit_command": "/opt/pz_agent/bin/remote_submit_orca_job.py",
+            "stage_method": "rsync",
+            "job_id_prefix": "pzjob",
+            "remote_target": "cluster-alpha",
+            "execute_handoff": True,
+        },
+    )
+
+    assert submission["status"] == "failed"
+    assert submission["response_type"] == "submission_failure"
+    assert submission["handoff_execution"]["executed"] is True
+    assert submission["handoff_execution"]["error_message"] == "rsync failed"
+    assert len(submission["handoff_execution"]["command_results"]) == 2
+    assert submission["handoff_execution"]["command_results"][1]["ok"] is False
