@@ -203,7 +203,53 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     assert checks[0]["response_type"] == "status_envelope"
     assert checks[0]["check_only"] is True
     assert checks[0]["authoritative"] is False
+    assert checks[0]["status_source"] == "default_status"
     assert submissions[0]["backend"] == "orca_slurm"
     assert submissions[0]["remote_target"] == "cluster-alpha"
     assert submissions[0]["retry_suffix"] is None
     assert submissions[0]["submission_id"].startswith("contract-submit-")
+
+
+def test_simulation_check_prefers_local_remote_status_artifact(tmp_path: Path, monkeypatch) -> None:
+    run_dir = _run_contract_fixture(tmp_path, monkeypatch)
+
+    status_path = run_dir / "orca_jobs" / "rec_a" / "status.json"
+    status_path.write_text(
+        json.dumps(
+            {
+                "contract_version": "orca_slurm.request_response.v1",
+                "request_type": "check_simulation",
+                "response_type": "status_envelope",
+                "candidate_id": "rec_a",
+                "submission_id": "contract-submit-001",
+                "job_id": "pzjob-rec_a-001",
+                "status": "running",
+                "authoritative": True,
+                "backend": "orca_slurm",
+                "engine": "orca",
+                "job_driver": "direct_orca",
+                "execution_mode": "remote",
+                "remote_target": "cluster-alpha",
+                "scheduler": {"system": "slurm", "scheduler_job_id": "123456"},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    from pz_agent.simulation.backends.atomisticskills import AtomisticSkillsBackend
+
+    backend = AtomisticSkillsBackend()
+    queue = json.loads((run_dir / "simulation_queue.json").read_text())
+    queue_item = queue[0]
+    check = backend.check(
+        candidate_id="rec_a",
+        submission=queue_item["submission"],
+        simulation=queue_item["simulation"],
+        check_config={},
+    )
+
+    assert check["status"] == "running"
+    assert check["authoritative"] is True
+    assert check["status_source"] == "remote_status_artifact"
+    assert check["status_path"].endswith("orca_jobs/rec_a/status.json")

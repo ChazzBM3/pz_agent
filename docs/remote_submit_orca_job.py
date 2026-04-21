@@ -203,8 +203,9 @@ def write_scheduler_script(running_dir: Path, job_spec: dict[str, Any]) -> Path:
         "python - <<'PY'\n"
         "import json\n"
         "from pathlib import Path\n"
-        "job_spec = json.loads(Path('orca_job.json').read_text())\n"
-        "job_out = Path('job.out').read_text(errors='ignore') if Path('job.out').exists() else ''\n"
+        "submit_dir = Path.cwd()\n"
+        "job_spec = json.loads((submit_dir / 'orca_job.json').read_text())\n"
+        "job_out = (submit_dir / 'job.out').read_text(errors='ignore') if (submit_dir / 'job.out').exists() else ''\n"
         "completed = 'ORCA TERMINATED NORMALLY' in job_out\n"
         "result = {\n"
         "  'contract_version': 'orca_slurm.request_response.v1',\n"
@@ -212,7 +213,7 @@ def write_scheduler_script(running_dir: Path, job_spec: dict[str, Any]) -> Path:
         "  'response_type': 'result_envelope' if completed else 'failure_envelope',\n"
         "  'candidate_id': job_spec.get('candidate_id'),\n"
         "  'submission_id': (job_spec.get('operation') or {}).get('submission_id'),\n"
-        "  'job_id': Path.cwd().name,\n"
+        "  'job_id': submit_dir.name,\n"
         "  'status': 'completed' if completed else 'failed',\n"
         "  'backend': job_spec.get('backend'),\n"
         "  'engine': job_spec.get('engine'),\n"
@@ -225,7 +226,7 @@ def write_scheduler_script(running_dir: Path, job_spec: dict[str, Any]) -> Path:
         "  'provenance': job_spec.get('provenance'),\n"
         "}\n"
         "target = 'result.json' if completed else 'failure.json'\n"
-        "Path(target).write_text(json.dumps(result, indent=2))\n"
+        "(submit_dir / target).write_text(json.dumps(result, indent=2))\n"
         "PY\n",
         encoding="utf-8",
     )
@@ -273,6 +274,7 @@ def main(argv: list[str]) -> int:
     run_log = running_dir / "run.log"
     run_log.write_text("Starting remote ORCA job submission wrapper\n", encoding="utf-8")
 
+    structure_path = running_dir / "input_structure.xyz"
     structure_text = structure_path.read_text(encoding="utf-8")
     (running_dir / "job.inp").write_text(render_orca_input(job_spec, structure_text), encoding="utf-8")
 

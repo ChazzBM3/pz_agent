@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
+from pz_agent.io import read_json
+
 
 CONTRACT_VERSION = "orca_slurm.request_response.v1"
 
@@ -47,6 +49,14 @@ def _staging_details(*, job_id: str, submit_config: dict, job_spec_path: str) ->
             "stage_commands": [command for command in stage_commands if command],
         }
     return {"transport": transport, "scheduler": remote_scheduler if transport == "ssh" else None}
+
+
+def _remote_artifact_local_path(submission: dict, artifact_name: str) -> Path | None:
+    staging = dict(submission.get("staging") or {})
+    local_job_dir = staging.get("local_job_dir")
+    if not local_job_dir:
+        return None
+    return Path(local_job_dir) / artifact_name
 
 
 class AtomisticSkillsBackend:
@@ -105,6 +115,28 @@ class AtomisticSkillsBackend:
         check_config: dict,
     ) -> dict:
         remote_target = submission.get("remote_target") or simulation.get("parameters", {}).get("remote_target")
+        status_path = _remote_artifact_local_path(submission, "status.json")
+        if status_path and status_path.exists():
+            payload = read_json(status_path)
+            payload.setdefault("contract_version", CONTRACT_VERSION)
+            payload.setdefault("request_type", "check_simulation")
+            payload.setdefault("response_type", "status_envelope")
+            payload.setdefault("candidate_id", candidate_id)
+            payload.setdefault("submission_id", submission.get("submission_id"))
+            payload.setdefault("job_id", submission.get("job_id"))
+            payload.setdefault("backend", submission.get("backend") or simulation.get("backend"))
+            payload.setdefault("engine", submission.get("engine") or simulation.get("engine"))
+            payload.setdefault("job_driver", submission.get("job_driver") or simulation.get("job_driver"))
+            payload.setdefault("execution_mode", submission.get("execution_mode") or simulation.get("execution_mode"))
+            payload.setdefault("remote_target", remote_target)
+            payload["check_only"] = True
+            payload["authoritative"] = bool(payload.get("authoritative", True))
+            payload["remote_settings"] = {"target": remote_target}
+            payload["checked_at"] = datetime.now(timezone.utc).isoformat()
+            payload["status_source"] = "remote_status_artifact"
+            payload["status_path"] = str(status_path)
+            return payload
+
         status = str(check_config.get("default_status", submission.get("status", "submitted")))
         authoritative = "default_status" in check_config
         return {
@@ -124,4 +156,5 @@ class AtomisticSkillsBackend:
             "authoritative": authoritative,
             "remote_settings": {"target": remote_target},
             "checked_at": datetime.now(timezone.utc).isoformat(),
+            "status_source": "default_status",
         }
