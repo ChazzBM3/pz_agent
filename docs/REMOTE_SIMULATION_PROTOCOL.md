@@ -302,10 +302,22 @@ Build this in the repo as:
 2. remote wrapper script template
 3. SSH-backed ORCA-over-Slurm backend adapter
 4. end-to-end acceptance tests around staged remote artifacts
+5. remote reconciliation helper that refreshes `status.json` from Slurm and can be run from cron
 
-Template added in this repo:
+Templates added in this repo:
 - `docs/remote_submit_orca_job.py`
+- `docs/remote_reconcile_orca_job.py`
 
-The wrapper now renders `job.inp` from `orca_job.json` and writes a Slurm payload script that runs `orca job.inp > job.out 2>&1` using the scheduler-provided compute-node temp directory, then copies outputs back into `SLURM_SUBMIT_DIR`.
+The submit wrapper renders `job.inp` from `orca_job.json` and writes a Slurm payload script that runs `orca job.inp > job.out 2>&1` using the scheduler-provided compute-node temp directory, then copies outputs back into `SLURM_SUBMIT_DIR`.
 
-That is the cleanest path from today’s contract scaffolding to a real remote ORCA execution path.
+The reconciliation helper reads `scheduler.json`, queries `sacct` first and `squeue` second, refreshes `status.json`, and writes a synthesized `failure.json` if the scheduler reaches a terminal failed state before the payload produces one. It can also move finished jobs from `running/` into `completed/` or `failed/`.
+
+A practical cluster-side cron pattern is:
+
+```cron
+*/5 * * * * /usr/bin/python3 /path/to/remote_reconcile_orca_job.py /path/to/remote_root/running/<job_id>
+```
+
+In production, prefer a small loop over all `running/*` job directories rather than one crontab line per job.
+
+That is the cleanest path from today’s contract scaffolding to a real remote ORCA execution path with durable status repair.
