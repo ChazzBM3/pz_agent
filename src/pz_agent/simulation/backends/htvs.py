@@ -78,6 +78,73 @@ def _jobdir_artifacts(jobdir: Path | None) -> dict:
     return artifacts
 
 
+def _remote_snapshot(*, ssh_host: str, remote_job_root: str) -> dict | None:
+    if not ssh_host or not remote_job_root:
+        return None
+    remote_job_root = remote_job_root.rstrip("/")
+    script = f"""
+set -euo pipefail
+JOB_ROOT={shlex.quote(remote_job_root)}
+python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+job_root = Path(os.environ['JOB_ROOT'])
+result = {{
+    'job_root': str(job_root),
+    'exists': job_root.exists(),
+    'buckets': {{'inbox': [], 'pending': [], 'completed': []}},
+}}
+if job_root.exists():
+    for bucket in ('inbox', 'pending', 'completed'):
+        bucket_path = job_root / bucket
+        if bucket_path.exists():
+            result['buckets'][bucket] = sorted(path.name for path in bucket_path.iterdir() if path.is_dir())
+    status = 'submitted'
+    jobdir_name = None
+    for bucket, label in (('completed', 'completed'), ('pending', 'pending'), ('inbox', 'inbox')):
+        names = result['buckets'][bucket]
+        if names:
+            status = label
+            jobdir_name = names[0]
+            break
+    result['status'] = status
+    result['jobdir_name'] = jobdir_name
+    if jobdir_name:
+        bucket = 'completed' if status == 'completed' else ('pending' if status == 'pending' else 'inbox')
+        jobdir = job_root / bucket / jobdir_name
+        result['jobdir'] = str(jobdir)
+        result['files'] = sorted(path.name for path in jobdir.iterdir())
+        job_id_path = jobdir / 'job_manager-job_id'
+        if job_id_path.exists():
+            result['scheduler_job_id'] = job_id_path.read_text(encoding='utf-8').strip()
+        result['slurm_logs'] = sorted(path.name for path in jobdir.glob('slurm-*.out'))
+print(json.dumps(result))
+PY
+"""
+    command = "ssh -T " + shlex.quote(ssh_host) + " 'bash -s' <<'EOF'\n" + script + "\nEOF"
+    result = _run(command)
+    if not result.get("ok") or not result.get("stdout"):
+        return {
+            "ok": False,
+            "command": command,
+            "error": result.get("stderr") or result.get("stdout") or "remote snapshot failed",
+        }
+    try:
+        payload = json.loads(result.get("stdout") or "{}")
+    except Exception as exc:
+        return {
+            "ok": False,
+            "command": command,
+            "error": f"invalid remote snapshot json: {exc}",
+        }
+    return {
+        "ok": True,
+        "command": command,
+        "payload": payload,
+    }
+
+
 def _submission_id(candidate_id: str, queue_rank: int | None, submit_config: dict) -> str:
     prefix = str(submit_config.get("submission_prefix", "htvs")).strip() or "htvs"
     rank = int(queue_rank or 0)
@@ -269,10 +336,15 @@ class HtvsBackend:
     ) -> dict:
         remote_settings = dict(submission.get("remote_settings") or {})
         job_root = Path(str(remote_settings.get("job_root") or "")).expanduser() if remote_settings.get("job_root") else None
+        remote_job_root = str(remote_settings.get("remote_job_root") or "").strip()
+        ssh_host = str(check_config.get("ssh_host") or remote_settings.get("ssh_host") or "").strip()
         remote_target = submission.get("remote_target") or (simulation.get("parameters", {}) or {}).get("remote_target")
 
         status = str(submission.get("status") or "submitted")
         artifacts: dict = {}
+        authoritative = False
+        status_source = "submission_record"
+        remote_snapshot = None
         if job_root and job_root.exists():
             status, jobdir_name, jobdir_path = _jobdir_status(job_root)
             artifacts = {
@@ -280,6 +352,17 @@ class HtvsBackend:
                 "jobdir_name": jobdir_name,
                 **_jobdir_artifacts(jobdir_path),
             }
+            authoritative = True
+            status_source = "local_job_root_snapshot"
+        elif ssh_host and remote_job_root:
+            remote_snapshot = _remote_snapshot(ssh_host=ssh_host, remote_job_root=remote_job_root)
+            if remote_snapshot and remote_snapshot.get("ok"):
+                payload = dict(remote_snapshot.get("payload") or {})
+                status = str(payload.get("status") or status)
+                artifacts = payload
+                authoritative = bool(payload.get("exists"))
+                status_source = "remote_job_root_snapshot"
+
         response_type = "status_envelope"
         if status in {"failed", "error"}:
             response_type = "failure_envelope"
@@ -298,11 +381,12 @@ class HtvsBackend:
             "execution_mode": submission.get("execution_mode") or simulation.get("execution_mode"),
             "remote_target": remote_target,
             "check_only": True,
-            "authoritative": bool(job_root and job_root.exists()),
+            "authoritative": authoritative,
             "remote_settings": remote_settings,
             "checked_at": _utcnow(),
-            "status_source": "local_job_root_snapshot" if job_root and job_root.exists() else "submission_record",
+            "status_source": status_source,
             "jobdir_snapshot": artifacts,
+            "status_fetch_error": None if (not remote_snapshot or remote_snapshot.get("ok")) else remote_snapshot.get("error"),
         }
         writeback_path = check_config.get("writeback_status_path")
         if writeback_path:
