@@ -159,8 +159,92 @@ A useful way to summarize the quartet is:
 
 That makes this set a good teaching example for why the project should keep support-aware and novelty-aware ranking as parallel views rather than collapsing them into one score.
 
+## 2026-04-22, Scaffold-family comparison for support-only vs novelty-only cases
+
+### Purpose
+
+Compare the two scaffold families surfaced by the scaffold-diverse rank-only run to understand whether the novelty-only family is winning purely by a heuristic bonus or whether it remains reasonably competitive on the base predicted properties.
+
+### Families compared
+
+#### Dense phenothiazine-family scaffold
+- scaffold: `c1ccc2c(c1)Nc1ccccc1S2`
+- role in run: source of the support-only cases `05TRCY` and `05PESY`
+- family size in the run KG: `11`
+
+#### Smaller novelty-favored scaffold family
+- scaffold: `c1ccc(N(c2ccccc2)c2ccccc2)cc1`
+- role in run: source of the novelty-only cases `05VEUX` and `05DUQU`
+- family size in the run KG: `2`
+
+### Property comparison from the run
+
+#### Dense phenothiazine-family scaffold `c1ccc2c(c1)Nc1ccccc1S2`
+- molecule count: `11`
+- predicted priority:
+  - min: `0.5473`
+  - median: `0.6757`
+  - max: `0.7545`
+  - mean: `0.6729`
+- predicted synthesizability:
+  - min: `0.5333`
+  - median: `0.7333`
+  - max: `0.7667`
+  - mean: `0.6856`
+- predicted solubility:
+  - min: `0.53`
+  - median: `0.53`
+  - max: `0.77`
+  - mean: `0.5664`
+- novelty adjustment:
+  - uniformly `0.045`
+
+Interpretation:
+- This family is broader and stronger on the default support-oriented view because it occupies the established phenothiazine neighborhood.
+- It also spans a wider performance range, including some of the strongest base-score molecules in the run.
+- The novelty view does not reject this family; it simply does not reward it as aggressively because it is already relatively in-distribution.
+
+#### Smaller scaffold family `c1ccc(N(c2ccccc2)c2ccccc2)cc1`
+- molecule count: `2`
+- predicted priority:
+  - min: `0.6531`
+  - median: `0.6572`
+  - max: `0.6613`
+  - mean: `0.6572`
+- predicted synthesizability:
+  - min: `0.6750`
+  - median: `0.7167`
+  - max: `0.7583`
+  - mean: `0.7167`
+- predicted solubility:
+  - min: `0.49`
+  - median: `0.55`
+  - max: `0.61`
+  - mean: `0.55`
+- novelty adjustment:
+  - uniformly `0.09`
+
+Interpretation:
+- This family is not outperforming the dense phenothiazine family on raw predicted priority alone.
+- But it is close enough to remain scientifically plausible, especially given decent synthesizability and acceptable solubility.
+- That is what makes it a useful novelty target: it is small and less in-distribution, but not obviously weak.
+
+### Main takeaway
+
+The novelty-only family is not being promoted from irrelevance. It is being promoted from **competitive but less-supported territory**.
+
+That distinction matters:
+- if the family were much worse on base predicted properties, the novelty ranking would look like a noise generator
+- instead, the family appears plausible enough that rewarding edge-of-distribution scaffold neighborhoods produces a scientifically interpretable exploratory shortlist
+
+### Limitations of this study
+
+This particular run was intentionally rank-focused and did not carry rich literature/critique support into the final comparison. So this study is best understood as:
+- a scaffold-family and property-profile comparison
+- not yet a full literature-support comparison
+
 ### Suggested next studies
 
-1. Compare property ranges and literature evidence for the novelty-only scaffold family versus the support-only phenothiazine-family cases.
-2. Run a larger scaffold-diverse batch to see whether the novelty view continues to surface coherent families rather than one-off anomalies.
-3. Add a short chemistry note for each novelty-only candidate indicating whether it looks like a plausible transfer target, a risky excursion, or a likely dead end.
+1. Run a larger scaffold-diverse batch to see whether the novelty view continues to surface coherent families rather than one-off anomalies.
+2. Add literature and critique context back into a scaffold-diverse run once the wider-chemistry retrieval path is made less brittle.
+3. Compare whether novelty-only families eventually receive simulation budget and whether they validate as promising exploratory directions.
