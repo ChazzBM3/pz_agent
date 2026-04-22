@@ -1,0 +1,165 @@
+{
+  "kg_path": "artifacts/kg_prod_2026_04_22/d3tales_kg.filtered.json",
+  "families": [
+    {
+      "scaffold_smiles": "C1=CC2Nc3ccccc3SC2C=C1",
+      "molecule_count": 127,
+      "source_groups": {
+        "Risko": 78,
+        "Risko_Bayesian": 49
+      },
+      "property_stats": {
+        "oxidation_potential": {
+          "count": 124,
+          "min": 0.084,
+          "median": 0.832,
+          "max": 1.965,
+          "mean": 0.7960403225806452
+        },
+        "reduction_potential": {
+          "count": 122,
+          "min": 6.003,
+          "median": 7.714,
+          "max": 10.43,
+          "mean": 7.394229508196721
+        },
+        "groundState.solvation_energy": {
+          "count": 127,
+          "min": -0.5492,
+          "median": 1.105,
+          "max": 3.332,
+          "mean": 0.7402795275590551
+        },
+        "groundState.homo": {
+          "count": 124,
+          "min": -7.4401409880000005,
+          "median": -6.677677560000001,
+          "max": -5.904601686,
+          "mean": -6.616304880661291
+        },
+        "groundState.lumo": {
+          "count": 124,
+          "min": -0.5902152660000001,
+          "median": 0.437967483,
+          "max": 0.9752565759999999,
+          "mean": 0.35219012790322585
+        },
+        "groundState.homo_lumo_gap": {
+          "count": 127,
+          "min": 5.416701284,
+          "median": 7.1873470820000005,
+          "max": 7.84776776,
+          "mean": 6.97426467896063
+        }
+      }
+    },
+    {
+      "scaffold_smiles": "C1=CC2Nc3ccc(N(c4ccccc4)c4ccccc4)cc3SC2C=C1",
+      "molecule_count": 110,
+      "source_groups": {
+        "Risko": 68,
+        "Risko_Bayesian": 42
+      },
+      "property_stats": {
+        "oxidation_potential": {
+          "count": 109,
+          "min": 0.023,
+          "median": 0.483,
+          "max": 1.293,
+          "mean": 0.5151284403669725
+        },
+        "reduction_potential": {
+          "count": 102,
+          "min": 5.496,
+          "median": 8.4245,
+          "max": 11.0,
+          "mean": 7.8589705882352945
+        },
+        "groundState.solvation_energy": {
+          "count": 110,
+          "min": -0.509,
+          "median": 1.834,
+          "max": 6.492,
+          "mean": 1.2165863636363636
+        },
+        "groundState.homo": {
+          "count": 107,
+          "min": -6.751420454,
+          "median": -6.107870844,
+          "max": -5.155743958,
+          "mean": -6.067231762504673
+        },
+        "groundState.lumo": {
+          "count": 107,
+          "min": -1.158661412,
+          "median": -0.014694156000000002,
+          "max": 0.4217767,
+          "mean": -0.06885247136448598
+        },
+        "groundState.homo_lumo_gap": {
+          "count": 110,
+          "min": 4.471649362,
+          "median": 6.134401959,
+          "max": 6.771829004000001,
+          "mean": 6.0043017818363635
+        }
+      }
+    },
+    {
+      "scaffold_smiles": "c1ccc2c(c1)Nc1ccccc1S2",
+      "molecule_count": 22,
+      "source_groups": {
+        "Odom_aman": 22
+      },
+      "property_stats": {
+        "oxidation_potential": {
+          "count": 21,
+          "min": 0.289,
+          "median": 0.728,
+          "max": 1.151,
+          "mean": 0.7173809523809523
+        },
+        "reduction_potential": {
+          "count": 20,
+          "min": 5.436,
+          "median": 5.6715,
+          "max": 6.647,
+          "mean": 5.8207
+        },
+        "groundState.solvation_energy": {
+          "count": 22,
+          "min": -1.817,
+          "median": -0.1792,
+          "max": -0.1363,
+          "mean": -0.2854590909090909
+        },
+        "groundState.homo": {
+          "count": 22,
+          "min": -10.042639284,
+          "median": -6.888974081000001,
+          "max": -6.104061248,
+          "mean": -6.990361283636364
+        },
+        "groundState.lumo": {
+          "count": 22,
+          "min": -1.7796255600000002,
+          "median": 0.7713071330000001,
+          "max": 1.134443266,
+          "mean": 0.5348276981818182
+        },
+        "groundState.homo_lumo_gap": {
+          "count": 22,
+          "min": 6.474680516,
+          "median": 7.530210722,
+          "max": 8.263013724,
+          "mean": 7.525188981818183
+        }
+      }
+    }
+  ],
+  "notes": [
+    "These scaffold families can serve as direct anchors for phenothiazine-family transfer analysis.",
+    "Source-group composition helps distinguish which scaffold neighborhoods are coming from which campaigns or datasets.",
+    "Property distribution summaries are more useful for prioritization than coverage alone."
+  ]
+}
