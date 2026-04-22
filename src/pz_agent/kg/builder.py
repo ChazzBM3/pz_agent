@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from rdkit import Chem
+from rdkit.Chem.Scaffolds import MurckoScaffold
+
 from pz_agent.io import read_json
 from pz_agent.kg.claims import (
     build_bridge_case_nodes,
@@ -22,6 +25,24 @@ DATASET_NODE_ID = "dataset::d3tales"
 
 def _dataset_record_node_id(record_id: str) -> str:
     return f"dataset_record::d3tales::{record_id}"
+
+
+def _derive_scaffold_smiles(item: dict[str, Any]) -> str | None:
+    identity = item.get("identity") or {}
+    smiles = (
+        identity.get("canonical_smiles")
+        or item.get("canonical_smiles")
+        or item.get("smiles")
+    )
+    if not smiles:
+        return None
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    scaffold = MurckoScaffold.GetScaffoldForMol(mol)
+    if scaffold is None or scaffold.GetNumAtoms() == 0:
+        return None
+    return Chem.MolToSmiles(scaffold, canonical=True)
 
 
 def build_graph_snapshot(state: RunState) -> dict[str, Any]:
@@ -81,6 +102,11 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         attrs = dict(item)
         add_node({"id": item["id"], "type": "Molecule", "attrs": attrs})
         add_edge(item["id"], run_id, "GENERATED_IN_RUN")
+        scaffold_smiles = _derive_scaffold_smiles(item)
+        if scaffold_smiles:
+            scaffold_id = f"scaffold::{scaffold_smiles}"
+            add_node({"id": scaffold_id, "type": "Scaffold", "attrs": {"smiles": scaffold_smiles}})
+            add_edge(item["id"], scaffold_id, "HAS_SCAFFOLD")
         stable_identity_key = item.get("stable_identity_key") or (item.get("identity") or {}).get("stable_identity_key")
         if stable_identity_key:
             stable_identity_by_candidate[item["id"]] = stable_identity_key
