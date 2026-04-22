@@ -3,6 +3,7 @@ from __future__ import annotations
 from pz_agent.agents.base import BaseAgent
 from pz_agent.analysis.diversity import diversify_placeholder
 from pz_agent.analysis.pareto import apply_literature_adjustment, compute_placeholder_pareto
+from pz_agent.kg.scaffold_features import write_scaffold_features
 from pz_agent.state import RunState
 
 
@@ -12,6 +13,10 @@ class RankerAgent(BaseAgent):
     def run(self, state: RunState) -> RunState:
         ranked = compute_placeholder_pareto(list(state.predictions or []))
         critique_by_candidate = {note.get("candidate_id"): note for note in (state.critique_notes or []) if note.get("candidate_id")}
+        scaffold_features = write_scaffold_features(
+            state.knowledge_graph_path,
+            state.run_dir / "scaffold_features.json",
+        )
 
         evidence_aware_ranked = []
         for item in ranked:
@@ -24,6 +29,12 @@ class RankerAgent(BaseAgent):
                 "uses_identity_level_evidence": bool(critique_note and ((critique_note.get("signals") or {}).get("exact_match_hits") or (critique_note.get("signals") or {}).get("analog_match_hits"))),
                 "measurement_context_present": bool((critique_note or {}).get("measurement_context") or ranking_rationale.get("measurement_summary")),
             }
+            scaffold_context = scaffold_features.get(candidate_id)
+            if scaffold_context:
+                ranking_rationale["scaffold_context"] = scaffold_context
+                ranking_rationale["evidence_sources"]["scaffold_context_present"] = True
+            else:
+                ranking_rationale["evidence_sources"]["scaffold_context_present"] = False
             enriched["ranking_rationale"] = ranking_rationale
             evidence_aware_ranked.append(enriched)
 
