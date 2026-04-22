@@ -45,3 +45,10 @@ def test_ranker_writes_parallel_views_artifact(tmp_path: Path) -> None:
     assert isinstance(payload.get("novelty_ranked"), list)
     assert isinstance(payload.get("shortlist"), list)
     assert isinstance(payload.get("novelty_shortlist"), list)
+
+    summary_artifact = tmp_path / "ranker_views_summary.json"
+    assert summary_artifact.exists()
+    summary_payload = json.loads(summary_artifact.read_text())
+    assert "support_top_ids" in summary_payload
+    assert "novelty_top_ids" in summary_payload
+    assert "overlap_ids" in summary_payload

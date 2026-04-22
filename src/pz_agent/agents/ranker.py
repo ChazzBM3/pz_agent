@@ -63,13 +63,24 @@ class RankerAgent(BaseAgent):
         shortlist_size = int(self.config.get("screening", {}).get("shortlist_size", 3))
         state.shortlist = list((state.ranked or [])[: min(shortlist_size, len(state.ranked or []))])
         state.novelty_shortlist = list((state.novelty_ranked or [])[: min(shortlist_size, len(state.novelty_ranked or []))])
+        ranker_views = {
+            "ranked": state.ranked,
+            "shortlist": state.shortlist,
+            "novelty_ranked": state.novelty_ranked,
+            "novelty_shortlist": state.novelty_shortlist,
+        }
+        write_json(state.run_dir / "ranker_views.json", ranker_views)
+
+        support_ids = [row.get("id") for row in (state.shortlist or []) if row.get("id")]
+        novelty_ids = [row.get("id") for row in (state.novelty_shortlist or []) if row.get("id")]
         write_json(
-            state.run_dir / "ranker_views.json",
+            state.run_dir / "ranker_views_summary.json",
             {
-                "ranked": state.ranked,
-                "shortlist": state.shortlist,
-                "novelty_ranked": state.novelty_ranked,
-                "novelty_shortlist": state.novelty_shortlist,
+                "support_top_ids": support_ids,
+                "novelty_top_ids": novelty_ids,
+                "overlap_ids": sorted(set(support_ids) & set(novelty_ids)),
+                "support_only_ids": [item for item in support_ids if item not in set(novelty_ids)],
+                "novelty_only_ids": [item for item in novelty_ids if item not in set(support_ids)],
             },
         )
         state.log("Ranker produced support-aware and novelty-aware shortlists using predicted properties, measured support, KG critique signals, and scaffold context")
