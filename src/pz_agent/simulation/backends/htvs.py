@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shlex
 import subprocess
 from datetime import datetime, timezone
@@ -76,6 +77,142 @@ def _jobdir_artifacts(jobdir: Path | None) -> dict:
     if slurm_logs:
         artifacts["slurm_logs"] = slurm_logs
     return artifacts
+
+
+def _coerce_float(value) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except Exception:
+        return None
+
+
+def _read_text_if_exists(path: Path) -> str | None:
+    if not path.exists() or not path.is_file():
+        return None
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception:
+        return None
+
+
+def _load_json_if_exists(path: Path):
+    if not path.exists() or not path.is_file():
+        return None
+    try:
+        return read_json(path)
+    except Exception:
+        return None
+
+
+def _find_first_existing(jobdir: Path, names: list[str]) -> Path | None:
+    for name in names:
+        path = jobdir / name
+        if path.exists():
+            return path
+    return None
+
+
+def _parse_orca_output_metrics(jobdir: Path) -> dict:
+    metrics: dict[str, object] = {}
+    out_path = _find_first_existing(jobdir, ["job.out", "orca.out", "output.out"])
+    if not out_path:
+        return metrics
+    text = _read_text_if_exists(out_path)
+    if not text:
+        return metrics
+
+    energy_patterns = [
+        r"FINAL SINGLE POINT ENERGY\s+(-?\d+(?:\.\d+)?)",
+        r"Total Energy\s*[:=]\s*(-?\d+(?:\.\d+)?)",
+    ]
+    for pattern in energy_patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            value = _coerce_float(match.group(1))
+            if value is not None:
+                metrics["final_energy"] = value
+                break
+
+    dipole_match = re.search(r"Magnitude \(a\.u\.\)\s*[:=]?\s*(-?\d+(?:\.\d+)?)", text, flags=re.IGNORECASE)
+    if dipole_match:
+        value = _coerce_float(dipole_match.group(1))
+        if value is not None:
+            metrics["groundState.dipole_moment"] = value
+
+    homo_lumo_match = re.search(r"HOMO-LUMO GAP\s*[:=]?\s*(-?\d+(?:\.\d+)?)", text, flags=re.IGNORECASE)
+    if homo_lumo_match:
+        value = _coerce_float(homo_lumo_match.group(1))
+        if value is not None:
+            metrics["groundState.homo_lumo_gap"] = value
+
+    if "ORCA TERMINATED NORMALLY" in text:
+        metrics.setdefault("status", "completed")
+    return metrics
+
+
+def _extract_outputs_from_jobdir(jobdir: Path) -> dict:
+    outputs: dict[str, object] = {}
+
+    direct_result = _load_json_if_exists(jobdir / "result.json")
+    if isinstance(direct_result, dict):
+        direct_outputs = direct_result.get("outputs")
+        if isinstance(direct_outputs, dict):
+            outputs.update(direct_outputs)
+
+    pz_result = _load_json_if_exists(jobdir / "pz_agent_result.json")
+    if isinstance(pz_result, dict):
+        pz_outputs = pz_result.get("outputs")
+        if isinstance(pz_outputs, dict):
+            outputs.update(pz_outputs)
+
+    summary_json = _find_first_existing(jobdir, ["summary.json", "parsed_results.json", "job_summary.json"])
+    summary_payload = _load_json_if_exists(summary_json) if summary_json else None
+    if isinstance(summary_payload, dict):
+        for key in (
+            "final_energy",
+            "optimized_structure",
+            "groundState.solvation_energy",
+            "groundState.homo",
+            "groundState.lumo",
+            "groundState.homo_lumo_gap",
+            "groundState.dipole_moment",
+            "status",
+        ):
+            if key in summary_payload and key not in outputs:
+                outputs[key] = summary_payload.get(key)
+        nested_outputs = summary_payload.get("outputs")
+        if isinstance(nested_outputs, dict):
+            for key, value in nested_outputs.items():
+                outputs.setdefault(key, value)
+
+    metrics = _parse_orca_output_metrics(jobdir)
+    for key, value in metrics.items():
+        outputs.setdefault(key, value)
+
+    optimized_structure = _find_first_existing(
+        jobdir,
+        [
+            "optimized_structure.xyz",
+            "final.xyz",
+            "opt.xyz",
+            "job.xyz",
+            "xtbopt.xyz",
+        ],
+    )
+    if optimized_structure:
+        outputs.setdefault("optimized_structure", optimized_structure.read_text(encoding="utf-8"))
+
+    outputs.setdefault("status", "completed")
+    return outputs
 
 
 def _remote_snapshot(*, ssh_host: str, remote_job_root: str) -> dict | None:
@@ -409,10 +546,16 @@ class HtvsBackend:
         if status != "completed" or not jobdir_path:
             return None
 
-        outputs = {
+        jobdir_snapshot = {
             "job_root": str(job_root),
             "jobdir_name": jobdir_name,
             **_jobdir_artifacts(jobdir_path),
+        }
+        outputs = {
+            **_extract_outputs_from_jobdir(jobdir_path),
+            "job_root": str(job_root),
+            "jobdir_name": jobdir_name,
+            "jobdir": str(jobdir_path),
         }
         result = {
             "contract_version": CONTRACT_VERSION,
@@ -429,7 +572,7 @@ class HtvsBackend:
             "outputs": outputs,
             "raw_result": {
                 "remote_settings": remote_settings,
-                "jobdir_snapshot": outputs,
+                "jobdir_snapshot": jobdir_snapshot,
             },
         }
         result_path = jobdir_path / "pz_agent_result.json"
