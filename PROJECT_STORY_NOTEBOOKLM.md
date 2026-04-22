@@ -8,7 +8,7 @@
 
 ## 1. Core narrative in one paragraph
 
-This project starts from an energy-storage problem: redox flow batteries need better organic redox-active molecules that are cheap, tunable, stable, and high-performing in solution. Phenothiazines are promising candidates, but they remain much less explored than more established redox-active families such as quinones. The central idea of this repo is that we can accelerate phenothiazine discovery by combining structured prior knowledge, transfer from better-studied molecular spaces, and an agent-guided expanding knowledge graph that continuously links molecules, measurements, literature, hypotheses, and simulation outcomes. The repo implements that idea as a practical screening and validation workflow rather than a vague autonomous agent story.
+This project starts from an energy-storage problem: redox flow batteries need better organic redox-active molecules that are cheap, tunable, stable, and high-performing in solution. Phenothiazines are promising candidates, but they remain much less explored than more established redox-active families such as quinones. The central idea of this repo is that we can accelerate phenothiazine discovery by combining structured prior knowledge, transfer from better-studied molecular spaces, generative design of new candidate molecules, and an agent-guided expanding knowledge graph that continuously links molecules, measurements, literature, hypotheses, conformer searches, DFT outcomes, and simulation results. The repo implements that idea as a practical screening, generation, and validation workflow rather than a vague autonomous agent story.
 
 ---
 
@@ -90,7 +90,9 @@ Instead, it should be framed as a loop that integrates:
 - literature and patent evidence
 - structure-aware retrieval
 - ranking and critique
-- simulation requests
+- generative proposal of new molecules
+- RDKit conformer search and geometry preparation
+- DFT and other simulation requests
 - validation outcomes
 - graph expansion into the next round of scientific questions
 
@@ -116,8 +118,9 @@ The repo currently emphasizes:
 - KG-backed critique and reranking
 - graph expansion into follow-up actions
 - simulation handoff and result reintegration
+- a path toward iterative generation of new molecules based on earlier campaign outcomes
 
-In short, it is a research orchestrator for turning sparse phenothiazine evidence into a more complete, simulation-informed decision process.
+In short, it is a research orchestrator for turning sparse phenothiazine evidence into a more complete, generation-aware, simulation-informed decision process.
 
 ---
 
@@ -143,17 +146,22 @@ A clean way to present the workflow in slides is:
 5. **Rank and critique candidates**
    - combine predicted priority, measured context, transferability, and evidence support
 
-6. **Expand the frontier**
-   - convert graph gaps and unresolved hypotheses into structured next actions
+6. **Generate new molecules from prior iterations**
+   - start from phenothiazines already present in D3TaLES
+   - use generative AI or rule-guided proposal logic to suggest new derivatives for the next round
 
-7. **Package top candidates for simulation**
+7. **Prepare structures for physics-based evaluation**
+   - run RDKit conformer searches or geometry preparation
+   - select reasonable initial structures for higher-fidelity calculations
+
+8. **Package top generated candidates for DFT and remote simulation**
    - prepare calculation bundles and remote execution records
 
-8. **Reintegrate validation results**
-   - pull simulation outputs back into reports and the KG
+9. **Reintegrate validation results**
+   - pull conformer/DFT/simulation outputs back into reports and the KG
 
-9. **Repeat with a better-informed graph**
-   - use new evidence and validation outcomes to shape the next exploration pass
+10. **Repeat with a better-informed graph**
+   - use newly generated molecules, validation outcomes, and updated graph structure to shape the next exploration pass
 
 ---
 
@@ -171,6 +179,7 @@ It is used to connect:
 - simulation results
 - validation outcomes
 - future action proposals
+- newly generated candidate molecules from later iterations
 
 This matters because the project is trying to reason in a sparse-data regime. In that regime, it is not enough to store only candidate-level scores. We need a system that preserves:
 - provenance
@@ -181,6 +190,13 @@ This matters because the project is trying to reason in a sparse-data regime. In
 - campaign history over time
 
 The graph makes that explicit.
+
+It also gives the project a natural retrieval substrate for a RAG-like workflow. Instead of asking a language model to reason from unstructured text alone, the system can retrieve structured graph-local context about molecules, measurements, scaffold neighborhoods, evidence, and prior outcomes before generating hypotheses or ranking decisions.
+
+For NotebookLM slides, it is helpful to explain the basic idea this way:
+- a **knowledge graph** stores entities and relationships, such as molecules, measured properties, papers, simulation outputs, and scaffold families
+- **RAG** (retrieval-augmented generation) means retrieving the most relevant structured or textual context before asking a model to summarize, critique, prioritize, or propose next actions
+- this project is a strong fit for KG + RAG because discovery decisions depend on combining many heterogeneous evidence types rather than treating each molecule as an isolated row in a spreadsheet
 
 ---
 
@@ -211,6 +227,7 @@ The repo already includes:
 - simulation handoff packaging
 - remote simulation submission/check/extract infrastructure
 - validation ingest back into reports and the KG
+- an emerging scaffold-aware and iterative workflow that can support generation, conformer search, DFT, and re-ingestion of newly proposed molecules
 
 ### Remote execution direction
 
@@ -323,6 +340,10 @@ The project is no longer only generating hypotheses. It can hand candidates off 
 
 It is designed to learn not only from direct phenothiazine evidence, but also from better-understood neighboring chemical spaces.
 
+### 6. Iterative generation tied to campaign memory
+
+The long-term direction is not one-shot molecule generation. It is iterative generation in which new candidates are proposed from prior phenothiazine rounds, evaluated with conformer search and DFT, and then written back into the graph so the next generation step starts from a richer scientific context.
+
 ---
 
 ## 12. What is not finished yet
@@ -331,7 +352,7 @@ This should also be explicit in the story.
 
 ### The project is not yet a closed-loop generator of novel validated phenothiazines
 
-It is better described as a **strong screening-and-validation foundation**.
+It is better described as a **strong screening-and-validation foundation with a clear path toward iterative generation**.
 
 The biggest unfinished pieces are:
 - deeper chemistry-native generation
@@ -339,6 +360,7 @@ The biggest unfinished pieces are:
 - more rigorous calibration of ranking and scoring
 - fuller use of validation outcomes to reshape future candidate design
 - stricter downstream contracts for result consumption and acceptance gates
+- tighter integration of generated-molecule loops with conformer search, DFT, and KG updates
 
 That is okay. For a slide deck, this creates a strong “current status + next frontier” story.
 
@@ -365,38 +387,44 @@ That is okay. For a slide deck, this creates a strong “current status + next f
 - describe transfer of chemical principles, property intuition, and structural heuristics
 - frame the problem as knowledge transfer under uncertainty
 
-### Slide 5. Why an expanding knowledge graph?
+### Slide 5. Knowledge graphs and RAG, in plain language
+- explain that a knowledge graph stores entities and relationships rather than only flat rows
+- explain that RAG retrieves relevant context before generation, ranking, or explanation
+- emphasize that this is useful here because molecular discovery depends on linking structures, measurements, literature, simulations, and hypotheses
+
+### Slide 6. Why an expanding knowledge graph?
 - show that discovery needs more than a ranked table
-- motivate persistent scientific memory linking molecules, measurements, evidence, and hypotheses
+- motivate persistent scientific memory linking molecules, measurements, evidence, hypotheses, generated candidates, and validation results
 - distinguish measured vs inferred vs predicted information
 
-### Slide 6. Our implementation: agent-guided expanding knowledge graphs
+### Slide 7. Our implementation: agent-guided expanding knowledge graphs
 - show pipeline stages at high level
-- candidate import → normalization → retrieval → KG → ranking/critique → expansion → simulation → validation → KG update
+- candidate import → normalization → retrieval → KG → ranking/critique → generation of new molecules → conformer search → DFT/simulation → validation → KG update
 
-### Slide 7. The repo today
+### Slide 8. The repo today
 - summarize what is already implemented
 - emphasize that this is a working scientific workflow, not only a concept
 - mention real HTVS-backed remote simulation integration
 
-### Slide 8. Baseline production KG from existing data
+### Slide 9. Baseline production KG from existing data
 - show the D3TaLES-derived KG statistics
 - emphasize that the project already has a substantial structured substrate before novel generation
 
-### Slide 9. What the KG already tells us
+### Slide 10. What the KG already tells us
 - highlight property coverage and graph richness
 - show that the KG also exposes low-information or poor-provenance records
 - present the graph as both reasoning engine and audit tool
 
-### Slide 10. Where this goes next
-- harden data-quality filtering and KG audit tooling
+### Slide 11. Where this goes next
 - use the KG as the substrate for better phenothiazine prioritization
-- then connect that more strongly to generation and transfer-learning logic
+- generate new molecules beginning from phenothiazines already found in D3TaLES
+- evaluate those generated molecules with RDKit conformer search and DFT
+- feed the new molecules and results back into the KG for the next iteration
 
-### Slide 11. Long-term vision
+### Slide 12. Long-term vision
 - a scientifically grounded, continuously learning discovery loop for underexplored redoxmer spaces
 - agents as orchestrators of structured reasoning, not magic black boxes
-- validation closes the loop
+- generation, simulation, and validation all close the loop through the evolving graph
 
 ---
 
@@ -406,11 +434,12 @@ Useful phrases for narration:
 - “This project is motivated by the need for better organic redox-active molecules for flow batteries.”
 - “Phenothiazines are promising, but they remain much less systematically mapped than more mature redox-active families.”
 - “The central challenge is how to reason effectively in a sparse-data molecular space.”
-- “Our answer is to use an agent-guided expanding knowledge graph that connects molecules, measurements, evidence, hypotheses, and validation outcomes.”
+- “Our answer is to use an agent-guided expanding knowledge graph that connects molecules, measurements, evidence, hypotheses, generated candidates, and validation outcomes.”
 - “The graph is not just a database, it is the scientific memory of the campaign.”
-- “Rather than asking a language model to invent chemistry from scratch, we use structured retrieval, provenance, critique, and simulation feedback to guide exploration.”
+- “Rather than asking a language model to invent chemistry from scratch, we use structured retrieval, provenance, critique, generation, and simulation feedback to guide exploration.”
 - “A key theme is transfer: learning from better-understood molecular families to navigate relatively unexplored phenothiazine chemical space.”
 - “The current system already supports a real screening-to-simulation-to-validation workflow.”
+- “The next step is to make that loop more iterative by generating new molecules, evaluating them computationally, and writing the outcomes back into the graph.”
 
 ---
 
@@ -425,4 +454,4 @@ The story of this repo is:
 5. an agent-guided expanding knowledge graph is the mechanism for organizing that transfer and uncertainty
 6. the repo already implements much of this workflow in practice
 7. the existing dataset is already large enough to support a substantial production baseline KG
-8. the next milestone is to use that graph more aggressively as the foundation for prioritization, validation, and later generation
+8. the next milestone is to use that graph more aggressively as the foundation for prioritization, generation of new molecules, conformer search, DFT validation, and iterative campaign memory
