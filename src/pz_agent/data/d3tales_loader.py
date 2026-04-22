@@ -122,6 +122,7 @@ def load_d3tales_csv(
     path: str | Path,
     limit: int | None = None,
     phenothiazine_only: bool = False,
+    exclude_zero_information_rows: bool = False,
 ) -> list[D3TaLESRecord]:
     records: list[D3TaLESRecord] = []
     with Path(path).open("r", encoding="utf-8", newline="") as f:
@@ -129,6 +130,8 @@ def load_d3tales_csv(
         for row in reader:
             record = _normalize_row(row)
             if record is None:
+                continue
+            if exclude_zero_information_rows and all(value is None for value in record.measurements.values()):
                 continue
             if phenothiazine_only and not is_phenothiazine_like_record(record):
                 continue

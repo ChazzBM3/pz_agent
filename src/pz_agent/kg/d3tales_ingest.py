@@ -115,8 +115,13 @@ def ingest_d3tales_csv(
     csv_path: str | Path,
     output_graph_path: str | Path | None = None,
     limit: int = 20,
+    exclude_zero_information_rows: bool = False,
 ) -> dict[str, Any]:
-    records = load_d3tales_csv(csv_path, limit=limit)
+    records = load_d3tales_csv(
+        csv_path,
+        limit=limit,
+        exclude_zero_information_rows=exclude_zero_information_rows,
+    )
     graph_update = records_to_graph(records)
 
     if output_graph_path is None:
