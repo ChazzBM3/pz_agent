@@ -285,6 +285,43 @@ def _compute_kg_prior_adjustment(critique_note: dict[str, Any] | None) -> tuple[
 
 
 
+def compute_scaffold_support_adjustment(scaffold_context: dict[str, Any] | None) -> tuple[float, list[str]]:
+    if not scaffold_context:
+        return 0.0, []
+
+    family_size = int(scaffold_context.get("scaffold_family_size", 0) or 0)
+    family_avg_measurements = float(scaffold_context.get("scaffold_family_avg_measurements", 0.0) or 0.0)
+    molecule_measurements = float(scaffold_context.get("scaffold_measurement_density", 0.0) or 0.0)
+
+    bonus = 0.0
+    rationale: list[str] = []
+
+    if family_size >= 20:
+        family_bonus = min(0.03, family_size / 1000.0)
+        bonus += family_bonus
+        rationale.append(f"scaffold_family_support_bonus={family_bonus:.3f}:size={family_size}")
+    elif 1 <= family_size <= 3:
+        penalty = 0.01
+        bonus -= penalty
+        rationale.append(f"scaffold_family_sparse_penalty={penalty:.3f}:size={family_size}")
+
+    if family_avg_measurements >= 10:
+        measurement_bonus = min(0.03, family_avg_measurements / 500.0)
+        bonus += measurement_bonus
+        rationale.append(f"scaffold_family_measurement_bonus={measurement_bonus:.3f}:avg={family_avg_measurements:.2f}")
+
+    if molecule_measurements == 0 and family_avg_measurements > 0:
+        penalty = min(0.015, family_avg_measurements / 1000.0)
+        bonus -= penalty
+        rationale.append(f"candidate_without_local_measurements_penalty={penalty:.3f}")
+    elif molecule_measurements >= 5:
+        local_bonus = min(0.015, molecule_measurements / 1000.0)
+        bonus += local_bonus
+        rationale.append(f"candidate_local_measurement_bonus={local_bonus:.3f}:count={molecule_measurements:.0f}")
+
+    return bonus, rationale
+
+
 def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, Any] | None) -> dict[str, Any]:
     item = dict(row)
     base = item.get("predicted_priority")
@@ -400,6 +437,11 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
     specificity_bonus, specificity_rationale = _compute_candidate_specificity_adjustment(critique_note)
     bonus += specificity_bonus
     rationale.extend(specificity_rationale)
+
+    scaffold_context = item.get("ranking_rationale", {}).get("scaffold_context")
+    scaffold_bonus, scaffold_rationale = compute_scaffold_support_adjustment(scaffold_context)
+    bonus += scaffold_bonus
+    rationale.extend(scaffold_rationale)
 
     support_mix = dict(critique_note.get("support_mix") or {}) if critique_note else {}
     transferability_score = float(support_mix.get("transferability_score", 0.0) or 0.0)
