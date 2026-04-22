@@ -52,3 +52,5 @@ def test_ranker_writes_parallel_views_artifact(tmp_path: Path) -> None:
     assert "support_top_ids" in summary_payload
     assert "novelty_top_ids" in summary_payload
     assert "overlap_ids" in summary_payload
+    assert "support_only_details" in summary_payload
+    assert "novelty_only_details" in summary_payload

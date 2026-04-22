@@ -73,14 +73,38 @@ class RankerAgent(BaseAgent):
 
         support_ids = [row.get("id") for row in (state.shortlist or []) if row.get("id")]
         novelty_ids = [row.get("id") for row in (state.novelty_shortlist or []) if row.get("id")]
+        support_only_ids = [item for item in support_ids if item not in set(novelty_ids)]
+        novelty_only_ids = [item for item in novelty_ids if item not in set(support_ids)]
+        ranked_by_id = {row.get("id"): row for row in (state.ranked or []) if row.get("id")}
+        novelty_by_id = {row.get("id"): row for row in (state.novelty_ranked or []) if row.get("id")}
         write_json(
             state.run_dir / "ranker_views_summary.json",
             {
                 "support_top_ids": support_ids,
                 "novelty_top_ids": novelty_ids,
                 "overlap_ids": sorted(set(support_ids) & set(novelty_ids)),
-                "support_only_ids": [item for item in support_ids if item not in set(novelty_ids)],
-                "novelty_only_ids": [item for item in novelty_ids if item not in set(support_ids)],
+                "support_only_ids": support_only_ids,
+                "novelty_only_ids": novelty_only_ids,
+                "support_only_details": [
+                    {
+                        "id": item,
+                        "literature_adjustment": ranked_by_id.get(item, {}).get("literature_adjustment"),
+                        "novelty_adjustment": ranked_by_id.get(item, {}).get("novelty_adjustment"),
+                        "predicted_priority_literature_adjusted": ranked_by_id.get(item, {}).get("predicted_priority_literature_adjusted"),
+                        "predicted_priority_novelty_adjusted": ranked_by_id.get(item, {}).get("predicted_priority_novelty_adjusted"),
+                    }
+                    for item in support_only_ids
+                ],
+                "novelty_only_details": [
+                    {
+                        "id": item,
+                        "literature_adjustment": novelty_by_id.get(item, {}).get("literature_adjustment"),
+                        "novelty_adjustment": novelty_by_id.get(item, {}).get("novelty_adjustment"),
+                        "predicted_priority_literature_adjusted": novelty_by_id.get(item, {}).get("predicted_priority_literature_adjusted"),
+                        "predicted_priority_novelty_adjusted": novelty_by_id.get(item, {}).get("predicted_priority_novelty_adjusted"),
+                    }
+                    for item in novelty_only_ids
+                ],
             },
         )
         state.log("Ranker produced support-aware and novelty-aware shortlists using predicted properties, measured support, KG critique signals, and scaffold context")
