@@ -1,6 +1,6 @@
 # Remote reconcile deployment notes
 
-These notes describe how the cluster-side reconcile sweep should fit into the `pz_agent` remote ORCA-over-Slurm flow.
+These notes describe how the cluster-side reconcile sweep should fit into the `pz_agent` HTVS-backed remote ORCA flow.
 
 ## Current local/remote split
 
@@ -61,17 +61,20 @@ The current local code does not need all of these fields yet, but these are the 
 ```yaml
 simulation_submit:
   transport: ssh
-  remote_host: user@cluster.example.edu
-  remote_root: /path/to/pz_agent_jobs
-  remote_submit_command: /path/to/remote_submit_orca_job.py
+  ssh_host: user@cluster.example.edu
+  htvs_root: /path/to/htvs
+  remote_job_root_base: /path/to/pz_agent_jobs/inbox
+  project: pz_agent_htvs
+  job_config: dft_opt_orca
+  source_jobconfig: seed_xyz_import
 
 simulation_check:
   transport: ssh
-  remote_host: user@cluster.example.edu
+  ssh_host: user@cluster.example.edu
 
 simulation_extract:
   transport: ssh
-  remote_host: user@cluster.example.edu
+  ssh_host: user@cluster.example.edu
 
 simulation_remote_ops:
   reconcile_script: /path/to/remote_reconcile_orca_job.py
@@ -80,6 +83,8 @@ simulation_remote_ops:
   log_dir: /path/to/logs
   cron_interval: "*/5 * * * *"
 ```
+
+Compatibility note: local adapters still accept legacy wrapper-style keys like `remote_host`, `remote_root`, and `remote_submit_command`, but new deployment examples should use the HTVS-native fields above.
 
 ## Manual validation before enabling cron
 

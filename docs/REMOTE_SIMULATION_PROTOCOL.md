@@ -1,15 +1,16 @@
-# Remote ORCA over Slurm submission protocol
+# HTVS-backed remote ORCA submission protocol
 
-This document defines the recommended first real remote execution path for `pz_agent` for direct ORCA calculations on a remote HPC system.
+This document defines the recommended live remote execution path for `pz_agent` for direct ORCA calculations on a remote HPC system via the HTVS-backed Supercloud flow.
 
 ## Recommendation
 
-Use a **file-backed remote job protocol** with a thin remote wrapper script.
+Use a **file-backed remote job protocol** with HTVS-backed job staging and remote ORCA execution.
 
 Keep:
 - `pz_agent` as the local orchestrator
+- HTVS-backed job build and queue staging as the remote submission layer
 - direct ORCA execution as the remote calculation layer
-- Slurm plus shell or Python wrappers as the execution mechanism
+- Slurm as the execution mechanism
 
 Do **not** put a dedicated agentic execution framework in the steady-state submission path for this narrow simulation workflow.
 
@@ -118,7 +119,7 @@ Recommended shape:
 
 ```json
 {
-  "contract_version": "orca_slurm.request_response.v1",
+  "contract_version": "htvs.request_response.v1",
   "request_type": "check_simulation",
   "response_type": "status_envelope",
   "candidate_id": "rec_a",
@@ -126,7 +127,7 @@ Recommended shape:
   "job_id": "job-001",
   "status": "running",
   "authoritative": true,
-  "backend": "orca_slurm",
+  "backend": "htvs_supercloud",
   "engine": "orca",
   "job_driver": "direct_orca",
   "execution_mode": "remote",
@@ -153,14 +154,14 @@ Recommended successful terminal shape:
 
 ```json
 {
-  "contract_version": "orca_slurm.request_response.v1",
+  "contract_version": "htvs.request_response.v1",
   "request_type": "extract_simulation_result",
   "response_type": "result_envelope",
   "candidate_id": "rec_a",
   "submission_id": "submit-001",
   "job_id": "job-001",
   "status": "completed",
-  "backend": "orca_slurm",
+  "backend": "htvs_supercloud",
   "engine": "orca",
   "simulation_type": "geometry_optimization",
   "outputs": {
@@ -191,14 +192,14 @@ Recommended failed terminal shape:
 
 ```json
 {
-  "contract_version": "orca_slurm.request_response.v1",
+  "contract_version": "htvs.request_response.v1",
   "request_type": "extract_simulation_result",
   "response_type": "failure_envelope",
   "candidate_id": "rec_a",
   "submission_id": "submit-001",
   "job_id": "job-001",
   "status": "failed",
-  "backend": "orca_slurm",
+  "backend": "htvs_supercloud",
   "engine": "orca",
   "simulation_type": "geometry_optimization",
   "failure_kind": "convergence_failure",
@@ -240,28 +241,34 @@ Once phase 1 works, harden the remote path to track:
 
 ## Suggested config additions
 
-A future real backend config will likely need fields like:
+The preferred HTVS-native config shape is:
 
 ```yaml
 simulation:
-  backend: orca_slurm
+  backend: htvs_supercloud
   engine: orca
   remote_target: cluster-alpha
   job_driver: direct_orca
 
 simulation_submit:
   transport: ssh
-  remote_host: user@cluster.example.edu
-  remote_root: /path/to/pz_agent_jobs
-  remote_submit_command: /path/to/bin/remote_submit_orca_job.py
-  remote_scheduler: slurm
-  stage_method: rsync
+  ssh_host: user@cluster.example.edu
+  htvs_root: /path/to/htvs
+  remote_job_root_base: /path/to/pz_agent_jobs/inbox
+  project: pz_agent_htvs
+  job_config: dft_opt_orca
+  source_jobconfig: seed_xyz_import
 
 simulation_check:
   transport: ssh
-  remote_host: user@cluster.example.edu
-  remote_root: /path/to/pz_agent_jobs
+  ssh_host: user@cluster.example.edu
+
+simulation_extract:
+  transport: ssh
+  ssh_host: user@cluster.example.edu
 ```
+
+Compatibility note: the current submit/check adapters also accept legacy wrapper-style keys such as `remote_host`, `remote_root`, and `remote_submit_command`. Keep those only for older wrapper-path configs and queue artifacts, not as the preferred new shape.
 
 Scheduler and environment settings should now be carried in `orca_job.json` under a `scheduler` block, then consumed by the remote wrapper.
 
