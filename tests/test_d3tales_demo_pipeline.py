@@ -87,6 +87,8 @@ critique:
     - solvation_energy
 search:
   backend: stub
+simulation:
+  backend: orca_slurm
 """,
         encoding="utf-8",
     )
@@ -268,6 +270,7 @@ search:
   backend: stub
 simulation:
   max_candidates: 2
+  backend: orca_slurm
   remote_target: cluster-demo
   requested_outputs:
     - optimized_structure
@@ -367,6 +370,8 @@ critique:
     - solvation_energy
 search:
   backend: stub
+simulation:
+  backend: orca_slurm
 """,
         encoding="utf-8",
     )
