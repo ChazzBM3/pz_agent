@@ -6,7 +6,7 @@ from pz_agent.io import ensure_dir, write_json
 from pz_agent.state import RunState
 
 
-CONTRACT_VERSION = "orca_slurm.request_response.v1"
+CONTRACT_VERSION = "htvs.request_response.v1"
 
 
 def _scheduler_settings(simulation_cfg: dict, candidate_id: str) -> dict:
@@ -24,11 +24,11 @@ def _scheduler_settings(simulation_cfg: dict, candidate_id: str) -> dict:
     }
 
 
-def _orca_remote_spec(item: dict, simulation_cfg: dict) -> dict:
+def _remote_simulation_spec(item: dict, simulation_cfg: dict) -> dict:
     identity = dict(item.get("identity") or {})
     candidate_id = str(item.get("id") or item.get("candidate_id") or "job")
     return {
-        "backend": simulation_cfg.get("backend", "orca_slurm"),
+        "backend": simulation_cfg.get("backend", "htvs_supercloud"),
         "engine": simulation_cfg.get("engine", "orca"),
         "execution_mode": simulation_cfg.get("execution_mode", "remote"),
         "job_driver": simulation_cfg.get("job_driver", "direct_orca") ,
@@ -129,7 +129,7 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
         "run_id": state.run_dir.name,
         "structure_file": structure_filename,
         "job_driver": simulation.get("job_driver", "direct_orca"),
-        "backend": simulation.get("backend", "orca_slurm"),
+        "backend": simulation.get("backend", "htvs_supercloud"),
         "engine": simulation.get("engine", "orca"),
         "execution_mode": simulation.get("execution_mode", "remote"),
         "requested_outputs": simulation.get("requested_outputs") or [],
@@ -188,7 +188,7 @@ class SimulationHandoffAgent(BaseAgent):
         max_candidates = int(simulation_cfg.get("max_candidates", len(shortlist) or 0)) if shortlist else 0
         selected = shortlist[:max_candidates] if max_candidates > 0 else shortlist
 
-        remote_spec = _orca_remote_spec(selected[0] if selected else {}, simulation_cfg)
+        remote_spec = _remote_simulation_spec(selected[0] if selected else {}, simulation_cfg)
         parameters = {
             key: value
             for key, value in remote_spec.items()
@@ -200,7 +200,7 @@ class SimulationHandoffAgent(BaseAgent):
         for rank, item in enumerate(selected, start=1):
             identity = dict(item.get("identity") or {})
             ranking_rationale = dict(item.get("ranking_rationale") or {})
-            per_item_spec = _orca_remote_spec(item, simulation_cfg)
+            per_item_spec = _remote_simulation_spec(item, simulation_cfg)
             per_item_parameters = {
                 key: value
                 for key, value in per_item_spec.items()
@@ -231,7 +231,7 @@ class SimulationHandoffAgent(BaseAgent):
                     "simulation_type": per_item_spec.get("simulation_type", "geometry_optimization"),
                     "compute_tier": simulation_cfg.get("compute_tier", "screening"),
                     "budget_tag": simulation_cfg.get("budget_tag", "default"),
-                    "backend": per_item_spec.get("backend", "orca_slurm"),
+                    "backend": per_item_spec.get("backend", "htvs_supercloud"),
                     "engine": per_item_spec.get("engine", "orca"),
                     "job_driver": per_item_spec.get("job_driver", "direct_orca"),
                     "execution_mode": per_item_spec.get("execution_mode", "remote"),
@@ -244,7 +244,7 @@ class SimulationHandoffAgent(BaseAgent):
                     "compute_tier": simulation_cfg.get("compute_tier", "screening"),
                     "budget_tag": simulation_cfg.get("budget_tag", "default"),
                     "orca": {
-                        "backend": per_item_spec.get("backend", "orca_slurm"),
+                        "backend": per_item_spec.get("backend", "htvs_supercloud"),
                         "execution_mode": per_item_spec.get("execution_mode", "remote"),
                         "job_driver": per_item_spec.get("job_driver", "direct_orca"),
                         **per_item_parameters,
@@ -272,14 +272,14 @@ class SimulationHandoffAgent(BaseAgent):
                 "simulation_type": remote_spec.get("simulation_type", "geometry_optimization"),
                 "compute_tier": simulation_cfg.get("compute_tier", "screening"),
                 "budget_tag": simulation_cfg.get("budget_tag", "default"),
-                "backend": remote_spec.get("backend", "orca_slurm"),
+                "backend": remote_spec.get("backend", "htvs_supercloud"),
                 "engine": remote_spec.get("engine", "orca"),
                 "job_driver": remote_spec.get("job_driver", "direct_orca"),
                 "execution_mode": remote_spec.get("execution_mode", "remote"),
                 "parameters": parameters,
                 "requested_outputs": requested_outputs,
                 "orca": {
-                    "backend": remote_spec.get("backend", "orca_slurm"),
+                    "backend": remote_spec.get("backend", "htvs_supercloud"),
                     "execution_mode": remote_spec.get("execution_mode", "remote"),
                     "job_driver": remote_spec.get("job_driver", "direct_orca"),
                     **parameters,

@@ -90,6 +90,7 @@ search:
   backend: stub
 simulation:
   max_candidates: 2
+  backend: orca_slurm
   simulation_type: geometry_optimization
   compute_tier: pilot
   budget_tag: fixed_fixture
@@ -124,7 +125,7 @@ simulation:
     assert job_spec["provenance"]["remote_backend"] == "orca_slurm"
 
     structure_stub = (tmp_path / "run" / "orca_jobs" / "rec_a" / "input_structure.xyz").read_text()
-    assert "rec_a" in structure_stub
+    assert "c1ccc2c(c1)Sc1ccccc1S2" in structure_stub.splitlines()[1]
     submissions = json.loads((tmp_path / "run" / "simulation_submissions.json").read_text())
     assert len(submissions) == 2
     assert submissions[0]["status"] == "submitted"

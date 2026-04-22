@@ -97,6 +97,7 @@ search:
   backend: stub
 simulation:
   max_candidates: 2
+  backend: orca_slurm
   remote_target: cluster-alpha
 simulation_submit:
   submission_prefix: extract-submit
@@ -172,6 +173,7 @@ search:
   backend: stub
 simulation:
   max_candidates: 2
+  backend: orca_slurm
   remote_target: cluster-alpha
 simulation_submit:
   submission_prefix: artifact-submit
@@ -266,6 +268,7 @@ search:
   backend: stub
 simulation:
   max_candidates: 2
+  backend: orca_slurm
   remote_target: cluster-alpha
 simulation_submit:
   submission_prefix: remote-artifact-submit

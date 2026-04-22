@@ -87,6 +87,7 @@ search:
   backend: stub
 simulation:
   max_candidates: 2
+  backend: orca_slurm
   remote_target: cluster-alpha
   scheduler:
     system: slurm
@@ -122,7 +123,7 @@ def test_simulation_manifest_declares_current_default_contract(tmp_path: Path, m
     defaults = manifest["simulation_defaults"]
     params = defaults["parameters"]
 
-    assert manifest["contract_version"] == "orca_slurm.request_response.v1"
+    assert manifest["contract_version"] == "htvs.request_response.v1"
     assert defaults["simulation_type"] == "geometry_optimization"
     assert defaults["backend"] == "orca_slurm"
     assert defaults["engine"] == "orca"
@@ -161,7 +162,7 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     assert queue[0]["simulation"]["parameters"]["solvent"] == "water"
     assert queue[0]["simulation"]["parameters"]["remote_target"] == "cluster-alpha"
 
-    assert job_spec["contract_version"] == "orca_slurm.request_response.v1"
+    assert job_spec["contract_version"] == "htvs.request_response.v1"
     assert job_spec["request_type"] == "submit_simulation"
     assert job_spec["operation"]["check_only"] is False
     assert job_spec["parameters"]["dispersion"] == "D3"
@@ -218,7 +219,7 @@ def test_simulation_check_prefers_local_remote_status_artifact(tmp_path: Path, m
     status_path.write_text(
         json.dumps(
             {
-                "contract_version": "orca_slurm.request_response.v1",
+                "contract_version": "htvs.request_response.v1",
                 "request_type": "check_simulation",
                 "response_type": "status_envelope",
                 "candidate_id": "rec_a",
@@ -226,7 +227,7 @@ def test_simulation_check_prefers_local_remote_status_artifact(tmp_path: Path, m
                 "job_id": "pzjob-rec_a-001",
                 "status": "running",
                 "authoritative": True,
-                "backend": "orca_slurm",
+                "backend": "htvs_supercloud",
                 "engine": "orca",
                 "job_driver": "direct_orca",
                 "execution_mode": "remote",
