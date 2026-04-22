@@ -3,6 +3,7 @@ from __future__ import annotations
 from pz_agent.agents.base import BaseAgent
 from pz_agent.analysis.diversity import diversify_placeholder
 from pz_agent.analysis.pareto import apply_literature_adjustment, compute_placeholder_pareto
+from pz_agent.io import write_json
 from pz_agent.kg.scaffold_features import write_scaffold_features
 from pz_agent.state import RunState
 
@@ -62,5 +63,14 @@ class RankerAgent(BaseAgent):
         shortlist_size = int(self.config.get("screening", {}).get("shortlist_size", 3))
         state.shortlist = list((state.ranked or [])[: min(shortlist_size, len(state.ranked or []))])
         state.novelty_shortlist = list((state.novelty_ranked or [])[: min(shortlist_size, len(state.novelty_ranked or []))])
+        write_json(
+            state.run_dir / "ranker_views.json",
+            {
+                "ranked": state.ranked,
+                "shortlist": state.shortlist,
+                "novelty_ranked": state.novelty_ranked,
+                "novelty_shortlist": state.novelty_shortlist,
+            },
+        )
         state.log("Ranker produced support-aware and novelty-aware shortlists using predicted properties, measured support, KG critique signals, and scaffold context")
         return state
