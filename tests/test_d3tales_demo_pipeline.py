@@ -9,7 +9,7 @@ from pz_agent.runner import run_pipeline
 CSV_TEXT = """_id,smiles,source_group,sa_score,oxidation_potential,reduction_potential,groundState.solvation_energy,hole_reorganization_energy,electron_reorganization_energy\nrec_a,c1ccc2c(c1)Sc1ccccc1S2,demo,1.2,1.4,0.7,-0.8,0.2,0.3\nrec_b,CCN1c2ccccc2Sc2ccccc21,demo,2.1,0.4,0.2,0.1,1.1,1.2\nother,c1ccccc1,demo,1.0,2.0,1.5,-0.1,0.1,0.1\n"""
 
 
-def test_d3tales_demo_pipeline_exercises_measurement_aware_reranking(tmp_path: Path, monkeypatch) -> None:
+def test_d3tales_demo_pipeline_exercises_measurement_aware_reranking_with_legacy_submit_fixture(tmp_path: Path, monkeypatch) -> None:
     csv_path = tmp_path / "demo.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
 
@@ -163,7 +163,7 @@ simulation:
     assert (tmp_path / 'run' / 'simulation_submissions.json').exists()
 
 
-def test_d3tales_demo_pipeline_with_validation_ingest_exercises_end_to_end_loop(tmp_path: Path, monkeypatch) -> None:
+def test_d3tales_demo_pipeline_with_validation_ingest_exercises_end_to_end_loop_with_legacy_submit_fixture(tmp_path: Path, monkeypatch) -> None:
     csv_path = tmp_path / "demo_validation.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
 
@@ -304,7 +304,7 @@ validation_ingest:
     assert any(node["type"] == "ValidationOutcome" and node["attrs"].get("status") == "completed" for node in graph.get("nodes", []))
 
 
-def test_d3tales_demo_pipeline_loads_prior_action_queue(tmp_path: Path) -> None:
+def test_d3tales_demo_pipeline_loads_prior_action_queue_with_legacy_submit_fixture(tmp_path: Path) -> None:
     csv_path = tmp_path / "demo.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
     prior_queue_path = tmp_path / "prior_action_queue.json"

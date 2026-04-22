@@ -116,7 +116,7 @@ simulation_submit:
     return run_dir
 
 
-def test_simulation_manifest_declares_current_default_contract(tmp_path: Path, monkeypatch) -> None:
+def test_legacy_wrapper_contract_fixture_uses_explicit_legacy_backend(tmp_path: Path, monkeypatch) -> None:
     run_dir = _run_contract_fixture(tmp_path, monkeypatch)
     manifest = json.loads((run_dir / "simulation_manifest.json").read_text())
 
@@ -149,7 +149,7 @@ def test_simulation_manifest_declares_current_default_contract(tmp_path: Path, m
     assert params["remote_target"] == "cluster-alpha"
 
 
-def test_simulation_job_package_and_submission_records_match_contract(tmp_path: Path, monkeypatch) -> None:
+def test_legacy_wrapper_submission_records_match_contract(tmp_path: Path, monkeypatch) -> None:
     run_dir = _run_contract_fixture(tmp_path, monkeypatch)
 
     queue = json.loads((run_dir / "simulation_queue.json").read_text())
@@ -212,7 +212,7 @@ def test_simulation_job_package_and_submission_records_match_contract(tmp_path: 
     assert submissions[0]["submission_id"].startswith("contract-submit-")
 
 
-def test_simulation_check_prefers_local_remote_status_artifact(tmp_path: Path, monkeypatch) -> None:
+def test_legacy_wrapper_check_prefers_local_remote_status_artifact(tmp_path: Path, monkeypatch) -> None:
     run_dir = _run_contract_fixture(tmp_path, monkeypatch)
 
     status_path = run_dir / "orca_jobs" / "rec_a" / "status.json"
@@ -257,7 +257,7 @@ def test_simulation_check_prefers_local_remote_status_artifact(tmp_path: Path, m
     assert check["status_path"].endswith("orca_jobs/rec_a/status.json")
 
 
-def test_simulation_submit_can_execute_real_handoff_commands(tmp_path: Path, monkeypatch) -> None:
+def test_legacy_wrapper_submit_can_execute_real_handoff_commands(tmp_path: Path, monkeypatch) -> None:
     run_dir = _run_contract_fixture(tmp_path, monkeypatch)
 
     command_log: list[str] = []
@@ -304,7 +304,7 @@ def test_simulation_submit_can_execute_real_handoff_commands(tmp_path: Path, mon
     assert "ssh user@cluster.example.edu '/opt/pz_agent/bin/remote_submit_orca_job.py /scratch/pz_agent_jobs/inbox/pzjob-rec_a-001'" == command_log[2]
 
 
-def test_simulation_submit_marks_failed_handoff_command(tmp_path: Path, monkeypatch) -> None:
+def test_legacy_wrapper_submit_marks_failed_handoff_command(tmp_path: Path, monkeypatch) -> None:
     run_dir = _run_contract_fixture(tmp_path, monkeypatch)
 
     def fake_run(command, shell, text, capture_output, cwd=None):
@@ -345,7 +345,7 @@ def test_simulation_submit_marks_failed_handoff_command(tmp_path: Path, monkeypa
     assert submission["handoff_execution"]["command_results"][1]["ok"] is False
 
 
-def test_simulation_check_can_fetch_remote_status_over_ssh(tmp_path: Path, monkeypatch) -> None:
+def test_legacy_wrapper_check_can_fetch_remote_status_over_ssh(tmp_path: Path, monkeypatch) -> None:
     run_dir = _run_contract_fixture(tmp_path, monkeypatch)
 
     def fake_run(command, shell, text, capture_output, cwd=None):

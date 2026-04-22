@@ -36,7 +36,7 @@ RESULTS_PAYLOAD = [
 ]
 
 
-def test_validation_ingest_records_completed_results_and_updates_report(tmp_path: Path, monkeypatch) -> None:
+def test_validation_ingest_records_completed_results_from_explicit_legacy_fixture(tmp_path: Path, monkeypatch) -> None:
     csv_path = tmp_path / "validation.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
 
@@ -197,7 +197,7 @@ validation_ingest:
     assert any(node["type"] == "ValidationOutcome" and node["attrs"].get("status") == "completed" for node in graph.get("nodes", []))
 
 
-def test_validation_ingest_can_flow_from_local_artifact_result(tmp_path: Path, monkeypatch) -> None:
+def test_validation_ingest_can_flow_from_local_artifact_result_with_legacy_backend_fixture(tmp_path: Path, monkeypatch) -> None:
     csv_path = tmp_path / "validation_artifact.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
 
