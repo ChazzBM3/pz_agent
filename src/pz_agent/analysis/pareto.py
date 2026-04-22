@@ -322,21 +322,72 @@ def compute_scaffold_support_adjustment(scaffold_context: dict[str, Any] | None)
     return bonus, rationale
 
 
+def compute_scaffold_novelty_adjustment(
+    row: dict[str, Any],
+    critique_note: dict[str, Any] | None,
+    scaffold_context: dict[str, Any] | None,
+) -> tuple[float, list[str]]:
+    if not scaffold_context:
+        return 0.0, []
+
+    family_size = int(scaffold_context.get("scaffold_family_size", 0) or 0)
+    family_avg_measurements = float(scaffold_context.get("scaffold_family_avg_measurements", 0.0) or 0.0)
+    predicted_priority = row.get("predicted_priority")
+    support_mix = dict(critique_note.get("support_mix") or {}) if critique_note else {}
+
+    bonus = 0.0
+    rationale: list[str] = []
+
+    if 1 <= family_size <= 5:
+        edge_bonus = 0.09
+        bonus += edge_bonus
+        rationale.append(f"novel_sparse_family_bonus={edge_bonus:.3f}:size={family_size}")
+    elif 6 <= family_size <= 20:
+        edge_bonus = 0.045
+        bonus += edge_bonus
+        rationale.append(f"novel_mid_sparse_family_bonus={edge_bonus:.3f}:size={family_size}")
+    elif family_size >= 100:
+        penalty = min(0.03, family_size / 5000.0)
+        bonus -= penalty
+        rationale.append(f"novel_dense_family_penalty={penalty:.3f}:size={family_size}")
+
+    if family_avg_measurements <= 3 and predicted_priority is not None and float(predicted_priority) >= 0.6:
+        underexplored_bonus = 0.045
+        bonus += underexplored_bonus
+        rationale.append("high_priority_underexplored_family_bonus=0.045")
+
+    analog_support = float(support_mix.get("adjacent_scaffold_support", 0.0) or 0.0)
+    exact_support = float((critique_note or {}).get("signals", {}).get("exact_match_hits", 0) or 0.0)
+    if analog_support > 0 and exact_support == 0:
+        bridge_bonus = min(0.02, analog_support * 0.02)
+        bonus += bridge_bonus
+        rationale.append(f"analog_bridge_novelty_bonus={bridge_bonus:.3f}")
+
+    return bonus, rationale
+
+
 def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, Any] | None) -> dict[str, Any]:
     item = dict(row)
     base = item.get("predicted_priority")
+    item.setdefault("ranking_rationale", {})
+    scaffold_context = item.get("ranking_rationale", {}).get("scaffold_context")
     if base is None:
         item.setdefault("literature_adjustment", 0.0)
         item.setdefault("predicted_priority_literature_adjusted", None)
-        item.setdefault("ranking_rationale", {})
         item["ranking_rationale"].setdefault("literature_adjustment", [])
+        item["novelty_adjustment"] = 0.0
+        item["predicted_priority_novelty_adjusted"] = None
+        item["ranking_rationale"].setdefault("novelty_adjustment", [])
         return item
 
     if not critique_note:
         item["literature_adjustment"] = 0.0
         item["predicted_priority_literature_adjusted"] = base
-        item.setdefault("ranking_rationale", {})
+        novelty_bonus, novelty_rationale = compute_scaffold_novelty_adjustment(item, critique_note, scaffold_context)
+        item["novelty_adjustment"] = novelty_bonus
+        item["predicted_priority_novelty_adjusted"] = base + novelty_bonus
         item["ranking_rationale"].setdefault("literature_adjustment", [])
+        item["ranking_rationale"]["novelty_adjustment"] = novelty_rationale
         return item
 
     signals = critique_note.get("signals", {})
@@ -464,8 +515,12 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
 
     item["literature_adjustment"] = bonus
     item["predicted_priority_literature_adjusted"] = base + bonus
+    novelty_bonus, novelty_rationale = compute_scaffold_novelty_adjustment(item, critique_note, scaffold_context)
+    item["novelty_adjustment"] = novelty_bonus
+    item["predicted_priority_novelty_adjusted"] = base + novelty_bonus
     item.setdefault("ranking_rationale", {})
     item["ranking_rationale"]["literature_adjustment"] = rationale
+    item["ranking_rationale"]["novelty_adjustment"] = novelty_rationale
     return item
 
 

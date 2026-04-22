@@ -22,8 +22,8 @@ class RankerAgent(BaseAgent):
         for item in ranked:
             candidate_id = item.get("id")
             critique_note = critique_by_candidate.get(candidate_id)
-            enriched = apply_literature_adjustment(item, critique_note)
-            ranking_rationale = dict(enriched.get("ranking_rationale") or {})
+            pre_enriched = dict(item)
+            ranking_rationale = dict(pre_enriched.get("ranking_rationale") or {})
             ranking_rationale["evidence_sources"] = {
                 "has_critique_note": critique_note is not None,
                 "uses_identity_level_evidence": bool(critique_note and ((critique_note.get("signals") or {}).get("exact_match_hits") or (critique_note.get("signals") or {}).get("analog_match_hits"))),
@@ -35,7 +35,8 @@ class RankerAgent(BaseAgent):
                 ranking_rationale["evidence_sources"]["scaffold_context_present"] = True
             else:
                 ranking_rationale["evidence_sources"]["scaffold_context_present"] = False
-            enriched["ranking_rationale"] = ranking_rationale
+            pre_enriched["ranking_rationale"] = ranking_rationale
+            enriched = apply_literature_adjustment(pre_enriched, critique_note)
             evidence_aware_ranked.append(enriched)
 
         evidence_aware_ranked.sort(
@@ -46,9 +47,20 @@ class RankerAgent(BaseAgent):
             )
         )
 
+        novelty_ranked = sorted(
+            evidence_aware_ranked,
+            key=lambda x: (
+                -1.0 if x.get("predicted_priority_novelty_adjusted") is None else -float(x["predicted_priority_novelty_adjusted"]),
+                -1.0 if x.get("predicted_priority") is None else -float(x["predicted_priority"]),
+                x.get("id", ""),
+            ),
+        )
+
         ranked = diversify_placeholder(evidence_aware_ranked)
         state.ranked = ranked
+        state.novelty_ranked = diversify_placeholder(novelty_ranked)
         shortlist_size = int(self.config.get("screening", {}).get("shortlist_size", 3))
         state.shortlist = list((state.ranked or [])[: min(shortlist_size, len(state.ranked or []))])
-        state.log("Ranker produced evidence-aware shortlist using predicted properties, measured support, and KG critique signals")
+        state.novelty_shortlist = list((state.novelty_ranked or [])[: min(shortlist_size, len(state.novelty_ranked or []))])
+        state.log("Ranker produced support-aware and novelty-aware shortlists using predicted properties, measured support, KG critique signals, and scaffold context")
         return state

@@ -16,6 +16,8 @@ class RunState:
     benchmark: dict[str, Any] | None = None
     ranked: list[dict[str, Any]] | None = None
     shortlist: list[dict[str, Any]] | None = None
+    novelty_ranked: list[dict[str, Any]] | None = None
+    novelty_shortlist: list[dict[str, Any]] | None = None
     simulation_queue: list[dict[str, Any]] | None = None
     simulation_manifest: dict[str, Any] | None = None
     simulation_submissions: list[dict[str, Any]] | None = None
