@@ -6,6 +6,20 @@ from pz_agent.simulation.backends import get_simulation_backend
 from pz_agent.state import RunState
 
 
+def _normalize_check_config(check_cfg: dict, submission: dict, simulation: dict) -> dict:
+    normalized = dict(check_cfg)
+    backend_name = str(simulation.get("backend") or submission.get("backend") or "").strip().lower()
+    if backend_name not in {"htvs", "htvs_orca", "htvs_supercloud"}:
+        return normalized
+
+    remote_settings = dict(submission.get("remote_settings") or {})
+    if not normalized.get("ssh_host"):
+        normalized["ssh_host"] = normalized.get("remote_host") or remote_settings.get("ssh_host")
+    if not normalized.get("htvs_root"):
+        normalized["htvs_root"] = normalized.get("remote_root") or remote_settings.get("htvs_root")
+    return normalized
+
+
 class SimulationCheckAgent(BaseAgent):
     name = "simulation_check"
 
@@ -25,7 +39,7 @@ class SimulationCheckAgent(BaseAgent):
                 candidate_id=str(item.get("candidate_id") or item.get("id") or "unknown_candidate"),
                 submission=submission,
                 simulation=simulation,
-                check_config=check_cfg,
+                check_config=_normalize_check_config(check_cfg, submission, simulation),
             )
             checks.append(check)
             if str(check.get("status") or "").strip().lower() == "failed":

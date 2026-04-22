@@ -6,6 +6,27 @@ from pz_agent.simulation.backends import get_simulation_backend
 from pz_agent.state import RunState
 
 
+def _normalize_submit_config(submit_cfg: dict, simulation: dict, job_package: dict) -> dict:
+    normalized = dict(submit_cfg)
+    backend_name = str(simulation.get("backend") or "").strip().lower()
+    if backend_name not in {"htvs", "htvs_orca", "htvs_supercloud"}:
+        return normalized
+
+    if not normalized.get("ssh_host"):
+        normalized["ssh_host"] = normalized.get("remote_host")
+    if not normalized.get("htvs_root"):
+        normalized["htvs_root"] = normalized.get("remote_root")
+    if not normalized.get("geometry_path"):
+        normalized["geometry_path"] = job_package.get("structure_path")
+    if not normalized.get("remote_job_root_base"):
+        remote_root = str(normalized.get("remote_root") or "").rstrip("/")
+        if remote_root:
+            normalized["remote_job_root_base"] = f"{remote_root}/inbox"
+    if not normalized.get("job_config") and normalized.get("remote_submit_command"):
+        normalized["remote_submit_command_legacy"] = normalized.get("remote_submit_command")
+    return normalized
+
+
 class SimulationSubmitAgent(BaseAgent):
     name = "simulation_submit"
 
@@ -25,18 +46,23 @@ class SimulationSubmitAgent(BaseAgent):
             if use_rerun_queue:
                 retry_suffix = str(item.get("retry_id") or retry_metadata.get("retry_prefix") or f"retry-{idx:03d}")
             job_package = dict(item.get("job_package") or {})
-            submission = backend.submit(
-                candidate_id=str(item.get("candidate_id") or item.get("id") or f"candidate-{idx}"),
-                queue_rank=item.get("queue_rank") or item.get("retry_index") or idx,
-                job_spec_path=str(job_package.get("job_spec_path") or item.get("job_spec_path") or ""),
-                simulation=simulation,
-                submit_config={
+            submit_payload = _normalize_submit_config(
+                {
                     **submit_cfg,
                     "remote_target": remote_target,
                     "submission_prefix": submission_prefix,
                     "retry_suffix": retry_suffix,
                     "job_package": job_package,
                 },
+                simulation,
+                job_package,
+            )
+            submission = backend.submit(
+                candidate_id=str(item.get("candidate_id") or item.get("id") or f"candidate-{idx}"),
+                queue_rank=item.get("queue_rank") or item.get("retry_index") or idx,
+                job_spec_path=str(job_package.get("job_spec_path") or item.get("job_spec_path") or ""),
+                simulation=simulation,
+                submit_config=submit_payload,
             )
             submissions.append(submission)
             tracking = dict(item.get("tracking") or {})

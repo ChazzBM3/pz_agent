@@ -3,7 +3,40 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from pz_agent.agents.simulation_check import _normalize_check_config
+from pz_agent.agents.simulation_submit import _normalize_submit_config
 from pz_agent.simulation.backends.htvs import HtvsBackend
+
+
+def test_htvs_submit_config_normalizer_maps_legacy_wrapper_fields() -> None:
+    simulation = {"backend": "htvs_supercloud"}
+    job_package = {"structure_path": "/tmp/input_structure.xyz"}
+    normalized = _normalize_submit_config(
+        {
+            "remote_host": "user@cluster.example.edu",
+            "remote_root": "/scratch/pz_agent_jobs",
+            "remote_submit_command": "/opt/pz_agent/bin/remote_submit_orca_job.py",
+        },
+        simulation,
+        job_package,
+    )
+
+    assert normalized["ssh_host"] == "user@cluster.example.edu"
+    assert normalized["htvs_root"] == "/scratch/pz_agent_jobs"
+    assert normalized["geometry_path"] == "/tmp/input_structure.xyz"
+    assert normalized["remote_job_root_base"] == "/scratch/pz_agent_jobs/inbox"
+    assert normalized["remote_submit_command_legacy"] == "/opt/pz_agent/bin/remote_submit_orca_job.py"
+
+
+def test_htvs_check_config_normalizer_maps_legacy_wrapper_fields() -> None:
+    normalized = _normalize_check_config(
+        {"remote_host": "user@cluster.example.edu", "remote_root": "/scratch/pz_agent_jobs"},
+        {"remote_settings": {}},
+        {"backend": "htvs_supercloud"},
+    )
+
+    assert normalized["ssh_host"] == "user@cluster.example.edu"
+    assert normalized["htvs_root"] == "/scratch/pz_agent_jobs"
 
 
 def test_htvs_extract_reads_completed_jobdir_outputs(tmp_path: Path) -> None:
