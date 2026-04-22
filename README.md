@@ -22,6 +22,19 @@ pip install -e '.[dev]'
 pytest -q
 ```
 
+## D3TaLES KG audit workflow
+
+To build and audit the baseline D3TaLES production KG, including exclusion of zero-information rows, run:
+
+```bash
+./.venv/bin/python scripts/d3tales_kg_audit.py --csv data/d3tales.csv --outdir artifacts/kg_prod_2026_04_22 --limit 50000
+```
+
+This writes:
+- `d3tales_kg.json` (raw graph)
+- `d3tales_kg.filtered.json` (recommended production baseline)
+- `d3tales_kg_audit.json` (removed-row list and before/after counts)
+
 ## RDKit environment note
 
 This project expects RDKit to be available inside the repo virtualenv.
