@@ -8,6 +8,13 @@ from pz_agent.kg.claims import build_property_node, stable_node_id
 from pz_agent.kg.merge import ingest_graph_update
 from pz_agent.io import read_json, write_json
 
+try:
+    from rdkit import Chem
+    from rdkit.Chem.Scaffolds import MurckoScaffold
+except Exception:
+    Chem = None
+    MurckoScaffold = None
+
 
 DATASET_NODE_ID = "dataset::d3tales"
 
@@ -58,6 +65,28 @@ def _build_molecule_node(record: D3TaLESRecord) -> dict[str, Any]:
     }
 
 
+def _scaffold_smiles(smiles: str) -> str | None:
+    if Chem is None or MurckoScaffold is None:
+        return None
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    scaffold = MurckoScaffold.GetScaffoldForMol(mol)
+    if scaffold is None or scaffold.GetNumAtoms() == 0:
+        return None
+    return Chem.MolToSmiles(scaffold, canonical=True)
+
+
+def _build_scaffold_node(scaffold_smiles: str) -> dict[str, Any]:
+    return {
+        "id": stable_node_id("scaffold", scaffold_smiles),
+        "type": "Scaffold",
+        "attrs": {
+            "smiles": scaffold_smiles,
+        },
+    }
+
+
 def _build_measurement_node(record: D3TaLESRecord, property_name: str, value: float) -> dict[str, Any]:
     measurement_id = stable_node_id("measurement", "d3tales", record.record_id, property_name)
     return {
@@ -92,6 +121,12 @@ def records_to_graph(records: list[D3TaLESRecord]) -> dict[str, Any]:
         nodes.append(molecule_node)
         edges.append({"source": dataset_record_node["id"], "target": DATASET_NODE_ID, "type": "DERIVED_FROM"})
         edges.append({"source": molecule_node["id"], "target": dataset_record_node["id"], "type": "DERIVED_FROM"})
+
+        scaffold = _scaffold_smiles(record.smiles)
+        if scaffold:
+            scaffold_node = _build_scaffold_node(scaffold)
+            nodes.append(scaffold_node)
+            edges.append({"source": molecule_node["id"], "target": scaffold_node["id"], "type": "HAS_SCAFFOLD"})
 
         for property_name, value in record.measurements.items():
             if value is None:
