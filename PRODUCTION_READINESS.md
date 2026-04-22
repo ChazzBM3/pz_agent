@@ -54,7 +54,7 @@
 - Add compute-budget fields
 - Add rationale / confidence / exploit-vs-validate annotations
 - Add explicit job manifests and status tracking
-- Validate that submission records are sufficient for a real remote-execution contract
+- Validate that submission, reconciliation, and extraction records are sufficient for the live HTVS-backed remote-execution contract
 - Keep the current packaged default calculation explicit and stable: ORCA geometry optimization with `PBE` / `def2-SVP`, `D3`, and implicit water via `CPCM`
 
 ### 4. Reporting
@@ -87,6 +87,7 @@ A fixed small pilot fixture now exists in test form to exercise the pseudo-produ
 - operator-facing report generation
 - simulation queue + manifest packaging with explicit pilot defaults
 - submission-record emission for remote execution scaffolding
+- HTVS-backed remote execution readiness, including jobdir build, Slurm submission, completed-job reconciliation, and extraction against real successful artifact filenames
 
 This is not yet a true benchmark gate, but it is now a stable pilot-run scaffold that can be tightened into one.
 
@@ -98,5 +99,5 @@ A run should not be considered pseudo-production-ready unless it:
 - preserves identity-aware cross-run evidence structure without collapsing run-local provenance
 - produces a shortlist with auditable evidence and confidence
 - emits a simulation-ready queue package rather than only a sorted list
-- emits submission records that satisfy the current remote-execution contract
+- emits submission, reconciliation, and extraction records that satisfy the current HTVS-backed remote-execution contract
 - passes ranking stability and retrieval-specificity regression tests

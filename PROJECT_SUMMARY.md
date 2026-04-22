@@ -98,7 +98,8 @@ GitHub:
 - `simulation_submit` emits backend submission records through a simulation backend abstraction
 - `validation_ingest` reads remote result payloads, normalizes outputs/status, classifies result quality, and writes `validation_results.json`
 - usable validation results are added back into the KG as `SimulationResult` and `ValidationOutcome` nodes
-- current AtomisticSkills submit path remains stubbed for contract validation rather than live remote execution
+- the HTVS submit/check/extract path is now the primary live remote-execution direction and has been exercised end to end on Supercloud through job build, Slurm submission, successful ORCA completion, and HTVS reconciliation into `completed/`
+- the older AtomisticSkills / direct-ORCA path remains in the repo as legacy contract scaffolding rather than the preferred active integration
 
 ## 5. Main gaps
 
@@ -106,11 +107,11 @@ The biggest remaining gap is now **remote execution hardening and downstream rig
 
 ### 1. Validation path now works, but needs stronger contract hardening
 The repo can now generate simulation-ready artifacts, emit submission records, ingest completed results, and write usable validation outcomes back into the KG and reports. The next hardening work is around making that path operationally trustworthy:
-- queue artifacts still need explicit contract validation against a real executor
-- submission records need to be checked against a real remote-execution design
+- queue artifacts still need explicit acceptance checks against the live HTVS executor path
+- submission/check/extract records should be tightened around the real HTVS completed-job artifact layout
 - result payload requirements should be tightened and documented as an acceptance contract
 - downstream validator / result-consumer stages should become more formal than simple ingest
-- a concrete file-backed remote protocol is now documented in `docs/REMOTE_SIMULATION_PROTOCOL.md` as the recommended first real integration path
+- the proven live path is now the HTVS-backed Supercloud flow; `docs/REMOTE_SIMULATION_PROTOCOL.md` remains useful as legacy context for the older direct ORCA-over-Slurm design
 
 ### 2. Scoring remains partially heuristic
 - synthesizability and solubility scoring are still not production-grade
@@ -132,14 +133,14 @@ The repo can now generate simulation-ready artifacts, emit submission records, i
 The recommended next sequence is:
 
 1. **Remote simulation contract hardening**
-   - define the required request/response contract for a real ORCA or AtomisticSkills target
-   - inspect emitted queue, manifest, submission, and validation artifacts for completeness
-   - turn the current stub-backed simulation path into a testable acceptance gate
-   - implement the documented SSH plus staged-file backend path against the supercomputer target
+   - codify the required request/response contract for the live HTVS-backed Supercloud target
+   - inspect emitted queue, manifest, submission, reconciliation, and validation artifacts for completeness
+   - turn the now-working HTVS path into a testable acceptance gate
+   - keep `pz_agent` as orchestrator, not the executor
 
 2. **Result-ingest and validator hardening**
-   - define exactly what a remote ORCA or AtomisticSkills execution target must accept and return
-   - keep `pz_agent` as orchestrator, not the executor
+   - tighten extraction around the real HTVS completed-job payloads and parsed ORCA artifacts
+   - formalize what downstream consumers require from HTVS-backed result envelopes
 
 3. **Then deeper bridge chemistry refinement**
    - make bridge reasoning compete for simulation budget using actual validation outcomes instead of only internal belief structure
