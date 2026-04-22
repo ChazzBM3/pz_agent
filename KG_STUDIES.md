@@ -138,6 +138,27 @@ This is important because it means the parallel ranking design is not merely num
 Earlier real runs showed no divergence because scaffold context was absent from the live campaign KG.
 That was fixed by adding scaffold derivation to the runtime KG builder, after which real novelty adjustments became nonzero.
 
+### Short interpretation note comparing the four focal molecules
+
+Taken together, these four molecules show the distinction between exploitation and exploration quite cleanly.
+
+- `05TRCY` and `05PESY` are both phenothiazine-family cases that look like safer local refinements.
+  - They sit in the denser scaffold family `c1ccc2c(c1)Nc1ccccc1S2`.
+  - Their ranking strength comes from staying near the established phenothiazine neighborhood while preserving decent predicted performance.
+  - They look like sensible candidates when the goal is to keep learning inside the known phenothiazine basin.
+
+- `05VEUX` and `05DUQU` are the exploratory counterpoint.
+  - They sit in the much smaller scaffold family `c1ccc(N(c2ccccc2)c2ccccc2)cc1`.
+  - They are not obviously dominant on the base score alone, but they become interesting once the ranking explicitly rewards edge-of-distribution scaffold neighborhoods.
+  - `05VEUX` looks like the more attractive exploratory pick of the two because it keeps somewhat better solubility than `05DUQU` while still benefiting from the same novelty lift.
+
+A useful way to summarize the quartet is:
+- `05TRCY` and `05PESY` are better exploitation candidates
+- `05VEUX` is the most compelling exploration candidate
+- `05DUQU` is a cleaner but somewhat harsher exploratory baseline inside the same smaller scaffold family
+
+That makes this set a good teaching example for why the project should keep support-aware and novelty-aware ranking as parallel views rather than collapsing them into one score.
+
 ### Suggested next studies
 
 1. Compare property ranges and literature evidence for the novelty-only scaffold family versus the support-only phenothiazine-family cases.
