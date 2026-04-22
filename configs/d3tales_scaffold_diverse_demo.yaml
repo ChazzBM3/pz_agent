@@ -1,0 +1,56 @@
+project:
+  name: phenothiazine-scaffold-diverse-demo
+generation:
+  engine: d3tales_csv
+  mode: phenothiazine_derivative_generation
+  external_genmol_path: null
+  d3tales_csv_path: data/d3tales.csv
+  d3tales_limit: 24
+  d3tales_phenothiazine_only: false
+  prompts:
+    objective: rank a more scaffold-diverse D3TaLES batch with KG-backed scaffold-aware support and novelty reranking
+screening:
+  primary_objectives:
+    - synthesizability
+    - solubility
+  secondary_objectives:
+    - novelty
+    - diversity
+  use_external_scores: false
+  shortlist_size: 8
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - visual_identity
+    - structure_expansion
+    - patent_retrieval
+    - scholarly_retrieval
+    - surrogate_screen
+    - benchmark
+    - knowledge_graph
+    - ranker
+    - critique
+    - critique_reranker
+    - knowledge_graph
+    - graph_expansion
+    - reporter
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+critique:
+  enable_web_search: true
+  max_candidates: 8
+  search_fields:
+    - phenothiazine
+    - oxidation_potential
+    - reduction_potential
+    - solvation_energy
+    - reorganization_energy
+visual_identity:
+  enabled: true
+  model: gemini-2.5-flash
+search:
+  backend: openalex
+  count: 5
+  production_backend: openalex
