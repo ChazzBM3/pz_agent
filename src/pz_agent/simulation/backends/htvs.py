@@ -123,11 +123,26 @@ def _find_first_existing(jobdir: Path, names: list[str]) -> Path | None:
 
 def _parse_orca_output_metrics(jobdir: Path) -> dict:
     metrics: dict[str, object] = {}
-    out_path = _find_first_existing(jobdir, ["job.out", "orca.out", "output.out"])
-    if not out_path:
-        return metrics
-    text = _read_text_if_exists(out_path)
-    if not text:
+    out_path = _find_first_existing(
+        jobdir,
+        [
+            "job.out",
+            "orca.out",
+            "output.out",
+            "orca_dft_opt.out",
+            "orca_dft_sp.out",
+            "orca_dft_freq.out",
+        ],
+    )
+    slurm_path = None
+    slurm_logs = sorted(jobdir.glob("slurm-*.out"))
+    if slurm_logs:
+        slurm_path = slurm_logs[0]
+
+    text = _read_text_if_exists(out_path) if out_path else None
+    slurm_text = _read_text_if_exists(slurm_path) if slurm_path else None
+    combined_text = "\n".join(part for part in [text, slurm_text] if part)
+    if not combined_text:
         return metrics
 
     energy_patterns = [
@@ -135,27 +150,29 @@ def _parse_orca_output_metrics(jobdir: Path) -> dict:
         r"Total Energy\s*[:=]\s*(-?\d+(?:\.\d+)?)",
     ]
     for pattern in energy_patterns:
-        match = re.search(pattern, text, flags=re.IGNORECASE)
+        match = re.search(pattern, combined_text, flags=re.IGNORECASE)
         if match:
             value = _coerce_float(match.group(1))
             if value is not None:
                 metrics["final_energy"] = value
                 break
 
-    dipole_match = re.search(r"Magnitude \(a\.u\.\)\s*[:=]?\s*(-?\d+(?:\.\d+)?)", text, flags=re.IGNORECASE)
+    dipole_match = re.search(r"Magnitude \(a\.u\.\)\s*[:=]?\s*(-?\d+(?:\.\d+)?)", combined_text, flags=re.IGNORECASE)
     if dipole_match:
         value = _coerce_float(dipole_match.group(1))
         if value is not None:
             metrics["groundState.dipole_moment"] = value
 
-    homo_lumo_match = re.search(r"HOMO-LUMO GAP\s*[:=]?\s*(-?\d+(?:\.\d+)?)", text, flags=re.IGNORECASE)
+    homo_lumo_match = re.search(r"HOMO-LUMO GAP\s*[:=]?\s*(-?\d+(?:\.\d+)?)", combined_text, flags=re.IGNORECASE)
     if homo_lumo_match:
         value = _coerce_float(homo_lumo_match.group(1))
         if value is not None:
             metrics["groundState.homo_lumo_gap"] = value
 
-    if "ORCA TERMINATED NORMALLY" in text:
-        metrics.setdefault("status", "completed")
+    if "ORCA TERMINATED NORMALLY" in combined_text:
+        metrics["status"] = "completed"
+    elif re.search(r"\b(Permission denied|error termination|aborting the run|FAILED|ERROR)\b", combined_text, flags=re.IGNORECASE):
+        metrics["status"] = "failed"
     return metrics
 
 
@@ -197,6 +214,10 @@ def _extract_outputs_from_jobdir(jobdir: Path) -> dict:
     metrics = _parse_orca_output_metrics(jobdir)
     for key, value in metrics.items():
         outputs.setdefault(key, value)
+
+    job_info = _load_json_if_exists(jobdir / "job_info.json")
+    if isinstance(job_info, dict):
+        outputs.setdefault("job_info", job_info)
 
     optimized_structure = _find_first_existing(
         jobdir,
@@ -557,14 +578,15 @@ class HtvsBackend:
             "jobdir_name": jobdir_name,
             "jobdir": str(jobdir_path),
         }
+        result_status = str(outputs.get("status") or status)
         result = {
             "contract_version": CONTRACT_VERSION,
             "request_type": "extract_simulation_result",
-            "response_type": "result_envelope",
+            "response_type": "result_envelope" if result_status == "completed" else "failure_envelope",
             "candidate_id": candidate_id,
             "submission_id": submission.get("submission_id"),
             "job_id": submission.get("job_id"),
-            "status": status,
+            "status": result_status,
             "backend": submission.get("backend") or simulation.get("backend") or self.name,
             "engine": submission.get("engine") or simulation.get("engine"),
             "simulation_type": simulation.get("simulation_type"),

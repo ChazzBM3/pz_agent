@@ -67,15 +67,48 @@ def test_htvs_extract_reads_completed_jobdir_outputs(tmp_path: Path) -> None:
     assert (jobdir / "pz_agent_result.json").exists()
 
 
-def test_htvs_extract_returns_none_when_not_completed(tmp_path: Path) -> None:
+def test_htvs_extract_marks_slurm_side_failure_even_in_completed_bucket(tmp_path: Path) -> None:
     job_root = tmp_path / "htvs-demo-002" / "jobs"
-    (job_root / "pending" / "job123").mkdir(parents=True, exist_ok=True)
+    jobdir = job_root / "completed" / "job123"
+    jobdir.mkdir(parents=True, exist_ok=True)
+    (jobdir / "job_manager-job_id").write_text("999\n", encoding="utf-8")
+    (jobdir / "orca_dft_opt.out").write_text("", encoding="utf-8")
+    (jobdir / "slurm-999.out").write_text(
+        "Running ORCA\n"
+        "/path/to/orca: Permission denied\n"
+        "Finished cleaning up\n",
+        encoding="utf-8",
+    )
 
     backend = HtvsBackend()
     result = backend.extract(
         candidate_id="rec_b",
         submission={
             "submission_id": "htvs-demo-rec_b-001",
+            "job_id": "job123",
+            "backend": "htvs_supercloud",
+            "engine": "orca",
+            "remote_settings": {"job_root": str(job_root)},
+        },
+        simulation={"simulation_type": "geometry_optimization", "parameters": {}},
+        extract_config={},
+    )
+
+    assert result is not None
+    assert result["status"] == "failed"
+    assert result["response_type"] == "failure_envelope"
+    assert result["outputs"]["status"] == "failed"
+
+
+def test_htvs_extract_returns_none_when_not_completed(tmp_path: Path) -> None:
+    job_root = tmp_path / "htvs-demo-003" / "jobs"
+    (job_root / "pending" / "job123").mkdir(parents=True, exist_ok=True)
+
+    backend = HtvsBackend()
+    result = backend.extract(
+        candidate_id="rec_c",
+        submission={
+            "submission_id": "htvs-demo-rec_c-001",
             "job_id": "job123",
             "remote_settings": {"job_root": str(job_root)},
         },
