@@ -176,6 +176,32 @@ def _parse_orca_output_metrics(jobdir: Path) -> dict:
     return metrics
 
 
+def _parse_property_text(jobdir: Path) -> dict:
+    outputs: dict[str, object] = {}
+    property_path = _find_first_existing(jobdir, ["orca_dft_opt.property.txt", "orca.property.txt", "property.txt"])
+    if not property_path:
+        return outputs
+    text = _read_text_if_exists(property_path)
+    if not text:
+        return outputs
+
+    patterns = {
+        "groundState.homo": [r"HOMO[^\n]*?(-?\d+(?:\.\d+)?)\s*(?:eV)?"],
+        "groundState.lumo": [r"LUMO[^\n]*?(-?\d+(?:\.\d+)?)\s*(?:eV)?"],
+        "groundState.homo_lumo_gap": [r"HOMO-LUMO\s+GAP[^\n]*?(-?\d+(?:\.\d+)?)\s*(?:eV)?"],
+        "groundState.dipole_moment": [r"Magnitude\s+\(Debye\)[^\n]*?(-?\d+(?:\.\d+)?)", r"Total Dipole Moment[^\n]*?(-?\d+(?:\.\d+)?)"],
+    }
+    for key, key_patterns in patterns.items():
+        for pattern in key_patterns:
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if match:
+                value = _coerce_float(match.group(1))
+                if value is not None:
+                    outputs[key] = value
+                    break
+    return outputs
+
+
 def _extract_outputs_from_jobdir(jobdir: Path) -> dict:
     outputs: dict[str, object] = {}
 
@@ -211,6 +237,10 @@ def _extract_outputs_from_jobdir(jobdir: Path) -> dict:
             for key, value in nested_outputs.items():
                 outputs.setdefault(key, value)
 
+    property_outputs = _parse_property_text(jobdir)
+    for key, value in property_outputs.items():
+        outputs.setdefault(key, value)
+
     metrics = _parse_orca_output_metrics(jobdir)
     for key, value in metrics.items():
         outputs.setdefault(key, value)
@@ -223,6 +253,7 @@ def _extract_outputs_from_jobdir(jobdir: Path) -> dict:
         jobdir,
         [
             "optimized_structure.xyz",
+            "orca_dft_opt.xyz",
             "final.xyz",
             "opt.xyz",
             "job.xyz",

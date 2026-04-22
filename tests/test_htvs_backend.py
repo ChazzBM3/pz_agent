@@ -12,22 +12,25 @@ def test_htvs_extract_reads_completed_jobdir_outputs(tmp_path: Path) -> None:
     jobdir.mkdir(parents=True, exist_ok=True)
 
     (jobdir / "job_manager-job_id").write_text("4570482\n", encoding="utf-8")
-    (jobdir / "optimized_structure.xyz").write_text(
+    (jobdir / "orca_dft_opt.xyz").write_text(
         "2\nopt\nH 0.0 0.0 0.0\nH 0.0 0.0 0.7\n",
         encoding="utf-8",
     )
-    (jobdir / "job.out").write_text(
+    (jobdir / "orca_dft_opt.out").write_text(
         "FINAL SINGLE POINT ENERGY      -123.456789\n"
-        "Magnitude (a.u.)              :    2.3456\n"
         "ORCA TERMINATED NORMALLY\n",
+        encoding="utf-8",
+    )
+    (jobdir / "orca_dft_opt.property.txt").write_text(
+        "HOMO                                     -5.10 eV\n"
+        "LUMO                                     -1.20 eV\n"
+        "HOMO-LUMO GAP                             3.90 eV\n"
+        "Magnitude (Debye)                         2.34\n",
         encoding="utf-8",
     )
     (jobdir / "summary.json").write_text(
         json.dumps(
             {
-                "groundState.homo": -5.1,
-                "groundState.lumo": -1.2,
-                "groundState.homo_lumo_gap": 3.9,
                 "groundState.solvation_energy": -0.42,
                 "status": "completed",
             }
@@ -60,8 +63,9 @@ def test_htvs_extract_reads_completed_jobdir_outputs(tmp_path: Path) -> None:
     assert result["outputs"]["final_energy"] == -123.456789
     assert result["outputs"]["groundState.homo"] == -5.1
     assert result["outputs"]["groundState.lumo"] == -1.2
+    assert result["outputs"]["groundState.homo_lumo_gap"] == 3.9
     assert result["outputs"]["groundState.solvation_energy"] == -0.42
-    assert result["outputs"]["groundState.dipole_moment"] == 2.3456
+    assert result["outputs"]["groundState.dipole_moment"] == 2.34
     assert "H 0.0 0.0 0.7" in str(result["outputs"]["optimized_structure"])
     assert result["raw_result"]["jobdir_snapshot"]["scheduler_job_id"] == "4570482"
     assert (jobdir / "pz_agent_result.json").exists()
