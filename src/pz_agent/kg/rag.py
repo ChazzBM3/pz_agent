@@ -240,6 +240,137 @@ def summarize_candidate_property_values(
     return values
 
 
+def summarize_generation_iteration_candidate(
+    graph_path: Path | None,
+    candidate_id: str,
+) -> dict[str, Any]:
+    graph = _load_graph(graph_path)
+    if graph is None:
+        return {
+            "candidate_id": candidate_id,
+            "eligible": False,
+            "priority": 0.0,
+            "reason": "no_graph",
+        }
+
+    neighborhood = get_candidate_neighborhood(graph, candidate_id, hop_limit=2)
+    nodes = neighborhood.get("nodes", [])
+    edges = neighborhood.get("edges", [])
+    candidate_node = next((node for node in nodes if node.get("id") == candidate_id), {})
+    candidate_attrs = dict(candidate_node.get("attrs", {}) or {})
+
+    generation_batches = [
+        node for node in nodes
+        if node.get("type") == "GenerationBatch"
+    ]
+    genmol_results = [
+        node for node in nodes
+        if node.get("type") == "SimulationResult"
+        and str((node.get("attrs", {}) or {}).get("simulation_type") or "") == "genmol_conformer_generation"
+    ]
+    bridge_cases = [
+        node for node in nodes
+        if node.get("type") == "BridgeCase"
+        and str((node.get("attrs", {}) or {}).get("target_candidate_id") or "") == candidate_id
+    ]
+
+    protocol_batch = None
+    for batch in generation_batches:
+        attrs = dict(batch.get("attrs", {}) or {})
+        engine = str(attrs.get("engine") or "")
+        metadata = dict(attrs.get("metadata", {}) or {})
+        mode = str(metadata.get("mode") or "")
+        if engine.startswith("genmol") or "genmol" in mode:
+            protocol_batch = batch
+            break
+    if protocol_batch is None and generation_batches:
+        protocol_batch = generation_batches[0]
+
+    protocol_attrs = dict((protocol_batch or {}).get("attrs", {}) or {})
+    protocol_metadata = dict(protocol_attrs.get("metadata", {}) or {})
+    measurement_summary = summarize_property_coverage(graph_path, candidate_id)
+    measurement_values = summarize_candidate_property_values(
+        graph_path,
+        candidate_id,
+        ["sa_score", "logS_mol_L", "S_mg_mL", "solp_logS", "lowest_energy"],
+    )
+    support_summary = summarize_support_contradiction(graph_path, candidate_id)
+
+    transferability = 0.0
+    bridge_principles: list[str] = []
+    next_action = None
+    bridge_case_id = None
+    for node in bridge_cases:
+        attrs = dict(node.get("attrs", {}) or {})
+        score = float(attrs.get("transferability_score", 0.0) or 0.0)
+        if score >= transferability:
+            transferability = score
+            bridge_principles = list(attrs.get("bridge_principle_refs", []) or [])
+            next_action = attrs.get("next_action")
+            bridge_case_id = node.get("id")
+
+    has_genmol_protocol = bool(protocol_attrs) and (
+        str(protocol_attrs.get("engine") or "").startswith("genmol")
+        or "genmol" in str(protocol_metadata.get("mode") or "")
+        or bool(genmol_results)
+    )
+    support_score = min(1.0, float(support_summary.get("support_score", 0.0) or 0.0) / 3.0)
+    contradiction_score = float(support_summary.get("contradiction_score", 0.0) or 0.0)
+    contradiction_penalty = min(0.35, contradiction_score * 0.08)
+    measurement_bonus = min(0.2, float(measurement_summary.get("property_count", 0) or 0) * 0.04)
+    result_bonus = 0.1 if genmol_results else 0.0
+    priority = max(
+        0.0,
+        min(
+            1.0,
+            (0.55 * transferability)
+            + (0.2 * support_score)
+            + measurement_bonus
+            + result_bonus
+            - contradiction_penalty,
+        ),
+    )
+
+    connected_generation_batches = sorted(
+        {
+            edge.get("target") if edge.get("source") == candidate_id else edge.get("source")
+            for edge in edges
+            if edge.get("type") == "GENERATED_BY_BATCH" and candidate_id in {edge.get("source"), edge.get("target")}
+        }
+    )
+
+    return {
+        "candidate_id": candidate_id,
+        "eligible": bool(has_genmol_protocol and next_action == "generation_prior" and transferability >= 0.7 and priority >= 0.55),
+        "priority": round(priority, 3),
+        "reason": "promising_genmol_iteration_seed" if has_genmol_protocol else "not_genmol_backed",
+        "transferability_score": round(transferability, 3),
+        "support_score": round(float(support_summary.get("support_score", 0.0) or 0.0), 3),
+        "contradiction_score": round(contradiction_score, 3),
+        "measurement_summary": measurement_summary,
+        "measurement_values": measurement_values,
+        "bridge_principles": bridge_principles,
+        "bridge_case_id": bridge_case_id,
+        "generation_batch_ids": connected_generation_batches,
+        "candidate": {
+            "id": candidate_id,
+            "smiles": candidate_attrs.get("smiles"),
+            "stable_identity_key": candidate_attrs.get("stable_identity_key") or (candidate_attrs.get("identity") or {}).get("stable_identity_key"),
+        },
+        "protocol": {
+            "engine": protocol_attrs.get("engine"),
+            "source_path": protocol_attrs.get("source_path"),
+            "count": protocol_attrs.get("count"),
+            "metadata": protocol_metadata,
+        },
+        "history": {
+            "genmol_result_count": len(genmol_results),
+            "generation_batch_count": len(generation_batches),
+            "next_action": next_action,
+        },
+    }
+
+
 
 def summarize_support_contradiction(
     graph_path: Path | None,

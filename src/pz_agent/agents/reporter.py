@@ -82,6 +82,7 @@ class ReporterAgent(BaseAgent):
                 "partial_validation_count": sum(1 for item in validation_results if (item.get("quality_assessment") or {}).get("quality") == "partial"),
                 "failed_validation_count": sum(1 for item in validation_results if (item.get("quality_assessment") or {}).get("quality") == "failed"),
                 "queued_evidence_query_count": sum(1 for item in (state.action_queue or []) if item.get("action_type") == "evidence_query"),
+                "queued_generation_iteration_count": sum(1 for item in (state.action_queue or []) if item.get("action_type") == "generation_iteration"),
                 "has_identity_aware_graph": bool(state.knowledge_graph_path),
             },
             "decision_summary": candidate_decisions,

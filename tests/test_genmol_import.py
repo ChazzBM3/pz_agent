@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from pz_agent.agents.graph_expansion import GraphExpansionAgent
 from pz_agent.chemistry.genmol_import import load_external_genmol_candidates
 from pz_agent.runner import run_pipeline
+from pz_agent.state import RunState
 
 
 GENMOL_PAYLOAD = {
@@ -124,3 +126,101 @@ pipeline:
     assert state.ranked is not None
     assert state.ranked[0]["id"] == "genmol_0002"
     assert any("auto-detected external score import" in log for log in state.logs)
+
+
+def test_graph_expansion_selects_promising_genmol_candidate_for_iteration(tmp_path: Path) -> None:
+    graph_path = tmp_path / "knowledge_graph.json"
+    graph_path.write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {
+                        "id": "genmol_0002",
+                        "type": "Molecule",
+                        "attrs": {
+                            "id": "genmol_0002",
+                            "smiles": "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21",
+                            "generation_engine": "genmol_external",
+                            "stable_identity_key": "stable::genmol_0002",
+                        },
+                    },
+                    {
+                        "id": "generation_batch::0",
+                        "type": "GenerationBatch",
+                        "attrs": {
+                            "engine": "genmol_external",
+                            "source_path": "/tmp/genmol/lowest_energy_conformers.json",
+                            "count": 2,
+                            "metadata": {
+                                "mode": "genmol_generation",
+                                "objective": "improve soluble PT candidates",
+                                "bridge_dimensions": ["solubilizing_handle"],
+                            },
+                        },
+                    },
+                    {
+                        "id": "sim::genmol_0002",
+                        "type": "SimulationResult",
+                        "attrs": {
+                            "candidate_id": "genmol_0002",
+                            "simulation_type": "genmol_conformer_generation",
+                            "engine": "genmol_external",
+                            "status": "generated",
+                        },
+                    },
+                    {
+                        "id": "measurement::sa",
+                        "type": "Measurement",
+                        "attrs": {
+                            "record_id": "genmol_0002",
+                            "property_name": "sa_score",
+                            "value": 2.7,
+                            "source_group": "genmol_external",
+                            "provenance": {"source_type": "genmol_workflow_import"},
+                        },
+                    },
+                    {
+                        "id": "measurement::logs",
+                        "type": "Measurement",
+                        "attrs": {
+                            "record_id": "genmol_0002",
+                            "property_name": "logS_mol_L",
+                            "value": -2.3,
+                            "source_group": "genmol_external",
+                            "provenance": {"source_type": "genmol_workflow_import"},
+                        },
+                    },
+                    {
+                        "id": "bridge_case::genmol_0002",
+                        "type": "BridgeCase",
+                        "attrs": {
+                            "target_candidate_id": "genmol_0002",
+                            "transferability_score": 0.88,
+                            "bridge_principle_refs": ["solubilizing_handle"],
+                            "next_action": "generation_prior",
+                        },
+                    },
+                ],
+                "edges": [
+                    {"source": "genmol_0002", "target": "generation_batch::0", "type": "GENERATED_BY_BATCH"},
+                    {"source": "sim::genmol_0002", "target": "genmol_0002", "type": "SIMULATED_FOR"},
+                    {"source": "measurement::sa", "target": "genmol_0002", "type": "MEASURED_FOR"},
+                    {"source": "measurement::logs", "target": "genmol_0002", "type": "MEASURED_FOR"},
+                    {"source": "bridge_case::genmol_0002", "target": "genmol_0002", "type": "ABOUT_MOLECULE"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    state = RunState(config={}, run_dir=tmp_path, knowledge_graph_path=graph_path)
+    state = GraphExpansionAgent(config={}).run(state)
+
+    assert state.expansion_registry is not None
+    assert any(item.get("proposal_type") == "generation_iteration_candidate" for item in state.expansion_registry)
+    assert state.action_queue is not None
+    regen = next(item for item in state.action_queue if item.get("action_type") == "generation_iteration")
+    assert regen["candidate_id"] == "genmol_0002"
+    assert regen["payload"]["protocol"]["engine"] == "genmol_external"
+    assert regen["payload"]["protocol"]["metadata"]["mode"] == "genmol_generation"
+    assert regen["payload"]["selection_basis"]["transferability_score"] == 0.88

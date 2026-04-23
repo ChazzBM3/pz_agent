@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pz_agent.agents.base import BaseAgent
 from pz_agent.io import read_json, write_json
+from pz_agent.kg.rag import summarize_generation_iteration_candidate
 from pz_agent.state import RunState
 
 
@@ -39,11 +40,13 @@ def _frontier_priority(item: dict, outcome_stats: dict | None) -> float:
             "belief": "evidence_query_candidate",
             "failure": "simulation_request_candidate",
             "bridge": "bridge_case_candidate",
+            "generation": "generation_iteration_candidate",
         }.get(kind, ""),
         "reason": {
             "belief": "low_confidence_belief_expand",
             "failure": "failed_transfer_needs_validation",
             "bridge": "medium_transferability_bridge_expand",
+            "generation": "promising_genmol_iteration_seed",
         }.get(kind, ""),
         "priority": base_priority,
     }
@@ -70,6 +73,8 @@ def _build_action_queue(accepted: list[dict]) -> list[dict]:
             queue.append({**base, "action_type": "evidence_query", "payload": proposal.get("payload", {})})
         elif proposal_type == "bridge_case_candidate":
             queue.append({**base, "action_type": "bridge_expansion", "payload": proposal.get("payload", {})})
+        elif proposal_type == "generation_iteration_candidate":
+            queue.append({**base, "action_type": "generation_iteration", "payload": proposal.get("payload", {})})
     queue.sort(key=lambda item: (-float(item.get("priority", 0.0) or 0.0), str(item.get("candidate_id") or ""), str(item.get("action_type") or "")))
     return queue
 
@@ -95,6 +100,8 @@ def _critique_proposals(proposals: list[dict], outcome_stats: dict | None = None
             accepted.append({**enriched, "critic_decision": "accept", "critic_reason": "high_priority_failure_validation"})
         elif proposal_type == "bridge_case_candidate" and priority >= 0.35 and merge_tag == "inferred":
             accepted.append({**enriched, "critic_decision": "accept", "critic_reason": "medium_transfer_bridge_followup"})
+        elif proposal_type == "generation_iteration_candidate" and priority >= 0.55 and merge_tag in {"supported", "inferred"}:
+            accepted.append({**enriched, "critic_decision": "accept", "critic_reason": "high_transfer_genmol_iteration_seed"})
         elif proposal_type == "evidence_query_candidate" and priority >= 0.45 and merge_tag == "speculative":
             accepted.append({**enriched, "critic_decision": "accept", "critic_reason": "high_uncertainty_belief_followup"})
         else:
@@ -128,6 +135,8 @@ class GraphExpansionAgent(BaseAgent):
                 score = float(attrs.get("transferability_score", 0.0) or 0.0)
                 if 0.25 <= score < 0.75:
                     frontier.append({"kind": "bridge", "node": node, "priority": score})
+                elif score >= 0.75 and str(attrs.get("next_action") or "") == "generation_prior":
+                    frontier.append({"kind": "generation", "node": node, "priority": score})
 
             frontier.sort(key=lambda item: (-_frontier_priority(item, state.outcome_stats), item["node"].get("id", "")))
             for item in frontier[:5]:
@@ -162,6 +171,34 @@ class GraphExpansionAgent(BaseAgent):
                             },
                         }
                     )
+                elif item["kind"] == "generation":
+                    iteration_summary = summarize_generation_iteration_candidate(state.knowledge_graph_path, str(candidate_id))
+                    if iteration_summary.get("eligible"):
+                        proposals.append(
+                            {
+                                "merge_tag": "supported",
+                                "proposal_type": "generation_iteration_candidate",
+                                "candidate_id": candidate_id,
+                                "reason": "promising_genmol_iteration_seed",
+                                "priority": max(item["priority"], float(iteration_summary.get("priority", 0.0) or 0.0)),
+                                "payload": {
+                                    "next_action": "generation_iteration",
+                                    "protocol": iteration_summary.get("protocol", {}),
+                                    "candidate": iteration_summary.get("candidate", {}),
+                                    "bridge_case_id": iteration_summary.get("bridge_case_id"),
+                                    "bridge_principles": iteration_summary.get("bridge_principles", []),
+                                    "generation_batch_ids": iteration_summary.get("generation_batch_ids", []),
+                                    "history": iteration_summary.get("history", {}),
+                                    "selection_basis": {
+                                        "transferability_score": iteration_summary.get("transferability_score"),
+                                        "support_score": iteration_summary.get("support_score"),
+                                        "contradiction_score": iteration_summary.get("contradiction_score"),
+                                        "measurement_summary": iteration_summary.get("measurement_summary", {}),
+                                        "measurement_values": iteration_summary.get("measurement_values", {}),
+                                    },
+                                },
+                            }
+                        )
                 else:
                     proposals.append(
                         {
