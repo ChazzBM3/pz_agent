@@ -24,6 +24,8 @@ class RunState:
     generation_iteration_manifest: dict[str, Any] | None = None
     generation_iteration_submissions: list[dict[str, Any]] | None = None
     generation_iteration_execution: list[dict[str, Any]] | None = None
+    generation_iteration_monitor: list[dict[str, Any]] | None = None
+    generation_iteration_reingest_manifest: dict[str, Any] | None = None
     simulation_submissions: list[dict[str, Any]] | None = None
     simulation_checks: list[dict[str, Any]] | None = None
     simulation_extractions: list[dict[str, Any]] | None = None

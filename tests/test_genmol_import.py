@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pz_agent.agents.generation_iteration_handoff import GenerationIterationHandoffAgent
 from pz_agent.agents.generation_iteration_execute import GenerationIterationExecuteAgent
+from pz_agent.agents.generation_iteration_monitor import GenerationIterationMonitorAgent
 from pz_agent.agents.generation_iteration_submit import GenerationIterationSubmitAgent
 from pz_agent.agents.graph_expansion import GraphExpansionAgent
 from pz_agent.chemistry.genmol_import import load_external_genmol_candidates
@@ -403,3 +404,46 @@ def test_generation_iteration_execute_skips_when_disabled(tmp_path: Path) -> Non
     assert state.generation_iteration_execution is not None
     assert state.generation_iteration_execution[0]["status"] == "skipped"
     assert state.generation_iteration_execution[0]["reason"] == "execute_launch_disabled"
+
+
+def test_generation_iteration_monitor_collects_completed_outputs(tmp_path: Path) -> None:
+    output_dir = tmp_path / "research" / "iter_runs" / "01_genmol_0002"
+    output_dir.mkdir(parents=True)
+    payload = {
+        "metadata": {"model_version": "v2", "num_generations_requested": 12, "num_conformers_per_molecule": 8},
+        "results": [
+            {
+                "generated_index": 0,
+                "smiles": "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21",
+                "sa_score": 2.7,
+                "solp_logS": -2.1,
+                "lowest_energy": -9.0,
+            }
+        ],
+    }
+    (output_dir / "lowest_energy_conformers.json").write_text(json.dumps(payload), encoding="utf-8")
+    log_path = output_dir.with_suffix(".log")
+    log_path.write_text("done\n", encoding="utf-8")
+
+    state = RunState(
+        config={},
+        run_dir=tmp_path,
+        generation_iteration_submissions=[
+            {
+                "candidate_id": "genmol_0002",
+                "output_dir": str(output_dir),
+                "log_path": str(log_path),
+            }
+        ],
+    )
+
+    state = GenerationIterationMonitorAgent(config=state.config).run(state)
+
+    assert state.generation_iteration_monitor is not None
+    assert state.generation_iteration_monitor[0]["status"] == "finished"
+    assert state.generation_iteration_monitor[0]["generated_count"] == 1
+    assert state.generation_iteration_reingest_manifest is not None
+    assert state.generation_iteration_reingest_manifest["completed_submission_count"] == 1
+    completed_candidates = json.loads((tmp_path / "generation_iteration_completed_candidates.json").read_text())
+    assert completed_candidates[0]["seed"] == "genmol_0002"
+    assert completed_candidates[0]["smiles"] == "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21"
