@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from pz_agent.agents.generation_iteration_handoff import GenerationIterationHandoffAgent
 from pz_agent.agents.graph_expansion import GraphExpansionAgent
 from pz_agent.chemistry.genmol_import import load_external_genmol_candidates
 from pz_agent.runner import run_pipeline
@@ -224,3 +225,72 @@ def test_graph_expansion_selects_promising_genmol_candidate_for_iteration(tmp_pa
     assert regen["payload"]["protocol"]["engine"] == "genmol_external"
     assert regen["payload"]["protocol"]["metadata"]["mode"] == "genmol_generation"
     assert regen["payload"]["selection_basis"]["transferability_score"] == 0.88
+
+
+def test_generation_iteration_handoff_emits_manifest(tmp_path: Path) -> None:
+    state = RunState(
+        config={
+            "generation": {
+                "num_generations": 64,
+                "num_conformers": 32,
+                "iteration_top_k": 3,
+                "prompts": {"objective": "improve PT solubility while preserving redox window"},
+            }
+        },
+        run_dir=tmp_path,
+        action_queue=[
+            {
+                "candidate_id": "genmol_0002",
+                "priority": 0.82,
+                "source": "graph_expansion",
+                "proposal_type": "generation_iteration_candidate",
+                "proposal_reason": "promising_genmol_iteration_seed",
+                "critic_reason": "high_transfer_genmol_iteration_seed",
+                "action_type": "generation_iteration",
+                "payload": {
+                    "candidate": {
+                        "id": "genmol_0002",
+                        "smiles": "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21",
+                        "stable_identity_key": "stable::genmol_0002",
+                    },
+                    "protocol": {
+                        "engine": "genmol_external",
+                        "source_path": "/tmp/genmol/lowest_energy_conformers.json",
+                        "count": 2,
+                        "metadata": {
+                            "mode": "genmol_generation",
+                            "objective": "improve soluble PT candidates",
+                            "num_generations_requested": 120,
+                            "num_conformers_per_molecule": 24,
+                            "bridge_dimensions": ["solubilizing_handle"],
+                            "generation_priors": {"pt_direct": 0.4, "bridge_driven": 0.4, "simulation_driven": 0.2},
+                        },
+                    },
+                    "bridge_case_id": "bridge_case::genmol_0002",
+                    "bridge_principles": ["solubilizing_handle"],
+                    "generation_batch_ids": ["generation_batch::0"],
+                    "history": {"genmol_result_count": 1},
+                    "selection_basis": {
+                        "transferability_score": 0.88,
+                        "support_score": 1.4,
+                        "measurement_summary": {"property_count": 2},
+                    },
+                },
+            }
+        ],
+    )
+
+    state = GenerationIterationHandoffAgent(config=state.config).run(state)
+
+    assert state.generation_iteration_manifest is not None
+    assert state.generation_iteration_manifest["contract_version"] == "genmol.iteration_request.v1"
+    assert state.generation_iteration_manifest["queue_size"] == 1
+    queued = state.generation_iteration_manifest["queue"][0]
+    assert queued["generation_request"]["num_generations"] == 120
+    assert queued["generation_request"]["num_conformers"] == 24
+    assert queued["generation_request"]["bridge_dimensions"] == ["solubilizing_handle"]
+    assert queued["selection_basis"]["transferability_score"] == 0.88
+    assert (tmp_path / "generation_iteration_manifest.json").exists()
+    input_records = json.loads((tmp_path / "genmol_iteration_input.json").read_text())
+    assert input_records[0]["id"] == "genmol_0002"
+    assert input_records[0]["smiles"] == "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21"
