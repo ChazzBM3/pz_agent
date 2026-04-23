@@ -12,7 +12,27 @@ This project starts from an energy-storage problem: redox flow batteries need be
 
 ---
 
-## 2. Why this project exists
+## 2. Redoxmers, in plain language
+
+Before talking about phenothiazines specifically, it helps to define the basic object we are trying to improve.
+
+A **redoxmer** is a molecule that can store and release electrical energy by undergoing reversible oxidation and reduction events.
+
+In practice, that means:
+- during **charging**, the molecule is driven into a different electronic state by losing or gaining electrons
+- during **discharging**, it returns toward its original state and releases that stored energy back into the circuit
+- the usable battery chemistry depends on those electron-transfer events being sufficiently reversible, stable, and efficient over many cycles
+
+This is why molecular properties matter so much. A useful redoxmer is not just any redox-active molecule. It needs a workable combination of:
+- redox potential
+- chemical stability across oxidation-state changes
+- solubility at practical concentrations
+- low crossover and degradation risk
+- synthetic accessibility and tunability
+
+So at the most basic level, redox flow battery discovery is a search for molecules whose redox events can be turned into durable, controllable energy storage.
+
+## 3. Why this project exists
 
 ### The motivating problem
 
@@ -40,7 +60,7 @@ But they are also comparatively underexplored relative to better-known redox-act
 
 ---
 
-## 3. The key scientific framing
+## 4. The key scientific framing
 
 ### Phenothiazines are not the best-studied redoxmer family
 
@@ -81,7 +101,7 @@ The knowledge graph is the mechanism that makes that transfer explicit and inspe
 
 ---
 
-## 4. Project thesis
+## 5. Project thesis
 
 ### Main thesis
 
@@ -108,7 +128,7 @@ The result is not just a ranked list. The result is a growing, inspectable campa
 
 ---
 
-## 5. What this repo actually is
+## 6. What this repo actually is
 
 `pz_agent` is a **modular scientific workflow** for phenothiazine screening and validation.
 
@@ -132,7 +152,7 @@ In short, it is a research orchestrator for turning sparse phenothiazine evidenc
 
 ---
 
-## 6. High-level workflow narrative
+## 7. High-level workflow narrative
 
 A clean way to present the workflow in slides is:
 
@@ -173,7 +193,7 @@ A clean way to present the workflow in slides is:
 
 ---
 
-## 7. Why the knowledge graph matters
+## 8. Why the knowledge graph matters
 
 The knowledge graph is not ornamental. It is the main scientific memory and reasoning substrate.
 
@@ -208,7 +228,7 @@ For NotebookLM slides, it is helpful to explain the basic idea this way:
 
 ---
 
-## 8. Current technical implementation
+## 9. Current technical implementation
 
 ### Architecture
 
@@ -251,7 +271,7 @@ That is important for the project narrative because it means the repo is not onl
 
 ---
 
-## 9. Production KG baseline from the existing dataset
+## 10. Production KG baseline from the existing dataset
 
 A major recent result is that the existing D3TaLES dataset can already be turned into a substantial baseline production knowledge graph.
 
@@ -290,7 +310,7 @@ This supports a narrative that the project is grounded in real structured data, 
 
 ---
 
-## 10. What the baseline KG revealed
+## 11. What the baseline KG revealed
 
 The baseline build also exposed something scientifically useful: the graph is broadly healthy, but the data quality is not perfectly uniform.
 
@@ -318,7 +338,7 @@ A small audit-and-filter pass is now part of the recommended production KG workf
 
 ---
 
-## 11. What is scientifically distinctive about the repo
+## 12. What is scientifically distinctive about the repo
 
 The most distinctive thing here is not any single model or stage. It is the combination of several ideas:
 
@@ -354,7 +374,7 @@ The long-term direction is not one-shot molecule generation. It is iterative gen
 
 ---
 
-## 12. What is not finished yet
+## 13. What is not finished yet
 
 This should also be explicit in the story.
 
@@ -374,7 +394,7 @@ That is okay. For a slide deck, this creates a strong “current status + next f
 
 ---
 
-## 13. Recommended slide-by-slide narrative
+## 14. Recommended slide-by-slide narrative
 
 ### Slide 1. Why do we need new redox flow battery chemistries?
 - motivate flow batteries
@@ -442,7 +462,7 @@ One concrete way to present this is to show that the KG already supports a small
 
 ---
 
-## 14. Suggested framing language for NotebookLM narration
+## 15. Suggested framing language for NotebookLM narration
 
 Useful phrases for narration:
 - “This project is motivated by the need for better organic redox-active molecules for flow batteries.”
@@ -458,7 +478,7 @@ Useful phrases for narration:
 
 ---
 
-## 15. Bottom line
+## 16. Bottom line
 
 The story of this repo is:
 
