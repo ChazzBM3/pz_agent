@@ -22,6 +22,7 @@ def _submit_config(config: dict) -> dict:
         "runs_root": str(submit_cfg.get("runs_root", "research/genmol_iteration_runs")),
         "launcher_mode": str(submit_cfg.get("launcher_mode", "serial_manifest")),
         "python_bin": str(submit_cfg.get("python_bin", "python")),
+        "remote_host": str(submit_cfg.get("remote_host", "")).strip() or None,
         "extra_env": dict(submit_cfg.get("extra_env") or {}),
     }
 
@@ -45,8 +46,10 @@ class GenerationIterationSubmitAgent(BaseAgent):
         manifest = dict(state.generation_iteration_manifest or {})
         queue = list(state.generation_iteration_queue or manifest.get("queue") or [])
         cfg = _submit_config(state.config)
-        run_root = Path(state.run_dir) / cfg["runs_root"]
-        ensure_dir(run_root)
+        remote_host = cfg.get("remote_host")
+        run_root = cfg["runs_root"] if remote_host else str(Path(state.run_dir) / cfg["runs_root"])
+        if not remote_host:
+            ensure_dir(Path(run_root))
 
         shell_prefix = _shell_prefix(cfg)
         submissions: list[dict] = []
@@ -58,24 +61,31 @@ class GenerationIterationSubmitAgent(BaseAgent):
             if not smiles:
                 continue
             request = dict(record.get("generation_request") or {})
-            output_dir = run_root / f"{idx:02d}_{candidate_id}"
-            log_path = output_dir.with_suffix(".log")
-            command = (
-                f"mkdir -p {shlex.quote(str(output_dir))} && "
+            output_dir = f"{str(run_root).rstrip('/')}/{idx:02d}_{candidate_id}"
+            log_path = f"{output_dir}.log"
+            inner_command = (
+                f"mkdir -p {shlex.quote(output_dir)} && "
                 f"{shell_prefix} && "
                 f"{shlex.quote(cfg['python_bin'])} {shlex.quote(cfg['script_path'])} "
                 f"--smiles {shlex.quote(smiles)} "
                 f"--num-generations {int(request.get('num_generations', 100) or 100)} "
                 f"--num-conformers {int(request.get('num_conformers', 100) or 100)} "
-                f"--output-dir {shlex.quote(str(output_dir))}"
+                f"--output-dir {shlex.quote(output_dir)}"
+                f" > {shlex.quote(log_path)} 2>&1"
+            )
+            command = (
+                f"ssh {shlex.quote(remote_host)} {shlex.quote(inner_command)}"
+                if remote_host
+                else inner_command
             )
             submission = {
                 "candidate_id": candidate_id,
                 "smiles": smiles,
                 "priority": record.get("priority"),
-                "output_dir": str(output_dir),
-                "log_path": str(log_path),
+                "output_dir": output_dir,
+                "log_path": log_path,
                 "launcher_mode": cfg["launcher_mode"],
+                "remote_host": remote_host,
                 "status": "prepared",
                 "command": command,
                 "generation_request": request,
@@ -83,7 +93,7 @@ class GenerationIterationSubmitAgent(BaseAgent):
             }
             submissions.append(submission)
             script_lines.append(f"echo START {shlex.quote(candidate_id)}")
-            script_lines.append(f"{command} > {shlex.quote(str(log_path))} 2>&1")
+            script_lines.append(command)
             script_lines.append(f"echo DONE {shlex.quote(candidate_id)}")
             script_lines.append("")
 
@@ -92,6 +102,7 @@ class GenerationIterationSubmitAgent(BaseAgent):
             "run_id": state.run_dir.name,
             "launcher_mode": cfg["launcher_mode"],
             "runs_root": str(run_root),
+            "remote_host": remote_host,
             "atomistic_root": cfg["atomistic_root"],
             "script_path": cfg["script_path"],
             "submission_count": len(submissions),

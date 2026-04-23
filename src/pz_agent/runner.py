@@ -16,6 +16,7 @@ from pz_agent.agents.figure_corpus import FigureCorpusAgent
 from pz_agent.agents.generation_iteration_execute import GenerationIterationExecuteAgent
 from pz_agent.agents.generation_iteration_handoff import GenerationIterationHandoffAgent
 from pz_agent.agents.generation_iteration_monitor import GenerationIterationMonitorAgent
+from pz_agent.agents.generation_iteration_recycle import GenerationIterationRecycleAgent
 from pz_agent.agents.generation_iteration_submit import GenerationIterationSubmitAgent
 from pz_agent.agents.graph_expansion import GraphExpansionAgent
 from pz_agent.agents.knowledge_graph import KnowledgeGraphAgent
@@ -49,6 +50,7 @@ STAGE_MAP = {
     "generation_iteration_execute": GenerationIterationExecuteAgent,
     "generation_iteration_handoff": GenerationIterationHandoffAgent,
     "generation_iteration_monitor": GenerationIterationMonitorAgent,
+    "generation_iteration_recycle": GenerationIterationRecycleAgent,
     "generation_iteration_submit": GenerationIterationSubmitAgent,
     "graph_expansion": GraphExpansionAgent,
     "ocr_caption": OCRCaptionAgent,

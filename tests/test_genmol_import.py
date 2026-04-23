@@ -6,6 +6,7 @@ from pathlib import Path
 from pz_agent.agents.generation_iteration_handoff import GenerationIterationHandoffAgent
 from pz_agent.agents.generation_iteration_execute import GenerationIterationExecuteAgent
 from pz_agent.agents.generation_iteration_monitor import GenerationIterationMonitorAgent
+from pz_agent.agents.generation_iteration_recycle import GenerationIterationRecycleAgent
 from pz_agent.agents.generation_iteration_submit import GenerationIterationSubmitAgent
 from pz_agent.agents.graph_expansion import GraphExpansionAgent
 from pz_agent.chemistry.genmol_import import load_external_genmol_candidates
@@ -447,3 +448,33 @@ def test_generation_iteration_monitor_collects_completed_outputs(tmp_path: Path)
     completed_candidates = json.loads((tmp_path / "generation_iteration_completed_candidates.json").read_text())
     assert completed_candidates[0]["seed"] == "genmol_0002"
     assert completed_candidates[0]["smiles"] == "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21"
+
+
+def test_generation_iteration_recycle_writes_next_run_config(tmp_path: Path) -> None:
+    aggregate_path = tmp_path / "generation_iteration_completed_candidates.json"
+    aggregate_path.write_text(json.dumps([{"smiles": "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21"}]), encoding="utf-8")
+    state = RunState(
+        config={
+            "generation": {
+                "submit": {"remote_host": "grimm"},
+                "recycle": {
+                    "next_stages": ["library_designer", "standardizer", "surrogate_screen", "knowledge_graph", "ranker"],
+                },
+            },
+            "screening": {"shortlist_size": 1},
+            "pipeline": {"stages": ["library_designer"]},
+        },
+        run_dir=tmp_path,
+        generation_iteration_reingest_manifest={
+            "aggregate_candidates_path": str(aggregate_path),
+            "completed_submission_count": 1,
+        },
+    )
+
+    state = GenerationIterationRecycleAgent(config=state.config).run(state)
+
+    next_cfg = (tmp_path / "generation_iteration_next_run.yaml").read_text()
+    recycle_manifest = json.loads((tmp_path / "generation_iteration_recycle_manifest.json").read_text())
+    assert "external_genmol_path" in next_cfg
+    assert str(aggregate_path) in next_cfg
+    assert recycle_manifest["completed_submission_count"] == 1
