@@ -478,7 +478,38 @@ Useful phrases for narration:
 
 ---
 
-## 16. Bottom line
+## 16. Future control layer: simulation agents, exploration agents, and an evolving autoharness
+
+A useful way to describe the longer-term control architecture is to separate **scientific exploration** from **safety and validity enforcement**.
+
+In that picture:
+- exploration agents are allowed to propose new molecules, new ranking heuristics, or new simulation plans
+- simulation agents are allowed to assemble and attempt concrete computational workflows
+- but they are not allowed to operate as completely unconstrained free-form actors
+
+Instead, they are kept in check by a higher-level harness agent that accumulates what the system has learned about valid and invalid actions.
+
+The closest conceptual reference here is the **AutoHarness** idea (Lou et al., 2026), where the system improves agent behavior not mainly by retraining the model, but by automatically synthesizing a code harness around it. In that framing, the harness acts as a learned control layer that can reject invalid actions, constrain action formats, verify legality or admissibility, and eventually absorb more of the policy itself as the environment becomes better understood.
+
+Translated into this project, that suggests a future architecture in which:
+- exploration agents can try new search or proposal strategies
+- simulation agents can try new execution plans, packaging logic, or validation workflows
+- the harness agent records which actions are admissible, which workflows are malformed, which result contracts are acceptable, and which recovery paths are allowed
+- over time, more of that procedural knowledge is turned into an evolving **autoharness** rather than being left as prompt-only behavior
+
+That is appealing for this repo because scientific workflows have many failure modes that are closer to “illegal moves” than to ordinary model mistakes:
+- malformed simulation bundles
+- invalid remote execution contracts
+- missing required artifacts
+- inconsistent molecule identity handling
+- result payloads that fail downstream validation
+- action proposals that are scientifically irrelevant or operationally unsafe
+
+A mature version of this system would therefore not just have agents that explore. It would have agents that explore **inside an increasingly explicit, machine-synthesized control layer**.
+
+That would let the system become more autonomous over time while still becoming more auditable and more operationally reliable.
+
+## 17. Bottom line
 
 The story of this repo is:
 
@@ -490,3 +521,4 @@ The story of this repo is:
 6. the repo already implements much of this workflow in practice
 7. the existing dataset is already large enough to support a substantial production baseline KG
 8. the next milestone is to use that graph more aggressively as the foundation for prioritization, generation of new molecules, conformer search, DFT validation, and iterative campaign memory
+9. beyond that, the system can evolve toward constrained scientific autonomy, where exploration and simulation agents are governed by an increasingly explicit autoharness rather than by prompts alone
