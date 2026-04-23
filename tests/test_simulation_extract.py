@@ -32,7 +32,7 @@ def _patch_retrieval(monkeypatch) -> None:
     )
 
 
-def test_simulation_extract_preserves_failed_runs_for_rerun(tmp_path: Path, monkeypatch) -> None:
+def test_simulation_extract_logs_failed_runs_without_rerun_metadata(tmp_path: Path, monkeypatch) -> None:
     _patch_retrieval(monkeypatch)
     csv_path = tmp_path / "extract.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
@@ -115,13 +115,9 @@ validation_ingest:
     assert state.simulation_failures is not None
     assert len(state.simulation_failures) == 1
     assert state.simulation_failures[0]["response_type"] == "failure_envelope"
-    assert state.simulation_failures[0]["rerun_ready"] is True
-    assert state.simulation_failures[0]["deferred_rerun_plan"]["orca_adjustments"]["soscf_enabled"] is True
-    assert state.simulation_failures[0]["rerun_bundle"]["job_spec_path"].endswith("orca_job.json")
-
-    rerun_candidates = json.loads((run_dir / "simulation_rerun_candidates.json").read_text())
-    assert len(rerun_candidates) == 1
-    assert rerun_candidates[0]["candidate_id"] == "rec_a"
+    assert state.simulation_failures[0]["failure_log"]["logged_for_followup"] is True
+    assert state.simulation_failures[0]["failure_log"]["job_spec_path"].endswith("orca_job.json")
+    assert not (run_dir / "simulation_rerun_candidates.json").exists()
 
 
 def test_simulation_extract_prefers_local_artifact_results(tmp_path: Path, monkeypatch) -> None:

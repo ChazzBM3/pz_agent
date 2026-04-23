@@ -53,6 +53,7 @@ search:
   backend: stub
 simulation:
   max_candidates: 2
+  backend: orca_slurm
   remote_target: cluster-alpha
 simulation_submit:
   submission_prefix: quality-submit

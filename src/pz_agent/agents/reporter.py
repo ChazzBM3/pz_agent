@@ -23,11 +23,6 @@ class ReporterAgent(BaseAgent):
             candidate_id = failure.get("candidate_id")
             if candidate_id:
                 failure_by_candidate.setdefault(candidate_id, []).append(failure)
-        rerun_by_candidate = {}
-        for rerun in (state.simulation_rerun_queue or []):
-            candidate_id = rerun.get("candidate_id")
-            if candidate_id:
-                rerun_by_candidate.setdefault(candidate_id, []).append(rerun)
 
         candidate_decisions = []
         for item in shortlist:
@@ -65,8 +60,6 @@ class ReporterAgent(BaseAgent):
                     "simulation_history": {
                         "failure_count": len(failure_by_candidate.get(candidate_id, [])),
                         "latest_failure_submission_id": next((entry.get("submission_id") for entry in failure_by_candidate.get(candidate_id, [])), None),
-                        "rerun_count": len(rerun_by_candidate.get(candidate_id, [])),
-                        "latest_retry_id": next((entry.get("retry_id") for entry in rerun_by_candidate.get(candidate_id, [])), None),
                     },
                 }
             )
@@ -84,7 +77,6 @@ class ReporterAgent(BaseAgent):
                 "simulation_check_count": len(state.simulation_checks or []),
                 "simulation_extraction_count": len(state.simulation_extractions or []),
                 "simulation_failure_count": len(state.simulation_failures or []),
-                "simulation_rerun_queue_count": len(state.simulation_rerun_queue or []),
                 "validation_count": len(validation_results),
                 "usable_validation_count": sum(1 for item in validation_results if (item.get("quality_assessment") or {}).get("quality") == "usable"),
                 "partial_validation_count": sum(1 for item in validation_results if (item.get("quality_assessment") or {}).get("quality") == "partial"),
@@ -115,23 +107,9 @@ class ReporterAgent(BaseAgent):
             "simulation_checks": state.simulation_checks or [],
             "simulation_extractions": state.simulation_extractions or [],
             "simulation_failures": state.simulation_failures or [],
-            "simulation_rerun_queue": state.simulation_rerun_queue or [],
             "simulation_history_summary": {
                 "failed_candidates": sorted({item.get("candidate_id") for item in (state.simulation_failures or []) if item.get("candidate_id")}),
-                "rerun_candidates": sorted({item.get("candidate_id") for item in (state.simulation_rerun_queue or []) if item.get("candidate_id")}),
             },
-            "deferred_reruns": [
-                {
-                    "candidate_id": item.get("candidate_id"),
-                    "failed_submission_id": (item.get("source_failure") or {}).get("submission_id"),
-                    "backend": (item.get("simulation") or {}).get("backend"),
-                    "engine": (item.get("simulation") or {}).get("engine"),
-                    "status": item.get("status"),
-                    "job_spec_path": item.get("job_spec_path"),
-                    "orca_adjustments": ((item.get("retry_metadata") or {}).get("adjustments") or {}),
-                }
-                for item in (state.simulation_rerun_queue or [])
-            ],
             "validation_results": validation_results,
             "artifacts": {
                 "expansion_proposals_accepted_path": str(state.run_dir / "expansion_proposals.accepted.json"),
@@ -146,8 +124,6 @@ class ReporterAgent(BaseAgent):
                 "simulation_checks_path": str(state.run_dir / "simulation_checks.json"),
                 "simulation_extractions_path": str(state.run_dir / "simulation_extractions.json"),
                 "simulation_failures_path": str(state.run_dir / "simulation_failures.json"),
-                "simulation_rerun_candidates_path": str(state.run_dir / "simulation_rerun_candidates.json"),
-                "simulation_rerun_queue_path": str(state.run_dir / "simulation_rerun_queue.json"),
                 "validation_results_path": str(state.run_dir / "validation_results.json"),
             },
         }

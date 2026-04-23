@@ -31,7 +31,7 @@ def _patch_retrieval(monkeypatch) -> None:
     )
 
 
-def test_report_exposes_simulation_failures_and_retries(tmp_path: Path, monkeypatch) -> None:
+def test_report_exposes_simulation_failures_without_retry_flow(tmp_path: Path, monkeypatch) -> None:
     _patch_retrieval(monkeypatch)
     csv_path = tmp_path / "visibility.csv"
     csv_path.write_text(CSV_TEXT, encoding="utf-8")
@@ -84,8 +84,6 @@ pipeline:
     - simulation_submit
     - simulation_check
     - simulation_extract
-    - simulation_rerun_prepare
-    - simulation_submit
     - knowledge_graph
     - reporter
 kg:
@@ -98,14 +96,12 @@ search:
   backend: stub
 simulation:
   max_candidates: 2
+  backend: orca_slurm
   remote_target: cluster-alpha
 simulation_submit:
   submission_prefix: visible-submit
-  use_rerun_queue: true
 simulation_extract:
   results_path: remote_results.json
-simulation_rerun_prepare:
-  retry_prefix: retry-visible
 """,
         encoding="utf-8",
     )
@@ -113,13 +109,11 @@ simulation_rerun_prepare:
     state = run_pipeline(config_path, run_dir=run_dir)
     report = json.loads((run_dir / "report.json").read_text())
     assert "rec_a" in report["simulation_history_summary"]["failed_candidates"]
-    assert "rec_a" in report["simulation_history_summary"]["rerun_candidates"]
     decision = next(item for item in report["decision_summary"] if item["candidate_id"] == "rec_a")
     assert decision["simulation_history"]["failure_count"] >= 1
-    assert decision["simulation_history"]["rerun_count"] >= 1
-    assert len(report["deferred_reruns"]) == 1
-    assert report["deferred_reruns"][0]["candidate_id"] == "rec_a"
-    assert report["deferred_reruns"][0]["orca_adjustments"]["soscf_enabled"] is True
+    assert report["summary"]["simulation_failure_count"] == 1
+    assert "simulation_rerun_queue" not in report
+    assert "deferred_reruns" not in report
 
     graph = json.loads(state.knowledge_graph_path.read_text())
     assert not any(node["type"] == "SimulationFailure" for node in graph.get("nodes", []))

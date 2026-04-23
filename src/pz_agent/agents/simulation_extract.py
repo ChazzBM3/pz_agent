@@ -171,7 +171,6 @@ class SimulationExtractAgent(BaseAgent):
 
         extractions: list[dict] = []
         failures: list[dict] = list(state.simulation_failures or [])
-        rerun_candidates: list[dict] = []
 
         for item in payload:
             if not isinstance(item, dict):
@@ -191,23 +190,16 @@ class SimulationExtractAgent(BaseAgent):
                     **normalized,
                     "response_type": "failure_envelope",
                     "failure_source": "simulation_extract",
-                    "rerun_ready": True,
-                    "rerun_bundle": {
+                    "failure_log": {
                         "candidate_id": candidate_id,
                         "submission_id": normalized.get("submission_id"),
+                        "job_id": normalized.get("job_id"),
                         "job_spec_path": (queue_item.get("job_package") or {}).get("job_spec_path"),
                         "simulation": queue_item.get("simulation"),
-                    },
-                    "deferred_rerun_plan": {
-                        "policy": "deferred_manual_or_scheduled_rerun",
-                        "orca_adjustments": {
-                            "special_option": "",
-                            "soscf_enabled": True,
-                        },
+                        "logged_for_followup": True,
                     },
                 }
                 failures.append(failure)
-                rerun_candidates.append(failure)
                 continue
 
             if check_authoritative and check_status not in {"completed", ""}:
@@ -220,6 +212,5 @@ class SimulationExtractAgent(BaseAgent):
         state.simulation_failures = failures
         write_json(state.run_dir / "simulation_extractions.json", extractions)
         write_json(state.run_dir / "simulation_failures.json", failures)
-        write_json(state.run_dir / "simulation_rerun_candidates.json", rerun_candidates)
-        state.log(f"Simulation extract normalized {len(extractions)} completed result envelopes and logged {len(rerun_candidates)} deferred rerun candidates")
+        state.log(f"Simulation extract normalized {len(extractions)} completed result envelopes and logged {len(failures)} failed calculation records")
         return state
