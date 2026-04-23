@@ -54,7 +54,11 @@ Using OpenAlex title/abstract search counts as a rough literature proxy, quinone
 
 That makes phenothiazines a strong target for **structured inference** rather than simple lookup or naive black-box generation.
 
+A second important point for slides is that sparse literature does **not** mean empty structured evidence. The current KG already recovers a compact, measurement-rich phenothiazine slice from the existing dataset, as summarized below.
+
 ![Phenothiazine property coverage in the current KG](artifacts/presentation_kg/phenothiazine_property_coverage.png)
+
+This is a helpful bridge to the next idea: if the direct phenothiazine literature is thinner, then the workflow has to combine this local measured structure with transfer from better-mapped chemical spaces.
 
 ### Transfer learning from better-known molecular spaces
 
@@ -426,6 +430,8 @@ That is okay. For a slide deck, this creates a strong “current status + next f
 - generate new molecules beginning from phenothiazines already found in D3TaLES
 - evaluate those generated molecules with RDKit conformer search and DFT
 - feed the new molecules and results back into the KG for the next iteration
+
+One concrete way to present this is to show that the KG already supports a small phenothiazine shortlist before any new model-building. Even a lightweight property-aware pass surfaces a high-redox frontier that can seed the next round of generation or validation.
 
 ![Top phenothiazine shortlist by oxidation potential](artifacts/presentation_kg/phenothiazine_shortlist_oxidation.png)
 
