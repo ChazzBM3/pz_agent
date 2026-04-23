@@ -1,0 +1,1229 @@
+[
+  {
+    "id": "05BCMO",
+    "smiles": "CCN1c2ccc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)ccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "adiabatic_ionization_energy": [
+        7.025
+      ],
+      "reduction_potential": [
+        6.206
+      ],
+      "sa_score": [
+        2.47
+      ],
+      "molecular_weight": [
+        363.051639672
+      ],
+      "groundState.homo": [
+        -7.307893584000001
+      ],
+      "omega": [
+        0.2157
+      ],
+      "hole_reorganization_energy": [
+        0.4841
+      ],
+      "groundState.lumo": [
+        0.07347078000000001
+      ],
+      "groundState.dipole_moment": [
+        4.761614320794997
+      ],
+      "electron_reorganization_energy": [
+        2.112
+      ],
+      "oxidation_potential": [
+        0.901
+      ],
+      "groundState.solvation_energy": [
+        -0.1909
+      ],
+      "groundState.globular_volume": [
+        273.0
+      ],
+      "adiabatic_electron_affinity": [
+        -0.1445
+      ],
+      "number_of_atoms": [
+        24.0
+      ],
+      "groundState.homo_lumo_gap": [
+        7.381364364000001
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05DLTF",
+    "smiles": "COCCOC(C)CN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "groundState.homo_lumo_gap": [
+        7.855659066000001
+      ],
+      "reduction_potential": [
+        5.557
+      ],
+      "adiabatic_electron_affinity": [
+        0.8133
+      ],
+      "electron_reorganization_energy": [
+        3.533
+      ],
+      "sa_score": [
+        2.75
+      ],
+      "number_of_atoms": [
+        22.0
+      ],
+      "hole_reorganization_energy": [
+        0.5621
+      ],
+      "oxidation_potential": [
+        0.724
+      ],
+      "groundState.homo": [
+        -6.8349594520000005
+      ],
+      "groundState.lumo": [
+        1.0206996140000002
+      ],
+      "groundState.solvation_energy": [
+        -0.2592
+      ],
+      "adiabatic_ionization_energy": [
+        6.583
+      ],
+      "omega": [
+        0.2109
+      ],
+      "molecular_weight": [
+        315.129299912
+      ],
+      "groundState.dipole_moment": [
+        2.7118437823739034
+      ],
+      "groundState.globular_volume": [
+        294.216
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05DXWO",
+    "smiles": "CCCN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "electron_reorganization_energy": [
+        1.48
+      ],
+      "adiabatic_electron_affinity": [
+        0.7532
+      ],
+      "groundState.lumo": [
+        0.906411734
+      ],
+      "molecular_weight": [
+        241.09252048
+      ],
+      "hole_reorganization_energy": [
+        0.4026
+      ],
+      "groundState.solvation_energy": [
+        -0.1632
+      ],
+      "adiabatic_ionization_energy": [
+        6.491
+      ],
+      "omega": [
+        0.2184
+      ],
+      "groundState.homo_lumo_gap": [
+        7.625722736
+      ],
+      "number_of_atoms": [
+        17.0
+      ],
+      "groundState.homo": [
+        -6.719311002
+      ],
+      "groundState.dipole_moment": [
+        2.394906401093788
+      ],
+      "sa_score": [
+        1.89
+      ],
+      "groundState.globular_volume": [
+        225.192
+      ],
+      "oxidation_potential": [
+        0.593
+      ],
+      "reduction_potential": [
+        5.699
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05EEZH",
+    "smiles": "COCCN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "sa_score": [
+        1.95
+      ],
+      "number_of_atoms": [
+        18.0
+      ],
+      "omega": [
+        0.2222
+      ],
+      "molecular_weight": [
+        257.0874351
+      ],
+      "groundState.dipole_moment": [
+        3.1541695135169894
+      ],
+      "oxidation_potential": [
+        0.633
+      ],
+      "groundState.solvation_energy": [
+        -0.1945
+      ],
+      "hole_reorganization_energy": [
+        0.5443
+      ],
+      "groundState.globular_volume": [
+        234.12
+      ],
+      "reduction_potential": [
+        5.612
+      ],
+      "groundState.lumo": [
+        1.026414008
+      ],
+      "groundState.homo_lumo_gap": [
+        7.83960434
+      ],
+      "adiabatic_ionization_energy": [
+        6.479
+      ],
+      "adiabatic_electron_affinity": [
+        0.8139
+      ],
+      "electron_reorganization_energy": [
+        1.44
+      ],
+      "groundState.homo": [
+        -6.8131903320000005
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05FYOH",
+    "smiles": "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "adiabatic_electron_affinity": [
+        0.8417
+      ],
+      "number_of_atoms": [
+        20.0
+      ],
+      "groundState.homo": [
+        -6.305425608
+      ],
+      "molecular_weight": [
+        287.097999784
+      ],
+      "groundState.lumo": [
+        1.1175721980000002
+      ],
+      "groundState.globular_volume": [
+        259.28
+      ],
+      "groundState.dipole_moment": [
+        1.947657436511873
+      ],
+      "adiabatic_ionization_energy": [
+        6.052
+      ],
+      "omega": [
+        0.2134
+      ],
+      "hole_reorganization_energy": [
+        0.4399
+      ],
+      "groundState.solvation_energy": [
+        -0.2437
+      ],
+      "groundState.homo_lumo_gap": [
+        7.422997806000001
+      ],
+      "electron_reorganization_energy": [
+        1.977
+      ],
+      "oxidation_potential": [
+        0.317
+      ],
+      "reduction_potential": [
+        5.66
+      ],
+      "sa_score": [
+        2.13
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05HONX",
+    "smiles": "CC[N+](C)(C)C(C)CN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "hole_reorganization_energy": [
+        0.752
+      ],
+      "groundState.solvation_energy": [
+        -1.817
+      ],
+      "omega": [
+        0.2063
+      ],
+      "number_of_atoms": [
+        22.0
+      ],
+      "adiabatic_ionization_energy": [
+        9.664
+      ],
+      "sa_score": [
+        3.1
+      ],
+      "groundState.dipole_moment": [
+        9.920242155310524
+      ],
+      "groundState.lumo": [
+        -1.7796255600000002
+      ],
+      "groundState.globular_volume": [
+        306.984
+      ],
+      "molecular_weight": [
+        313.17329622009004
+      ],
+      "oxidation_potential": [
+        1.077
+      ],
+      "groundState.homo_lumo_gap": [
+        8.263013724
+      ],
+      "groundState.homo": [
+        -10.042639284
+      ]
+    },
+    "property_count": 13,
+    "measurement_count": 13
+  },
+  {
+    "id": "05JHCB",
+    "smiles": "CCN1c2ccc(OCCOCCOC)cc2Sc2cc(OCCOCCOC)ccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "oxidation_potential": [
+        0.289
+      ],
+      "groundState.dipole_moment": [
+        3.77585411926891
+      ],
+      "adiabatic_electron_affinity": [
+        0.6289
+      ],
+      "number_of_atoms": [
+        32.0
+      ],
+      "omega": [
+        0.201
+      ],
+      "reduction_potential": [
+        5.637
+      ],
+      "groundState.globular_volume": [
+        430.904
+      ],
+      "adiabatic_ionization_energy": [
+        5.942
+      ],
+      "molecular_weight": [
+        463.2028587759999
+      ],
+      "electron_reorganization_energy": [
+        3.885
+      ],
+      "groundState.lumo": [
+        0.9749844620000001
+      ],
+      "hole_reorganization_energy": [
+        0.5915
+      ],
+      "groundState.solvation_energy": [
+        -0.4145
+      ],
+      "groundState.homo_lumo_gap": [
+        7.252382328
+      ],
+      "sa_score": [
+        2.59
+      ],
+      "groundState.homo": [
+        -6.277397866
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05KCEN",
+    "smiles": "CCN1c2ccc(C#N)cc2Sc2cc(C#N)ccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "omega": [
+        0.2107
+      ],
+      "groundState.globular_volume": [
+        244.6
+      ],
+      "oxidation_potential": [
+        1.038
+      ],
+      "groundState.lumo": [
+        -0.5986508
+      ],
+      "hole_reorganization_energy": [
+        0.3681
+      ],
+      "groundState.homo_lumo_gap": [
+        6.920675362000001
+      ],
+      "reduction_potential": [
+        6.647
+      ],
+      "groundState.homo": [
+        -7.5193261620000005
+      ],
+      "adiabatic_electron_affinity": [
+        -0.708
+      ],
+      "groundState.solvation_energy": [
+        -0.404
+      ],
+      "electron_reorganization_energy": [
+        1.477
+      ],
+      "molecular_weight": [
+        277.067368352
+      ],
+      "number_of_atoms": [
+        20.0
+      ],
+      "adiabatic_ionization_energy": [
+        7.301
+      ],
+      "groundState.dipole_moment": [
+        6.631690078705428
+      ],
+      "sa_score": [
+        2.57
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05KFIE",
+    "smiles": "CCN1c2ccc(Cl)cc2Sc2cc(Cl)ccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "adiabatic_electron_affinity": [
+        0.3081
+      ],
+      "groundState.homo_lumo_gap": [
+        7.434698707999999
+      ],
+      "groundState.lumo": [
+        0.48436292000000003
+      ],
+      "electron_reorganization_energy": [
+        1.32
+      ],
+      "number_of_atoms": [
+        18.0
+      ],
+      "sa_score": [
+        2.2
+      ],
+      "oxidation_potential": [
+        0.728
+      ],
+      "groundState.dipole_moment": [
+        3.713854818110153
+      ],
+      "reduction_potential": [
+        6.024
+      ],
+      "groundState.globular_volume": [
+        239.136
+      ],
+      "hole_reorganization_energy": [
+        0.3958
+      ],
+      "adiabatic_ionization_energy": [
+        6.721
+      ],
+      "molecular_weight": [
+        294.998925712
+      ],
+      "omega": [
+        0.2141
+      ],
+      "groundState.homo": [
+        -6.950335787999999
+      ],
+      "groundState.solvation_energy": [
+        -0.1668
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05MEGG",
+    "smiles": "CN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "electron_reorganization_energy": [
+        1.231
+      ],
+      "hole_reorganization_energy": [
+        0.5229
+      ],
+      "reduction_potential": [
+        5.628
+      ],
+      "groundState.dipole_moment": [
+        2.125331879966044
+      ],
+      "omega": [
+        0.2289
+      ],
+      "oxidation_potential": [
+        0.688
+      ],
+      "number_of_atoms": [
+        15.0
+      ],
+      "groundState.globular_volume": [
+        191.432
+      ],
+      "groundState.homo": [
+        -6.9734654780000005
+      ],
+      "groundState.solvation_energy": [
+        -0.1669
+      ],
+      "groundState.lumo": [
+        1.0669589940000002
+      ],
+      "adiabatic_ionization_energy": [
+        6.666
+      ],
+      "groundState.homo_lumo_gap": [
+        8.040424472000002
+      ],
+      "adiabatic_electron_affinity": [
+        0.8704
+      ],
+      "molecular_weight": [
+        213.061220352
+      ],
+      "sa_score": [
+        1.87
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05MJZZ",
+    "smiles": "CCN1c2ccc(Br)cc2Sc2cc(Br)ccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "adiabatic_ionization_energy": [
+        6.719
+      ],
+      "oxidation_potential": [
+        0.746
+      ],
+      "groundState.dipole_moment": [
+        3.7401280980736478
+      ],
+      "adiabatic_electron_affinity": [
+        0.2028
+      ],
+      "groundState.solvation_energy": [
+        -0.1779
+      ],
+      "groundState.homo": [
+        -6.94298871
+      ],
+      "sa_score": [
+        2.36
+      ],
+      "groundState.lumo": [
+        0.38313651200000004
+      ],
+      "groundState.homo_lumo_gap": [
+        7.326125222
+      ],
+      "reduction_potential": [
+        6.021
+      ],
+      "molecular_weight": [
+        382.8978945520001
+      ],
+      "hole_reorganization_energy": [
+        0.3828
+      ],
+      "groundState.globular_volume": [
+        247.728
+      ],
+      "electron_reorganization_energy": [
+        1.353
+      ],
+      "number_of_atoms": [
+        18.0
+      ],
+      "omega": [
+        0.208
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05MYHH",
+    "smiles": "COCCOCCN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "hole_reorganization_energy": [
+        0.5247
+      ],
+      "adiabatic_ionization_energy": [
+        6.483
+      ],
+      "electron_reorganization_energy": [
+        1.945
+      ],
+      "reduction_potential": [
+        5.605
+      ],
+      "groundState.homo_lumo_gap": [
+        7.759058596000001
+      ],
+      "groundState.globular_volume": [
+        277.12
+      ],
+      "omega": [
+        0.2165
+      ],
+      "groundState.lumo": [
+        0.964372016
+      ],
+      "adiabatic_electron_affinity": [
+        0.7408
+      ],
+      "groundState.homo": [
+        -6.7946865800000005
+      ],
+      "molecular_weight": [
+        301.113649848
+      ],
+      "number_of_atoms": [
+        21.0
+      ],
+      "oxidation_potential": [
+        0.631
+      ],
+      "sa_score": [
+        2.1
+      ],
+      "groundState.solvation_energy": [
+        -0.2435
+      ],
+      "groundState.dipole_moment": [
+        2.6303753230290163
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05NLZW",
+    "smiles": "CCN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "groundState.lumo": [
+        0.936616388
+      ],
+      "sa_score": [
+        1.9
+      ],
+      "groundState.homo_lumo_gap": [
+        7.706812708
+      ],
+      "groundState.globular_volume": [
+        208.304
+      ],
+      "groundState.dipole_moment": [
+        2.3174397014809256
+      ],
+      "omega": [
+        0.22410860111942316
+      ],
+      "number_of_atoms": [
+        16.0
+      ],
+      "groundState.homo": [
+        -6.77019632
+      ],
+      "molecular_weight": [
+        227.076870416
+      ],
+      "groundState.solvation_energy": [
+        -0.1642
+      ]
+    },
+    "property_count": 10,
+    "measurement_count": 10
+  },
+  {
+    "id": "05PESY",
+    "smiles": "CCN1c2ccc(C)cc2Sc2cc(C)ccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "oxidation_potential": [
+        0.377
+      ],
+      "groundState.lumo": [
+        0.6362025320000001
+      ],
+      "reduction_potential": [
+        5.661
+      ],
+      "omega": [
+        0.1568
+      ],
+      "groundState.homo_lumo_gap": [
+        6.74026378
+      ],
+      "electron_reorganization_energy": [
+        1.462
+      ],
+      "number_of_atoms": [
+        18.0
+      ],
+      "groundState.homo": [
+        -6.104061248
+      ],
+      "groundState.globular_volume": [
+        242.92
+      ],
+      "molecular_weight": [
+        255.108170544
+      ],
+      "hole_reorganization_energy": [
+        0.379
+      ],
+      "adiabatic_electron_affinity": [
+        0.6958
+      ],
+      "groundState.solvation_energy": [
+        -0.1617
+      ],
+      "adiabatic_ionization_energy": [
+        6.181
+      ],
+      "groundState.dipole_moment": [
+        1.8228924652869682
+      ],
+      "sa_score": [
+        2.16
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05PJTD",
+    "smiles": "COCCOCCN1c2ccc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)ccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "groundState.lumo": [
+        -0.24054877600000002
+      ],
+      "groundState.globular_volume": [
+        341.728
+      ],
+      "molecular_weight": [
+        437.088419104
+      ],
+      "electron_reorganization_energy": [
+        2.59
+      ],
+      "adiabatic_electron_affinity": [
+        -0.1126
+      ],
+      "hole_reorganization_energy": [
+        0.4726
+      ],
+      "reduction_potential": [
+        6.277
+      ],
+      "groundState.homo_lumo_gap": [
+        6.474680516
+      ],
+      "adiabatic_ionization_energy": [
+        6.788
+      ],
+      "sa_score": [
+        2.6
+      ],
+      "groundState.solvation_energy": [
+        -0.225
+      ],
+      "omega": [
+        0.1565
+      ],
+      "groundState.homo": [
+        -6.715229292
+      ],
+      "number_of_atoms": [
+        29.0
+      ],
+      "oxidation_potential": [
+        0.765
+      ],
+      "groundState.dipole_moment": [
+        6.408005079586002
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05PNOK",
+    "smiles": "CCN1c2c(C)cc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)cc(C)c21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "groundState.lumo": [
+        0.32463200200000003
+      ],
+      "adiabatic_ionization_energy": [
+        7.183
+      ],
+      "groundState.homo_lumo_gap": [
+        7.796882442000001
+      ],
+      "hole_reorganization_energy": [
+        0.5276
+      ],
+      "number_of_atoms": [
+        26.0
+      ],
+      "reduction_potential": [
+        5.436
+      ],
+      "groundState.globular_volume": [
+        307.656
+      ],
+      "groundState.homo": [
+        -7.472250440000001
+      ],
+      "groundState.solvation_energy": [
+        -0.1644
+      ],
+      "omega": [
+        0.2072
+      ],
+      "electron_reorganization_energy": [
+        6.777
+      ],
+      "oxidation_potential": [
+        1.151
+      ],
+      "groundState.dipole_moment": [
+        4.61930355464977
+      ],
+      "sa_score": [
+        2.88
+      ],
+      "adiabatic_electron_affinity": [
+        0.5877
+      ],
+      "molecular_weight": [
+        391.0829398
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05PTMH",
+    "smiles": "CCN1c2c(C)cccc2Sc2cccc(C)c21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "groundState.homo": [
+        -7.058637160000001
+      ],
+      "reduction_potential": [
+        5.506
+      ],
+      "adiabatic_electron_affinity": [
+        0.9581
+      ],
+      "number_of_atoms": [
+        18.0
+      ],
+      "groundState.globular_volume": [
+        242.84
+      ],
+      "electron_reorganization_energy": [
+        4.46
+      ],
+      "groundState.solvation_energy": [
+        -0.1363
+      ],
+      "groundState.homo_lumo_gap": [
+        8.193080426000002
+      ],
+      "adiabatic_ionization_energy": [
+        6.745
+      ],
+      "oxidation_potential": [
+        0.905
+      ],
+      "hole_reorganization_energy": [
+        0.5362
+      ],
+      "sa_score": [
+        2.37
+      ],
+      "groundState.dipole_moment": [
+        1.8040071757063494
+      ],
+      "molecular_weight": [
+        255.108170544
+      ],
+      "groundState.lumo": [
+        1.134443266
+      ],
+      "omega": [
+        0.2193
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05RYQW",
+    "smiles": "CC(C)(C)N1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "reduction_potential": [
+        5.454
+      ],
+      "omega": [
+        0.2117
+      ],
+      "molecular_weight": [
+        255.108170544
+      ],
+      "adiabatic_electron_affinity": [
+        0.9272
+      ],
+      "groundState.lumo": [
+        1.123558706
+      ],
+      "hole_reorganization_energy": [
+        0.5057
+      ],
+      "groundState.homo": [
+        -7.011289324000001
+      ],
+      "sa_score": [
+        2.26
+      ],
+      "oxidation_potential": [
+        0.87
+      ],
+      "number_of_atoms": [
+        18.0
+      ],
+      "groundState.dipole_moment": [
+        1.63026652115536
+      ],
+      "groundState.globular_volume": [
+        242.336
+      ],
+      "electron_reorganization_energy": [
+        3.132
+      ],
+      "groundState.solvation_energy": [
+        -0.1395
+      ],
+      "adiabatic_ionization_energy": [
+        6.741
+      ],
+      "groundState.homo_lumo_gap": [
+        8.13484803
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05TRCY",
+    "smiles": "CCN1c2ccccc2Sc2ccc(C(F)(F)F)cc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "electron_reorganization_energy": [
+        1.972
+      ],
+      "number_of_atoms": [
+        20.0
+      ],
+      "groundState.dipole_moment": [
+        2.656028058963233
+      ],
+      "hole_reorganization_energy": [
+        0.6309
+      ],
+      "groundState.globular_volume": [
+        240.992
+      ],
+      "sa_score": [
+        2.19
+      ],
+      "adiabatic_electron_affinity": [
+        0.2248
+      ],
+      "omega": [
+        0.2197
+      ],
+      "reduction_potential": [
+        6.142
+      ],
+      "groundState.homo": [
+        -7.227619954000001
+      ],
+      "oxidation_potential": [
+        0.762
+      ],
+      "molecular_weight": [
+        295.064255044
+      ],
+      "groundState.homo_lumo_gap": [
+        7.7568816840000006
+      ],
+      "groundState.solvation_energy": [
+        -0.1597
+      ],
+      "adiabatic_ionization_energy": [
+        6.785
+      ],
+      "groundState.lumo": [
+        0.52926173
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05UYEV",
+    "smiles": "CCN1c2ccc(C(F)(F)C(F)(F)F)cc2Sc2cc(C(F)(F)C(F)(F)F)ccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "reduction_potential": [
+        6.263
+      ],
+      "sa_score": [
+        3.01
+      ],
+      "groundState.homo_lumo_gap": [
+        7.262178432
+      ],
+      "hole_reorganization_energy": [
+        0.4543
+      ],
+      "groundState.dipole_moment": [
+        4.7579195674159935
+      ],
+      "groundState.globular_volume": [
+        327.536
+      ],
+      "groundState.homo": [
+        -7.290478288
+      ],
+      "molecular_weight": [
+        463.045252552
+      ],
+      "adiabatic_electron_affinity": [
+        -0.2544
+      ],
+      "oxidation_potential": [
+        0.924
+      ],
+      "number_of_atoms": [
+        30.0
+      ],
+      "omega": [
+        0.2097
+      ],
+      "adiabatic_ionization_energy": [
+        7.025
+      ],
+      "groundState.lumo": [
+        -0.028299855999999998
+      ],
+      "groundState.solvation_energy": [
+        -0.1805
+      ],
+      "electron_reorganization_energy": [
+        1.93
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05WEXS",
+    "smiles": "CC(C)N1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "adiabatic_ionization_energy": [
+        6.482
+      ],
+      "groundState.homo_lumo_gap": [
+        6.993601914
+      ],
+      "oxidation_potential": [
+        0.593
+      ],
+      "groundState.dipole_moment": [
+        2.1779479952469023
+      ],
+      "sa_score": [
+        2.1
+      ],
+      "number_of_atoms": [
+        17.0
+      ],
+      "hole_reorganization_energy": [
+        0.4317
+      ],
+      "groundState.globular_volume": [
+        226.064
+      ],
+      "omega": [
+        0.1567
+      ],
+      "groundState.solvation_energy": [
+        -0.1526
+      ],
+      "adiabatic_electron_affinity": [
+        0.7587
+      ],
+      "electron_reorganization_energy": [
+        1.796
+      ],
+      "groundState.lumo": [
+        0.619875692
+      ],
+      "reduction_potential": [
+        5.682
+      ],
+      "groundState.homo": [
+        -6.373726222
+      ],
+      "molecular_weight": [
+        241.09252048
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  },
+  {
+    "id": "05XIVB",
+    "smiles": "COCCOCCN1c2ccc(OC)cc2Sc2cc(OC)ccc21",
+    "source_group": "Odom_aman",
+    "properties": {
+      "adiabatic_electron_affinity": [
+        0.7242
+      ],
+      "groundState.globular_volume": [
+        328.952
+      ],
+      "groundState.homo": [
+        -6.282840146000001
+      ],
+      "sa_score": [
+        2.31
+      ],
+      "oxidation_potential": [
+        0.353
+      ],
+      "hole_reorganization_energy": [
+        0.5294
+      ],
+      "groundState.solvation_energy": [
+        -0.3541
+      ],
+      "number_of_atoms": [
+        25.0
+      ],
+      "groundState.dipole_moment": [
+        1.9048355335828866
+      ],
+      "electron_reorganization_energy": [
+        2.029
+      ],
+      "reduction_potential": [
+        5.697
+      ],
+      "groundState.homo_lumo_gap": [
+        7.373200944000001
+      ],
+      "molecular_weight": [
+        361.13477921599997
+      ],
+      "omega": [
+        0.2061
+      ],
+      "adiabatic_ionization_energy": [
+        5.988
+      ],
+      "groundState.lumo": [
+        1.090360798
+      ]
+    },
+    "property_count": 16,
+    "measurement_count": 16
+  }
+]

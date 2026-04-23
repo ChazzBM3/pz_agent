@@ -1,0 +1,170 @@
+[
+  {
+    "id": "05PNOK",
+    "smiles": "CCN1c2c(C)cc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)cc(C)c21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 1.151,
+    "reduction_potential": 5.436,
+    "sa_score": 2.88
+  },
+  {
+    "id": "05HONX",
+    "smiles": "CC[N+](C)(C)C(C)CN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 1.077,
+    "reduction_potential": null,
+    "sa_score": 3.1
+  },
+  {
+    "id": "05KCEN",
+    "smiles": "CCN1c2ccc(C#N)cc2Sc2cc(C#N)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 1.038,
+    "reduction_potential": 6.647,
+    "sa_score": 2.57
+  },
+  {
+    "id": "05UYEV",
+    "smiles": "CCN1c2ccc(C(F)(F)C(F)(F)F)cc2Sc2cc(C(F)(F)C(F)(F)F)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.924,
+    "reduction_potential": 6.263,
+    "sa_score": 3.01
+  },
+  {
+    "id": "05PTMH",
+    "smiles": "CCN1c2c(C)cccc2Sc2cccc(C)c21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.905,
+    "reduction_potential": 5.506,
+    "sa_score": 2.37
+  },
+  {
+    "id": "05BCMO",
+    "smiles": "CCN1c2ccc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.901,
+    "reduction_potential": 6.206,
+    "sa_score": 2.47
+  },
+  {
+    "id": "05RYQW",
+    "smiles": "CC(C)(C)N1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.87,
+    "reduction_potential": 5.454,
+    "sa_score": 2.26
+  },
+  {
+    "id": "05PJTD",
+    "smiles": "COCCOCCN1c2ccc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.765,
+    "reduction_potential": 6.277,
+    "sa_score": 2.6
+  },
+  {
+    "id": "05TRCY",
+    "smiles": "CCN1c2ccccc2Sc2ccc(C(F)(F)F)cc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.762,
+    "reduction_potential": 6.142,
+    "sa_score": 2.19
+  },
+  {
+    "id": "05MJZZ",
+    "smiles": "CCN1c2ccc(Br)cc2Sc2cc(Br)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.746,
+    "reduction_potential": 6.021,
+    "sa_score": 2.36
+  },
+  {
+    "id": "05KFIE",
+    "smiles": "CCN1c2ccc(Cl)cc2Sc2cc(Cl)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.728,
+    "reduction_potential": 6.024,
+    "sa_score": 2.2
+  },
+  {
+    "id": "05DLTF",
+    "smiles": "COCCOC(C)CN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.724,
+    "reduction_potential": 5.557,
+    "sa_score": 2.75
+  },
+  {
+    "id": "05MEGG",
+    "smiles": "CN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.688,
+    "reduction_potential": 5.628,
+    "sa_score": 1.87
+  },
+  {
+    "id": "05EEZH",
+    "smiles": "COCCN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.633,
+    "reduction_potential": 5.612,
+    "sa_score": 1.95
+  },
+  {
+    "id": "05MYHH",
+    "smiles": "COCCOCCN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.631,
+    "reduction_potential": 5.605,
+    "sa_score": 2.1
+  },
+  {
+    "id": "05WEXS",
+    "smiles": "CC(C)N1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.593,
+    "reduction_potential": 5.682,
+    "sa_score": 2.1
+  },
+  {
+    "id": "05DXWO",
+    "smiles": "CCCN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.593,
+    "reduction_potential": 5.699,
+    "sa_score": 1.89
+  },
+  {
+    "id": "05PESY",
+    "smiles": "CCN1c2ccc(C)cc2Sc2cc(C)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.377,
+    "reduction_potential": 5.661,
+    "sa_score": 2.16
+  },
+  {
+    "id": "05XIVB",
+    "smiles": "COCCOCCN1c2ccc(OC)cc2Sc2cc(OC)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.353,
+    "reduction_potential": 5.697,
+    "sa_score": 2.31
+  },
+  {
+    "id": "05FYOH",
+    "smiles": "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.317,
+    "reduction_potential": 5.66,
+    "sa_score": 2.13
+  },
+  {
+    "id": "05JHCB",
+    "smiles": "CCN1c2ccc(OCCOCCOC)cc2Sc2cc(OCCOCCOC)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.289,
+    "reduction_potential": 5.637,
+    "sa_score": 2.59
+  }
+]

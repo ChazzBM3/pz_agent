@@ -1,0 +1,119 @@
+{
+  "kg_path": "/Users/chazzm3/.openclaw/workspace/pz_agent/artifacts/kg_prod_2026_04_22/d3tales_kg.json",
+  "phenothiazine_scaffold_id": "scaffold::e6008ac24d413469",
+  "phenothiazine_scaffold_smiles": "c1ccc2c(c1)Nc1ccccc1S2",
+  "phenothiazine_molecule_count": 22,
+  "property_coverage": {
+    "sa_score": 22,
+    "molecular_weight": 22,
+    "groundState.homo": 22,
+    "omega": 22,
+    "groundState.lumo": 22,
+    "groundState.dipole_moment": 22,
+    "groundState.solvation_energy": 22,
+    "groundState.globular_volume": 22,
+    "number_of_atoms": 22,
+    "groundState.homo_lumo_gap": 22,
+    "adiabatic_ionization_energy": 21,
+    "hole_reorganization_energy": 21,
+    "oxidation_potential": 21,
+    "reduction_potential": 20,
+    "electron_reorganization_energy": 20,
+    "adiabatic_electron_affinity": 20
+  },
+  "source_group_counts": {
+    "Odom_aman": 22
+  },
+  "property_count_distribution": {
+    "10": 1,
+    "13": 1,
+    "16": 20
+  },
+  "measurement_count_distribution": {
+    "10": 1,
+    "13": 1,
+    "16": 20
+  },
+  "top_oxidation_potential": [
+    {
+      "id": "05PNOK",
+      "smiles": "CCN1c2c(C)cc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)cc(C)c21",
+      "source_group": "Odom_aman",
+      "oxidation_potential": 1.151,
+      "reduction_potential": 5.436,
+      "sa_score": 2.88
+    },
+    {
+      "id": "05HONX",
+      "smiles": "CC[N+](C)(C)C(C)CN1c2ccccc2Sc2ccccc21",
+      "source_group": "Odom_aman",
+      "oxidation_potential": 1.077,
+      "reduction_potential": null,
+      "sa_score": 3.1
+    },
+    {
+      "id": "05KCEN",
+      "smiles": "CCN1c2ccc(C#N)cc2Sc2cc(C#N)ccc21",
+      "source_group": "Odom_aman",
+      "oxidation_potential": 1.038,
+      "reduction_potential": 6.647,
+      "sa_score": 2.57
+    },
+    {
+      "id": "05UYEV",
+      "smiles": "CCN1c2ccc(C(F)(F)C(F)(F)F)cc2Sc2cc(C(F)(F)C(F)(F)F)ccc21",
+      "source_group": "Odom_aman",
+      "oxidation_potential": 0.924,
+      "reduction_potential": 6.263,
+      "sa_score": 3.01
+    },
+    {
+      "id": "05PTMH",
+      "smiles": "CCN1c2c(C)cccc2Sc2cccc(C)c21",
+      "source_group": "Odom_aman",
+      "oxidation_potential": 0.905,
+      "reduction_potential": 5.506,
+      "sa_score": 2.37
+    },
+    {
+      "id": "05BCMO",
+      "smiles": "CCN1c2ccc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)ccc21",
+      "source_group": "Odom_aman",
+      "oxidation_potential": 0.901,
+      "reduction_potential": 6.206,
+      "sa_score": 2.47
+    },
+    {
+      "id": "05RYQW",
+      "smiles": "CC(C)(C)N1c2ccccc2Sc2ccccc21",
+      "source_group": "Odom_aman",
+      "oxidation_potential": 0.87,
+      "reduction_potential": 5.454,
+      "sa_score": 2.26
+    },
+    {
+      "id": "05PJTD",
+      "smiles": "COCCOCCN1c2ccc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)ccc21",
+      "source_group": "Odom_aman",
+      "oxidation_potential": 0.765,
+      "reduction_potential": 6.277,
+      "sa_score": 2.6
+    },
+    {
+      "id": "05TRCY",
+      "smiles": "CCN1c2ccccc2Sc2ccc(C(F)(F)F)cc21",
+      "source_group": "Odom_aman",
+      "oxidation_potential": 0.762,
+      "reduction_potential": 6.142,
+      "sa_score": 2.19
+    },
+    {
+      "id": "05MJZZ",
+      "smiles": "CCN1c2ccc(Br)cc2Sc2cc(Br)ccc21",
+      "source_group": "Odom_aman",
+      "oxidation_potential": 0.746,
+      "reduction_potential": 6.021,
+      "sa_score": 2.36
+    }
+  ]
+}
