@@ -445,7 +445,15 @@ That is okay. For a slide deck, this creates a strong “current status + next f
 - show that the KG also exposes low-information or poor-provenance records
 - present the graph as both reasoning engine and audit tool
 
-### Slide 11. Where this goes next
+### Slide 11. Phenothiazine vs quinone, as a KG result
+- make this distinct from the pure literature slide
+- show that quinones occupy the denser external literature space, but phenothiazines still yield a compact, measurement-rich KG slice
+- emphasize that the exact phenothiazine scaffold `c1ccc2c(c1)Nc1ccccc1S2` already maps to `22` molecules in the current KG
+- emphasize that `21/22` of those already have oxidation-potential measurements
+- contrast this with quinones as the broader, better-mapped comparison family that motivates transfer, while phenothiazines are the sparser but still actionable target family
+- use this slide to argue that the KG is what makes phenothiazine discovery tractable despite the asymmetry
+
+### Slide 12. Where this goes next
 - use the KG as the substrate for better phenothiazine prioritization
 - generate new molecules beginning from phenothiazines already found in D3TaLES
 - evaluate those generated molecules with RDKit conformer search and DFT
@@ -455,7 +463,7 @@ One concrete way to present this is to show that the KG already supports a small
 
 ![Top phenothiazine shortlist by oxidation potential](artifacts/presentation_kg/phenothiazine_shortlist_oxidation.png)
 
-### Slide 12. Long-term vision
+### Slide 13. Long-term vision
 - a scientifically grounded, continuously learning discovery loop for underexplored redoxmer spaces
 - agents as orchestrators of structured reasoning, not magic black boxes
 - generation, simulation, and validation all close the loop through the evolving graph
