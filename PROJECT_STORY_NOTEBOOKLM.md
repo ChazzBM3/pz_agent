@@ -50,6 +50,8 @@ A major narrative point for slides is that phenothiazines sit in an awkward but 
 - direct measured data is incomplete and uneven
 - literature support exists, but it is fragmented
 
+Using OpenAlex title/abstract search counts as a rough literature proxy, quinones appear in about `65,977` works, while phenothiazines appear in about `16,683`. Narrowing to redox-flow-battery context, OpenAlex returns about `366` works for quinone + redox flow battery and about `74` for phenothiazine + redox flow battery. That is not a perfect bibliometric census, but it is a very usable slide-level indicator that quinones occupy a much denser literature space overall and a larger RFB-specific literature space as well.
+
 That makes phenothiazines a strong target for **structured inference** rather than simple lookup or naive black-box generation.
 
 ### Transfer learning from better-known molecular spaces
@@ -380,6 +382,8 @@ That is okay. For a slide deck, this creates a strong “current status + next f
 
 ### Slide 3. Phenothiazines are relatively underexplored compared with better-known redox-active spaces
 - compare against quinones and other better-mapped families
+- include explicit OpenAlex counts: about `65,977` quinone works vs about `16,683` phenothiazine works
+- in redox-flow-battery context, include about `366` quinone + RFB works vs about `74` phenothiazine + RFB works
 - emphasize uneven evidence density and the need for transfer rather than brute-force local optimization
 
 ### Slide 4. Scientific hypothesis: transfer from mature molecular spaces to sparse ones
@@ -432,7 +436,8 @@ That is okay. For a slide deck, this creates a strong “current status + next f
 
 Useful phrases for narration:
 - “This project is motivated by the need for better organic redox-active molecules for flow batteries.”
-- “Phenothiazines are promising, but they remain much less systematically mapped than more mature redox-active families.”
+- “Phenothiazines are promising, but they remain much less systematically mapped than more mature redox-active families such as quinones.”
+- “Using OpenAlex title-and-abstract counts as a rough proxy, quinones show about 65,977 papers overall versus about 16,683 for phenothiazines, and about 366 quinone redox-flow-battery papers versus about 74 for phenothiazines.”
 - “The central challenge is how to reason effectively in a sparse-data molecular space.”
 - “Our answer is to use an agent-guided expanding knowledge graph that connects molecules, measurements, evidence, hypotheses, generated candidates, and validation outcomes.”
 - “The graph is not just a database, it is the scientific memory of the campaign.”
