@@ -310,42 +310,6 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
         )
         add_edge(validation_result_id, validation_outcome_id, "VALIDATED_BY")
 
-    for failure in state.simulation_failures or []:
-        candidate_id = str(failure.get("candidate_id") or "")
-        if not candidate_id:
-            continue
-        submission_id = failure.get("submission_id") or "simulation_failure"
-        failure_id = stable_node_id("simulation_failure", candidate_id, submission_id)
-        failure_log = dict(failure.get("failure_log") or {})
-        add_node(
-            {
-                "id": failure_id,
-                "type": "SimulationFailure",
-                "attrs": {
-                    "candidate_id": candidate_id,
-                    "status": failure.get("status"),
-                    "backend": failure.get("backend"),
-                    "engine": failure.get("engine"),
-                    "simulation_type": failure.get("simulation_type"),
-                    "submission_id": submission_id,
-                    "job_id": failure.get("job_id"),
-                    "remote_target": failure.get("remote_target"),
-                    "failure_source": failure.get("failure_source"),
-                    "outputs": failure.get("outputs") or {},
-                    "failure_log": failure_log,
-                    "provenance": failure.get("provenance") or {},
-                    "source_tags": {
-                        "source_type": "simulation",
-                        "source_family": "PT",
-                        "evidence_tier": "tier_E_simulation",
-                        "modality": "simulation",
-                        "extraction_method": "failure_log",
-                    },
-                },
-            }
-        )
-        add_edge(failure_id, candidate_id, "CONTRADICTED_BY")
-
     for note in state.critique_notes or []:
         claim_nodes = build_claim_nodes(note)
         evidence_tier = str(note.get("evidence_tier") or "candidate")
