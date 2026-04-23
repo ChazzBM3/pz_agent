@@ -87,6 +87,7 @@ pipeline:
     - library_designer
     - standardizer
     - surrogate_screen
+    - knowledge_graph
     - ranker
 """,
         encoding="utf-8",
@@ -102,6 +103,24 @@ pipeline:
     assert by_id["genmol_0001"]["predicted_solubility"] == 0.25
     assert by_id["genmol_0001"]["prediction_provenance"]["synthesizability"]["source_type"] == "external_import"
     assert by_id["genmol_0002"]["predicted_solubility"] == 0.75
+    assert state.knowledge_graph_path is not None
+    graph = json.loads(state.knowledge_graph_path.read_text())
+    assert any(
+        node["type"] == "SimulationResult"
+        and node["attrs"].get("simulation_type") == "genmol_conformer_generation"
+        and node["attrs"].get("status") == "generated"
+        for node in graph.get("nodes", [])
+    )
+    assert any(
+        node["type"] == "Measurement"
+        and node["attrs"].get("property_name") == "sa_score"
+        and node["attrs"].get("provenance", {}).get("source_type") == "genmol_workflow_import"
+        for node in graph.get("nodes", [])
+    )
+    assert any(
+        edge["type"] == "GENERATED_BY_BATCH" and edge["source"] == "genmol_0001"
+        for edge in graph.get("edges", [])
+    )
     assert state.ranked is not None
     assert state.ranked[0]["id"] == "genmol_0002"
     assert any("auto-detected external score import" in log for log in state.logs)

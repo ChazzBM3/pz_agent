@@ -21,6 +21,13 @@ from pz_agent.state import RunState
 
 
 DATASET_NODE_ID = "dataset::d3tales"
+GENMOL_MEASUREMENT_FIELDS = {
+    "sa_score",
+    "logS_mol_L",
+    "S_mg_mL",
+    "solp_logS",
+    "lowest_energy",
+}
 
 
 def _dataset_record_node_id(record_id: str) -> str:
@@ -43,6 +50,15 @@ def _derive_scaffold_smiles(item: dict[str, Any]) -> str | None:
     if scaffold is None or scaffold.GetNumAtoms() == 0:
         return None
     return Chem.MolToSmiles(scaffold, canonical=True)
+
+
+def _candidate_generation_batch_index(item: dict[str, Any], state: RunState) -> int | None:
+    source_path = str(item.get("generation_source_path") or "").strip()
+    for idx, batch in enumerate(state.generation_registry or []):
+        batch_source = str((batch or {}).get("source_path") or "").strip()
+        if source_path and batch_source and source_path == batch_source:
+            return idx
+    return 0 if state.generation_registry else None
 
 
 def build_graph_snapshot(state: RunState) -> dict[str, Any]:
@@ -121,11 +137,99 @@ def build_graph_snapshot(state: RunState) -> dict[str, Any]:
                 },
             })
             add_edge(item["id"], stable_identity_key, "HAS_REPRESENTATION")
-        if state.generation_registry:
-            add_edge(item["id"], "generation_batch::0", "GENERATED_BY_BATCH")
+        batch_index = _candidate_generation_batch_index(item, state)
+        if batch_index is not None:
+            add_edge(item["id"], f"generation_batch::{batch_index}", "GENERATED_BY_BATCH")
         provenance = item.get("provenance") or {}
         if provenance.get("source_type") == "d3tales_csv" and provenance.get("source_id"):
             add_edge(item["id"], _dataset_record_node_id(str(provenance.get("source_id"))), "DERIVED_FROM")
+
+        if item.get("generation_engine") == "genmol_external":
+            generation_metadata = dict(item.get("generation_metadata") or {})
+            genmol_result_id = stable_node_id(
+                "genmol_result",
+                item["id"],
+                str(item.get("generated_index") or item.get("smiles") or "unknown"),
+            )
+            add_node(
+                {
+                    "id": genmol_result_id,
+                    "type": "SimulationResult",
+                    "attrs": {
+                        "candidate_id": item["id"],
+                        "status": "generated",
+                        "backend": "genmol_external",
+                        "engine": "genmol_external",
+                        "simulation_type": "genmol_conformer_generation",
+                        "generated_index": item.get("generated_index"),
+                        "force_field": item.get("force_field"),
+                        "num_conformers_embedded": item.get("num_conformers_embedded"),
+                        "lowest_energy": item.get("lowest_energy"),
+                        "lowest_energy_conformer_id": item.get("lowest_energy_conformer_id"),
+                        "atom_symbols": item.get("atom_symbols"),
+                        "coordinates_angstrom": item.get("coordinates_angstrom"),
+                        "site_fragments": item.get("site_fragments"),
+                        "site_outputs": item.get("site_outputs"),
+                        "generation_metadata": generation_metadata,
+                        "provenance": {
+                            "source_path": item.get("generation_source_path"),
+                            "source_type": "genmol_workflow_import",
+                        },
+                        "evidence_tier": "tier_E_simulation",
+                        "source_tags": {
+                            "source_type": "simulation",
+                            "source_family": "PT",
+                            "evidence_tier": "tier_E_simulation",
+                            "modality": "generation",
+                            "extraction_method": "genmol_workflow_import",
+                        },
+                    },
+                }
+            )
+            add_edge(genmol_result_id, item["id"], "SIMULATED_FOR")
+
+            genmol_validation_id = stable_node_id("genmol_validation", item["id"], "workflow_import")
+            add_node(
+                {
+                    "id": genmol_validation_id,
+                    "type": "ValidationOutcome",
+                    "attrs": {
+                        "candidate_id": item["id"],
+                        "status": "generated",
+                        "notes": "Imported from GenMol conformer-generation workflow before ORCA validation.",
+                    },
+                }
+            )
+            add_edge(genmol_result_id, genmol_validation_id, "VALIDATED_BY")
+
+            for property_name in GENMOL_MEASUREMENT_FIELDS:
+                value = item.get(property_name)
+                if value is None:
+                    continue
+                measurement_id = stable_node_id("measurement", item["id"], "genmol", property_name)
+                add_node(
+                    {
+                        "id": measurement_id,
+                        "type": "Measurement",
+                        "attrs": {
+                            "record_id": item["id"],
+                            "property_name": property_name,
+                            "value": value,
+                            "source_group": "genmol_external",
+                            "provenance": {
+                                "source_type": "genmol_workflow_import",
+                                "source_path": item.get("generation_source_path"),
+                                "generation_metadata": generation_metadata,
+                            },
+                            "stable_identity_key": stable_identity_by_candidate.get(item["id"]),
+                        },
+                    }
+                )
+                property_node = build_property_node(property_name)
+                add_node(property_node)
+                add_edge(measurement_id, item["id"], "MEASURED_FOR")
+                add_edge(measurement_id, property_node["id"], "HAS_PROPERTY")
+                add_edge(measurement_id, genmol_result_id, "DERIVED_FROM")
 
     for pred in state.predictions or []:
         pred_id = f"pred::{pred['id']}::{pred.get('model', 'unknown')}"
