@@ -54,6 +54,8 @@ Using OpenAlex title/abstract search counts as a rough literature proxy, quinone
 
 That makes phenothiazines a strong target for **structured inference** rather than simple lookup or naive black-box generation.
 
+![Phenothiazine property coverage in the current KG](artifacts/presentation_kg/phenothiazine_property_coverage.png)
+
 ### Transfer learning from better-known molecular spaces
 
 The project’s conceptual bet is that we should not treat phenothiazines as an isolated universe.
@@ -424,6 +426,8 @@ That is okay. For a slide deck, this creates a strong “current status + next f
 - generate new molecules beginning from phenothiazines already found in D3TaLES
 - evaluate those generated molecules with RDKit conformer search and DFT
 - feed the new molecules and results back into the KG for the next iteration
+
+![Top phenothiazine shortlist by oxidation potential](artifacts/presentation_kg/phenothiazine_shortlist_oxidation.png)
 
 ### Slide 12. Long-term vision
 - a scientifically grounded, continuously learning discovery loop for underexplored redoxmer spaces
