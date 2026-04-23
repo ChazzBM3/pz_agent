@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from pz_agent.agents.base import BaseAgent
 from pz_agent.analysis.diversity import diversify_placeholder
 from pz_agent.analysis.pareto import apply_literature_adjustment, compute_placeholder_pareto
@@ -14,10 +16,21 @@ class RankerAgent(BaseAgent):
     def run(self, state: RunState) -> RunState:
         ranked = compute_placeholder_pareto(list(state.predictions or []))
         critique_by_candidate = {note.get("candidate_id"): note for note in (state.critique_notes or []) if note.get("candidate_id")}
-        scaffold_features = write_scaffold_features(
-            state.knowledge_graph_path,
-            state.run_dir / "scaffold_features.json",
-        )
+
+        raw_run_dir = getattr(state, "run_dir", None)
+        output_run_dir = Path(raw_run_dir) if isinstance(raw_run_dir, (str, Path)) else None
+
+        scaffold_features = {}
+        if output_run_dir is not None:
+            scaffold_features = write_scaffold_features(
+                state.knowledge_graph_path,
+                output_run_dir / "scaffold_features.json",
+            )
+        elif state.knowledge_graph_path:
+            scaffold_features = write_scaffold_features(
+                state.knowledge_graph_path,
+                Path("scaffold_features.json"),
+            )
 
         evidence_aware_ranked = []
         for item in ranked:
@@ -69,7 +82,8 @@ class RankerAgent(BaseAgent):
             "novelty_ranked": state.novelty_ranked,
             "novelty_shortlist": state.novelty_shortlist,
         }
-        write_json(state.run_dir / "ranker_views.json", ranker_views)
+        if output_run_dir is not None:
+            write_json(output_run_dir / "ranker_views.json", ranker_views)
 
         support_ids = [row.get("id") for row in (state.shortlist or []) if row.get("id")]
         novelty_ids = [row.get("id") for row in (state.novelty_shortlist or []) if row.get("id")]
@@ -77,35 +91,36 @@ class RankerAgent(BaseAgent):
         novelty_only_ids = [item for item in novelty_ids if item not in set(support_ids)]
         ranked_by_id = {row.get("id"): row for row in (state.ranked or []) if row.get("id")}
         novelty_by_id = {row.get("id"): row for row in (state.novelty_ranked or []) if row.get("id")}
-        write_json(
-            state.run_dir / "ranker_views_summary.json",
-            {
-                "support_top_ids": support_ids,
-                "novelty_top_ids": novelty_ids,
-                "overlap_ids": sorted(set(support_ids) & set(novelty_ids)),
-                "support_only_ids": support_only_ids,
-                "novelty_only_ids": novelty_only_ids,
-                "support_only_details": [
-                    {
-                        "id": item,
-                        "literature_adjustment": ranked_by_id.get(item, {}).get("literature_adjustment"),
-                        "novelty_adjustment": ranked_by_id.get(item, {}).get("novelty_adjustment"),
-                        "predicted_priority_literature_adjusted": ranked_by_id.get(item, {}).get("predicted_priority_literature_adjusted"),
-                        "predicted_priority_novelty_adjusted": ranked_by_id.get(item, {}).get("predicted_priority_novelty_adjusted"),
-                    }
-                    for item in support_only_ids
-                ],
-                "novelty_only_details": [
-                    {
-                        "id": item,
-                        "literature_adjustment": novelty_by_id.get(item, {}).get("literature_adjustment"),
-                        "novelty_adjustment": novelty_by_id.get(item, {}).get("novelty_adjustment"),
-                        "predicted_priority_literature_adjusted": novelty_by_id.get(item, {}).get("predicted_priority_literature_adjusted"),
-                        "predicted_priority_novelty_adjusted": novelty_by_id.get(item, {}).get("predicted_priority_novelty_adjusted"),
-                    }
-                    for item in novelty_only_ids
-                ],
-            },
-        )
+        if output_run_dir is not None:
+            write_json(
+                output_run_dir / "ranker_views_summary.json",
+                {
+                    "support_top_ids": support_ids,
+                    "novelty_top_ids": novelty_ids,
+                    "overlap_ids": sorted(set(support_ids) & set(novelty_ids)),
+                    "support_only_ids": support_only_ids,
+                    "novelty_only_ids": novelty_only_ids,
+                    "support_only_details": [
+                        {
+                            "id": item,
+                            "literature_adjustment": ranked_by_id.get(item, {}).get("literature_adjustment"),
+                            "novelty_adjustment": ranked_by_id.get(item, {}).get("novelty_adjustment"),
+                            "predicted_priority_literature_adjusted": ranked_by_id.get(item, {}).get("predicted_priority_literature_adjusted"),
+                            "predicted_priority_novelty_adjusted": ranked_by_id.get(item, {}).get("predicted_priority_novelty_adjusted"),
+                        }
+                        for item in support_only_ids
+                    ],
+                    "novelty_only_details": [
+                        {
+                            "id": item,
+                            "literature_adjustment": novelty_by_id.get(item, {}).get("literature_adjustment"),
+                            "novelty_adjustment": novelty_by_id.get(item, {}).get("novelty_adjustment"),
+                            "predicted_priority_literature_adjusted": novelty_by_id.get(item, {}).get("predicted_priority_literature_adjusted"),
+                            "predicted_priority_novelty_adjusted": novelty_by_id.get(item, {}).get("predicted_priority_novelty_adjusted"),
+                        }
+                        for item in novelty_only_ids
+                    ],
+                },
+            )
         state.log("Ranker produced support-aware and novelty-aware shortlists using predicted properties, measured support, KG critique signals, and scaffold context")
         return state
