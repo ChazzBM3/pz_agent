@@ -9,7 +9,12 @@ class SurrogateScreenAgent(BaseAgent):
     name = "surrogate_screen"
 
     def run(self, state: RunState) -> RunState:
-        use_external_scores = bool(self.config.get("screening", {}).get("use_external_scores", False))
+        configured_external = bool(self.config.get("screening", {}).get("use_external_scores", False))
+        detected_external = any(
+            item.get("external_synthesizability") is not None or item.get("external_solubility") is not None
+            for item in (state.library_clean or [])
+        )
+        use_external_scores = configured_external or detected_external
         model = get_default_model(use_external_scores=use_external_scores)
         state.predictions = []
         for item in (state.library_clean or []):
@@ -19,6 +24,11 @@ class SurrogateScreenAgent(BaseAgent):
                 **pred,
                 "id": item["id"],
             })
-        mode = "external score import" if use_external_scores else "internal stub scoring"
+        if configured_external:
+            mode = "external score import with heuristic fallback"
+        elif detected_external:
+            mode = "auto-detected external score import with heuristic fallback"
+        else:
+            mode = "internal stub scoring"
         state.log(f"Surrogate screen generated synthesizability and solubility predictions using {mode}")
         return state

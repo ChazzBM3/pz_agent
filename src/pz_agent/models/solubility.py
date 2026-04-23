@@ -32,8 +32,15 @@ class ExternalSolubilityScorer(SolubilityScorer):
     name = "solubility_external_import"
 
     def score(self, molecule: dict[str, Any]) -> dict[str, Any]:
+        value = molecule.get("external_solubility")
+        if value is None:
+            fallback = super().score(molecule)
+            fallback["provenance"]["notes"] = (
+                "External solubility score missing; fell back to internal heuristic."
+            )
+            return fallback
         return {
-            "value": molecule.get("external_solubility"),
+            "value": value,
             "provenance": PredictionProvenance(
                 model_name=self.name,
                 model_version=self.version,

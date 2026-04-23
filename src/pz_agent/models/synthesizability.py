@@ -28,8 +28,15 @@ class ExternalSynthesizabilityScorer(SynthesizabilityScorer):
     name = "synthesizability_external_import"
 
     def score(self, molecule: dict[str, Any]) -> dict[str, Any]:
+        value = molecule.get("external_synthesizability")
+        if value is None:
+            fallback = super().score(molecule)
+            fallback["provenance"]["notes"] = (
+                "External synthesizability score missing; fell back to internal heuristic."
+            )
+            return fallback
         return {
-            "value": molecule.get("external_synthesizability"),
+            "value": value,
             "provenance": PredictionProvenance(
                 model_name=self.name,
                 model_version=self.version,
