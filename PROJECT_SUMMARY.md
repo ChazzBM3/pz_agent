@@ -96,7 +96,9 @@ GitHub:
 - queue and manifest artifacts are written to disk
 - current default packaged calculation is an ORCA geometry optimization / minimum search using `PBE`, `def2-SVP`, `D3`, and implicit water via `CPCM`
 - `simulation_submit` emits backend submission records through a simulation backend abstraction
-- `validation_ingest` reads remote result payloads, normalizes outputs/status, classifies result quality, and writes `validation_results.json`
+- `simulation_extract` now cleanly separates completed result envelopes from failed calculation records
+- failed calculations are persisted in `simulation_failures.json` for operator follow-up rather than being treated as automatic rerun candidates by default
+- `validation_ingest` reads remote result payloads, normalizes outputs/status, classifies result quality as usable / partial / failed, and writes `validation_results.json`
 - usable validation results are added back into the KG as `SimulationResult` and `ValidationOutcome` nodes
 - the HTVS submit/check/extract path is now the primary live remote-execution direction and has been exercised end to end on Supercloud through job build, Slurm submission, successful ORCA completion, and HTVS reconciliation into `completed/`
 - the older AtomisticSkills / direct-ORCA path remains in the repo as legacy contract scaffolding rather than the preferred active integration
@@ -106,11 +108,12 @@ GitHub:
 The biggest remaining gap is now **remote execution hardening and downstream rigor**, not basic loop closure.
 
 ### 1. Validation path now works, but needs stronger contract hardening
-The repo can now generate simulation-ready artifacts, emit submission records, ingest completed results, and write usable validation outcomes back into the KG and reports. The next hardening work is around making that path operationally trustworthy:
+The repo can now generate simulation-ready artifacts, emit submission records, ingest completed results, log failed calculations cleanly, and write usable validation outcomes back into the KG and reports. The next hardening work is around making that path operationally trustworthy:
 - queue artifacts still need explicit acceptance checks against the live HTVS executor path
 - submission/check/extract records should be tightened around the real HTVS completed-job artifact layout
 - result payload requirements should be tightened and documented as an acceptance contract
 - downstream validator / result-consumer stages should become more formal than simple ingest
+- failed-calculation logging should remain explicit and operator-facing, not blurred into speculative auto-rerun behavior
 - the proven live path is now the HTVS-backed Supercloud flow; `docs/REMOTE_SIMULATION_PROTOCOL.md` remains useful as legacy context for the older direct ORCA-over-Slurm design
 
 ### 2. Scoring remains partially heuristic
@@ -141,9 +144,11 @@ The recommended next sequence is:
 2. **Result-ingest and validator hardening**
    - tighten extraction around the real HTVS completed-job payloads and parsed ORCA artifacts
    - formalize what downstream consumers require from HTVS-backed result envelopes
+   - keep usable / partial / failed quality states explicit in operator-facing reporting
 
-3. **Then deeper bridge chemistry refinement**
+3. **Then deeper KG and bridge chemistry refinement**
    - make bridge reasoning compete for simulation budget using actual validation outcomes instead of only internal belief structure
+   - continue enriching the KG so measured outcomes and failure history can guide future prioritization
 
 ## 7. Bottom line
 

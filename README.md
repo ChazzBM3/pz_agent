@@ -75,7 +75,7 @@ The repo now includes a Python package scaffold for:
 - supervised graph expansion into action queues
 - simulation handoff packaging and submission scaffolding
 
-Current priority: validate and harden the simulation-first execution path around the HTVS-backed Supercloud flow, then tighten scoring, evidence semantics, and downstream result ingestion.
+Current priority: validate and harden the simulation-first execution path around the HTVS-backed Supercloud flow, keep failed calculations logged cleanly for operator follow-up, then tighten scoring, evidence semantics, downstream result ingestion, and KG-guided prioritization.
 
 ## Current simulation defaults
 
@@ -95,4 +95,4 @@ Unless overridden in config, simulation handoff currently packages candidate job
 
 These defaults live in `src/pz_agent/agents/simulation_handoff.py` and are intended as the current remote-execution packaging contract, not as a claim that the repo already runs ORCA locally.
 
-See `artifacts/htvs_adapter_demo/demo_htvs_adapter.yaml` plus the HTVS backend under `src/pz_agent/simulation/backends/htvs.py` for the current primary remote execution path. `docs/REMOTE_SIMULATION_PROTOCOL.md` remains useful as legacy design context for the older direct ORCA-over-Slurm path.
+See `artifacts/htvs_adapter_demo/demo_htvs_adapter.yaml` plus the HTVS backend under `src/pz_agent/simulation/backends/htvs.py` for the current primary remote execution path. Failed calculations are logged in `simulation_failures.json`; completed results flow through validation with explicit usable / partial / failed quality assessment. `docs/REMOTE_SIMULATION_PROTOCOL.md` remains useful as legacy design context for the older direct ORCA-over-Slurm path.
