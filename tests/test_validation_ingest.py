@@ -303,3 +303,138 @@ validation_ingest:
     assert len(state.validation or []) == 1
     assert state.validation[0]["candidate_id"] == "rec_a"
     assert state.validation[0]["outputs"]["final_energy"] == -123.456
+
+
+
+def test_validation_ingest_marks_completed_but_incomplete_outputs_as_partial(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_partial"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "simulation_extractions.json").write_text(
+        json.dumps(
+            [
+                {
+                    "contract_version": "htvs.request_response.v1",
+                    "request_type": "extract_simulation_result",
+                    "response_type": "result_envelope",
+                    "candidate_id": "rec_partial",
+                    "submission_id": "partial-submit-001",
+                    "status": "completed",
+                    "backend": "htvs_supercloud",
+                    "engine": "orca",
+                    "simulation_type": "geometry_optimization",
+                    "outputs": {
+                        "final_energy": -10.5,
+                        "status": "completed",
+                    },
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    from pz_agent.agents.validation_ingest import ValidationIngestAgent
+    from pz_agent.state import RunState
+
+    state = RunState(
+        config={"validation_ingest": {}},
+        run_dir=run_dir,
+        simulation_queue=[
+            {
+                "candidate_id": "rec_partial",
+                "stable_identity_key": "stable::rec_partial",
+                "simulation": {
+                    "backend": "htvs_supercloud",
+                    "engine": "orca",
+                    "simulation_type": "geometry_optimization",
+                    "requested_outputs": ["optimized_structure", "final_energy", "status"],
+                    "parameters": {"remote_target": "cluster-alpha"},
+                },
+                "tracking": {"request_id": "simreq::partial"},
+                "job_package": {"job_spec_path": str(run_dir / "orca_jobs" / "rec_partial" / "orca_job.json")},
+            }
+        ],
+        predictions=[
+            {
+                "id": "rec_partial",
+                "predicted_priority": 0.5,
+                "predicted_priority_literature_adjusted": 0.55,
+                "predicted_solubility": 0.4,
+                "predicted_synthesizability": 0.6,
+            }
+        ],
+    )
+
+    state = ValidationIngestAgent(config=state.config).run(state)
+
+    assert state.validation is not None
+    assert len(state.validation) == 1
+    record = state.validation[0]
+    assert record["status"] == "completed"
+    assert record["quality_assessment"]["quality"] == "partial"
+    assert record["quality_assessment"]["requested_outputs_complete"] is False
+    assert "optimized_structure" in record["quality_assessment"]["missing_requested_outputs"]
+
+
+
+def test_validation_ingest_skips_authoritative_nonterminal_checks(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_pending"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "simulation_extractions.json").write_text(
+        json.dumps(
+            [
+                {
+                    "candidate_id": "rec_pending",
+                    "submission_id": "pending-submit-001",
+                    "status": "completed",
+                    "backend": "htvs_supercloud",
+                    "engine": "orca",
+                    "simulation_type": "geometry_optimization",
+                    "outputs": {
+                        "final_energy": -22.2,
+                        "optimized_structure": "rec_pending.xyz",
+                        "status": "completed",
+                    },
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    from pz_agent.agents.validation_ingest import ValidationIngestAgent
+    from pz_agent.state import RunState
+
+    state = RunState(
+        config={"validation_ingest": {}},
+        run_dir=run_dir,
+        simulation_queue=[
+            {
+                "candidate_id": "rec_pending",
+                "simulation": {
+                    "backend": "htvs_supercloud",
+                    "engine": "orca",
+                    "simulation_type": "geometry_optimization",
+                    "requested_outputs": ["optimized_structure", "final_energy", "status"],
+                    "parameters": {"remote_target": "cluster-alpha"},
+                },
+                "tracking": {"request_id": "simreq::pending", "status": "submitted"},
+            }
+        ],
+        simulation_checks=[
+            {
+                "candidate_id": "rec_pending",
+                "status": "running",
+                "authoritative": True,
+            }
+        ],
+        predictions=[
+            {
+                "id": "rec_pending",
+                "predicted_priority": 0.5,
+                "predicted_priority_literature_adjusted": 0.55,
+            }
+        ],
+    )
+
+    state = ValidationIngestAgent(config=state.config).run(state)
+
+    assert state.validation == []

@@ -276,3 +276,66 @@ def test_htvs_extract_returns_none_when_not_completed(tmp_path: Path) -> None:
     )
 
     assert result is None
+
+
+def test_htvs_extract_emits_partial_result_when_completed_bucket_lacks_requested_outputs(tmp_path: Path) -> None:
+    job_root = tmp_path / "htvs-demo-004" / "jobs"
+    jobdir = job_root / "completed" / "job124"
+    jobdir.mkdir(parents=True, exist_ok=True)
+    (jobdir / "job_manager-job_id").write_text("124\n", encoding="utf-8")
+    (jobdir / "orca_dft_opt.out").write_text(
+        "FINAL SINGLE POINT ENERGY      -98.765432\n"
+        "ORCA TERMINATED NORMALLY\n",
+        encoding="utf-8",
+    )
+
+    backend = HtvsBackend()
+    result = backend.extract(
+        candidate_id="rec_d",
+        submission={
+            "submission_id": "htvs-demo-rec_d-001",
+            "job_id": "job124",
+            "backend": "htvs_supercloud",
+            "engine": "orca",
+            "remote_settings": {"job_root": str(job_root)},
+        },
+        simulation={
+            "simulation_type": "geometry_optimization",
+            "parameters": {"remote_target": "supercloud"},
+        },
+        extract_config={},
+    )
+
+    assert result is not None
+    assert result["status"] == "completed"
+    assert result["response_type"] == "result_envelope"
+    assert result["outputs"]["final_energy"] == -98.765432
+    assert result["outputs"].get("optimized_structure") is None
+    assert result["outputs"]["status"] == "completed"
+
+
+
+def test_htvs_check_uses_local_job_root_snapshot_when_available(tmp_path: Path) -> None:
+    job_root = tmp_path / "htvs-demo-005" / "jobs"
+    jobdir = job_root / "completed" / "job125"
+    jobdir.mkdir(parents=True, exist_ok=True)
+    (jobdir / "job_manager-job_id").write_text("125\n", encoding="utf-8")
+
+    backend = HtvsBackend()
+    result = backend.check(
+        candidate_id="rec_e",
+        submission={
+            "submission_id": "htvs-demo-rec_e-001",
+            "job_id": "job125",
+            "backend": "htvs_supercloud",
+            "engine": "orca",
+            "remote_settings": {"job_root": str(job_root)},
+        },
+        simulation={"backend": "htvs_supercloud", "engine": "orca", "parameters": {"remote_target": "supercloud"}},
+        check_config={},
+    )
+
+    assert result["status"] == "completed"
+    assert result["authoritative"] is True
+    assert result["status_source"] == "local_job_root_snapshot"
+    assert result["jobdir_snapshot"]["scheduler_job_id"] == "125"
