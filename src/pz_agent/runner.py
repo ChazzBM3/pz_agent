@@ -13,6 +13,7 @@ from pz_agent.agents.simulation_rerun_prepare import SimulationRerunPrepareAgent
 from pz_agent.agents.validation_ingest import ValidationIngestAgent
 from pz_agent.agents.document_fetch import DocumentFetchAgent
 from pz_agent.agents.figure_corpus import FigureCorpusAgent
+from pz_agent.agents.generation_iteration_execute import GenerationIterationExecuteAgent
 from pz_agent.agents.generation_iteration_handoff import GenerationIterationHandoffAgent
 from pz_agent.agents.generation_iteration_submit import GenerationIterationSubmitAgent
 from pz_agent.agents.graph_expansion import GraphExpansionAgent
@@ -44,6 +45,7 @@ STAGE_MAP = {
     "page_corpus": PageCorpusAgent,
     "document_fetch": DocumentFetchAgent,
     "figure_corpus": FigureCorpusAgent,
+    "generation_iteration_execute": GenerationIterationExecuteAgent,
     "generation_iteration_handoff": GenerationIterationHandoffAgent,
     "generation_iteration_submit": GenerationIterationSubmitAgent,
     "graph_expansion": GraphExpansionAgent,
@@ -105,6 +107,7 @@ def _write_state_snapshot(state: RunState) -> None:
             "generation_iteration_queue_count": len(state.generation_iteration_queue or []),
             "has_generation_iteration_manifest": state.generation_iteration_manifest is not None,
             "generation_iteration_submission_count": len(state.generation_iteration_submissions or []),
+            "generation_iteration_execution_count": len(state.generation_iteration_execution or []),
             "simulation_queue_count": len(state.simulation_queue or []),
             "has_simulation_manifest": state.simulation_manifest is not None,
             "simulation_submission_count": len(state.simulation_submissions or []),

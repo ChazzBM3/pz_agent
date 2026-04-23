@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from pz_agent.agents.generation_iteration_handoff import GenerationIterationHandoffAgent
+from pz_agent.agents.generation_iteration_execute import GenerationIterationExecuteAgent
 from pz_agent.agents.generation_iteration_submit import GenerationIterationSubmitAgent
 from pz_agent.agents.graph_expansion import GraphExpansionAgent
 from pz_agent.chemistry.genmol_import import load_external_genmol_candidates
@@ -341,3 +342,64 @@ def test_generation_iteration_submit_emits_launch_manifest(tmp_path: Path) -> No
     launcher_script = (tmp_path / "launch_genmol_iteration.sh").read_text()
     assert "generate_functionalized_lowest_conformers.py" in launcher_script
     assert "genmol_0002" in launcher_script
+
+
+def test_generation_iteration_execute_can_autolaunch_with_subprocess_run(tmp_path: Path, monkeypatch) -> None:
+    command_log: list[str] = []
+
+    def fake_run(command, shell, text, capture_output):
+        assert shell is True
+        assert text is True
+        assert capture_output is True
+        command_log.append(command)
+        return __import__("subprocess").CompletedProcess(command, 0, stdout="launched", stderr="")
+
+    monkeypatch.setattr("pz_agent.agents.generation_iteration_execute.subprocess.run", fake_run)
+
+    state = RunState(
+        config={
+            "generation": {
+                "submit": {
+                    "execute_launch": True,
+                    "launch_mode": "subprocess_run",
+                }
+            }
+        },
+        run_dir=tmp_path,
+        generation_iteration_submissions=[
+            {
+                "candidate_id": "genmol_0002",
+                "launcher_mode": "serial_manifest",
+                "command": "echo launch genmol_0002",
+            }
+        ],
+    )
+
+    state = GenerationIterationExecuteAgent(config=state.config).run(state)
+
+    assert command_log == ["echo launch genmol_0002"]
+    assert state.generation_iteration_execution is not None
+    assert state.generation_iteration_execution[0]["status"] == "launched"
+    assert state.generation_iteration_execution[0]["executed"] is True
+    execution = json.loads((tmp_path / "generation_iteration_execution.json").read_text())
+    assert execution[0]["candidate_id"] == "genmol_0002"
+
+
+def test_generation_iteration_execute_skips_when_disabled(tmp_path: Path) -> None:
+    state = RunState(
+        config={"generation": {"submit": {"execute_launch": False}}},
+        run_dir=tmp_path,
+        generation_iteration_submissions=[
+            {
+                "candidate_id": "genmol_0002",
+                "launcher_mode": "serial_manifest",
+                "command": "echo launch genmol_0002",
+            }
+        ],
+    )
+
+    state = GenerationIterationExecuteAgent(config=state.config).run(state)
+
+    assert state.generation_iteration_execution is not None
+    assert state.generation_iteration_execution[0]["status"] == "skipped"
+    assert state.generation_iteration_execution[0]["reason"] == "execute_launch_disabled"
