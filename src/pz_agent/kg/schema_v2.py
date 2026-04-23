@@ -16,6 +16,7 @@ NODE_TYPES = [
     "Condition",
     "Prediction",
     "SimulationResult",
+    "SimulationFailure",
     "ConditionSet",
     "ValidationOutcome",
     "Measurement",
