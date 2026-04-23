@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from pz_agent.agents.generation_iteration_handoff import GenerationIterationHandoffAgent
+from pz_agent.agents.generation_iteration_submit import GenerationIterationSubmitAgent
 from pz_agent.agents.graph_expansion import GraphExpansionAgent
 from pz_agent.chemistry.genmol_import import load_external_genmol_candidates
 from pz_agent.runner import run_pipeline
@@ -294,3 +295,49 @@ def test_generation_iteration_handoff_emits_manifest(tmp_path: Path) -> None:
     input_records = json.loads((tmp_path / "genmol_iteration_input.json").read_text())
     assert input_records[0]["id"] == "genmol_0002"
     assert input_records[0]["smiles"] == "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21"
+
+
+def test_generation_iteration_submit_emits_launch_manifest(tmp_path: Path) -> None:
+    state = RunState(
+        config={
+            "generation": {
+                "submit": {
+                    "atomistic_root": "~/AtomisticSkills",
+                    "conda_env": "genmol-agent",
+                    "runs_root": "research/iter_runs",
+                    "launcher_mode": "serial_manifest",
+                }
+            }
+        },
+        run_dir=tmp_path,
+        generation_iteration_queue=[
+            {
+                "candidate_id": "genmol_0002",
+                "smiles": "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21",
+                "priority": 0.82,
+                "generation_request": {
+                    "num_generations": 120,
+                    "num_conformers": 24,
+                    "engine": "genmol_external",
+                },
+                "selection_basis": {"transferability_score": 0.88},
+            }
+        ],
+        generation_iteration_manifest={"queue_size": 1},
+    )
+
+    state = GenerationIterationSubmitAgent(config=state.config).run(state)
+
+    assert state.generation_iteration_submissions is not None
+    assert len(state.generation_iteration_submissions) == 1
+    submission = state.generation_iteration_submissions[0]
+    assert submission["status"] == "prepared"
+    assert "--num-generations 120" in submission["command"]
+    assert "--num-conformers 24" in submission["command"]
+    launch_manifest = json.loads((tmp_path / "generation_iteration_launch_manifest.json").read_text())
+    assert launch_manifest["contract_version"] == "genmol.iteration_launch.v1"
+    assert launch_manifest["submission_count"] == 1
+    assert launch_manifest["submissions"][0]["candidate_id"] == "genmol_0002"
+    launcher_script = (tmp_path / "launch_genmol_iteration.sh").read_text()
+    assert "generate_functionalized_lowest_conformers.py" in launcher_script
+    assert "genmol_0002" in launcher_script
