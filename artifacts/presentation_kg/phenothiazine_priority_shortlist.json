@@ -1,0 +1,47 @@
+[
+  {
+    "id": "05PNOK",
+    "smiles": "CCN1c2c(C)cc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)cc(C)c21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 1.151,
+    "reduction_potential": 5.436,
+    "sa_score": 2.88,
+    "presentation_priority_score": 1.132
+  },
+  {
+    "id": "05HONX",
+    "smiles": "CC[N+](C)(C)C(C)CN1c2ccccc2Sc2ccccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 1.077,
+    "reduction_potential": null,
+    "sa_score": 3.1,
+    "presentation_priority_score": 1.047
+  },
+  {
+    "id": "05KCEN",
+    "smiles": "CCN1c2ccc(C#N)cc2Sc2cc(C#N)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 1.038,
+    "reduction_potential": 6.647,
+    "sa_score": 2.57,
+    "presentation_priority_score": 1.0345
+  },
+  {
+    "id": "05PTMH",
+    "smiles": "CCN1c2c(C)cccc2Sc2cccc(C)c21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.905,
+    "reduction_potential": 5.506,
+    "sa_score": 2.37,
+    "presentation_priority_score": 0.905
+  },
+  {
+    "id": "05BCMO",
+    "smiles": "CCN1c2ccc(C(F)(F)F)cc2Sc2cc(C(F)(F)F)ccc21",
+    "source_group": "Odom_aman",
+    "oxidation_potential": 0.901,
+    "reduction_potential": 6.206,
+    "sa_score": 2.47,
+    "presentation_priority_score": 0.901
+  }
+]
