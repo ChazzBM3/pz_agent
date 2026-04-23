@@ -1,0 +1,65 @@
+project:
+  name: phenothiazine-genmol-auto-loop
+
+generation:
+  engine: genmol_external
+  external_genmol_path: null  # set this to the initial GenMol import payload for round 0
+  prompts:
+    objective: improve phenothiazine derivatives for solubility and synthesizability
+  iteration_top_k: 1
+  num_generations: 100
+  num_conformers: 32
+  submit:
+    remote_host: grimm
+    atomistic_root: /home/chazzm3/AtomisticSkills
+    conda_init: /home/chazzm3/miniconda3/etc/profile.d/conda.sh
+    conda_env: genmol-agent
+    script_path: .agents/skills/ml-generative-genmol/scripts/generate_functionalized_lowest_conformers.py
+    runs_root: research/genmol_iteration_runs
+    launcher_mode: serial_manifest
+    execute_launch: true
+    launch_mode: subprocess_run
+    device: cuda
+  loop:
+    max_rounds: 5
+    convergence_tolerance:
+      solubility: 0.01
+      synthesizability: 0.01
+    taper_min_improvement:
+      solubility: 0.005
+      synthesizability: 0.005
+    analysis_stages:
+      - library_designer
+      - standardizer
+      - surrogate_screen
+      - knowledge_graph
+      - ranker
+      - graph_expansion
+    iteration_stages:
+      - generation_iteration_handoff
+      - generation_iteration_submit
+      - generation_iteration_execute
+      - generation_iteration_monitor
+      - generation_iteration_recycle
+
+screening:
+  primary_objectives:
+    - synthesizability
+    - solubility
+  shortlist_size: 1
+  use_external_scores: true
+
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - surrogate_screen
+    - knowledge_graph
+    - ranker
+    - graph_expansion
+    - generation_iteration_loop
+    - reporter
+
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json

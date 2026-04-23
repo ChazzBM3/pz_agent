@@ -22,6 +22,7 @@ def _submit_config(config: dict) -> dict:
         "runs_root": str(submit_cfg.get("runs_root", "research/genmol_iteration_runs")),
         "launcher_mode": str(submit_cfg.get("launcher_mode", "serial_manifest")),
         "python_bin": str(submit_cfg.get("python_bin", "python")),
+        "device": str(submit_cfg.get("device", "cuda")),
         "remote_host": str(submit_cfg.get("remote_host", "")).strip() or None,
         "extra_env": dict(submit_cfg.get("extra_env") or {}),
     }
@@ -61,6 +62,7 @@ class GenerationIterationSubmitAgent(BaseAgent):
             if not smiles:
                 continue
             request = dict(record.get("generation_request") or {})
+            device = str(request.get("device") or cfg.get("device") or "cuda")
             output_dir = f"{str(run_root).rstrip('/')}/{idx:02d}_{candidate_id}"
             log_path = f"{output_dir}.log"
             inner_command = (
@@ -70,6 +72,7 @@ class GenerationIterationSubmitAgent(BaseAgent):
                 f"--smiles {shlex.quote(smiles)} "
                 f"--num-generations {int(request.get('num_generations', 100) or 100)} "
                 f"--num-conformers {int(request.get('num_conformers', 100) or 100)} "
+                f"--device {shlex.quote(device)} "
                 f"--output-dir {shlex.quote(output_dir)}"
                 f" > {shlex.quote(log_path)} 2>&1"
             )
@@ -86,6 +89,7 @@ class GenerationIterationSubmitAgent(BaseAgent):
                 "log_path": log_path,
                 "launcher_mode": cfg["launcher_mode"],
                 "remote_host": remote_host,
+                "device": device,
                 "status": "prepared",
                 "command": command,
                 "generation_request": request,

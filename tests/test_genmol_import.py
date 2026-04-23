@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from pz_agent.agents.generation_iteration_handoff import GenerationIterationHandoffAgent
 from pz_agent.agents.generation_iteration_execute import GenerationIterationExecuteAgent
+from pz_agent.agents.generation_iteration_loop import GenerationIterationLoopAgent
 from pz_agent.agents.generation_iteration_monitor import GenerationIterationMonitorAgent
 from pz_agent.agents.generation_iteration_recycle import GenerationIterationRecycleAgent
 from pz_agent.agents.generation_iteration_submit import GenerationIterationSubmitAgent
@@ -337,6 +340,8 @@ def test_generation_iteration_submit_emits_launch_manifest(tmp_path: Path) -> No
     assert submission["status"] == "prepared"
     assert "--num-generations 120" in submission["command"]
     assert "--num-conformers 24" in submission["command"]
+    assert "--device cuda" in submission["command"]
+    assert submission["device"] == "cuda"
     launch_manifest = json.loads((tmp_path / "generation_iteration_launch_manifest.json").read_text())
     assert launch_manifest["contract_version"] == "genmol.iteration_launch.v1"
     assert launch_manifest["submission_count"] == 1
@@ -478,3 +483,78 @@ def test_generation_iteration_recycle_writes_next_run_config(tmp_path: Path) -> 
     assert "external_genmol_path" in next_cfg
     assert str(aggregate_path) in next_cfg
     assert recycle_manifest["completed_submission_count"] == 1
+
+
+def test_generation_iteration_loop_stops_when_scores_taper(tmp_path: Path, monkeypatch) -> None:
+    round_counter = {"value": 0}
+
+    class FakeIterationAgent:
+        def __init__(self, config):
+            self.config = config
+
+        def run(self, state: RunState) -> RunState:
+            if state.generation_iteration_reingest_manifest is None:
+                round_counter["value"] += 1
+                aggregate_path = state.run_dir / "completed.json"
+                aggregate_path.write_text(json.dumps([{"smiles": f"C{round_counter['value']}"}]), encoding="utf-8")
+                state.generation_iteration_reingest_manifest = {
+                    "aggregate_candidates_path": str(aggregate_path),
+                    "completed_submission_count": 1,
+                }
+                state.generation_iteration_monitor = [{"status": "finished"}]
+            return state
+
+    class FakeAnalysisAgent:
+        def __init__(self, config):
+            self.config = config
+
+        def run(self, state: RunState) -> RunState:
+            metrics = {
+                1: {"id": "round1_top", "smiles": "C1", "predicted_solubility": 0.72, "predicted_synthesizability": 0.71, "predicted_priority": 0.80},
+                2: {"id": "round2_top", "smiles": "C2", "predicted_solubility": 0.725, "predicted_synthesizability": 0.714, "predicted_priority": 0.81},
+            }
+            state.ranked = [metrics[round_counter["value"]]]
+            state.action_queue = [{"action_type": "generation_iteration", "candidate_id": metrics[round_counter['value']]['id']}]
+            return state
+
+    monkeypatch.setattr(
+        "pz_agent.agents.generation_iteration_loop.AGENT_MAP",
+        {
+            "generation_iteration_handoff": FakeIterationAgent,
+            "generation_iteration_submit": FakeIterationAgent,
+            "generation_iteration_execute": FakeIterationAgent,
+            "generation_iteration_monitor": FakeIterationAgent,
+            "generation_iteration_recycle": FakeIterationAgent,
+            "library_designer": FakeAnalysisAgent,
+            "standardizer": FakeAnalysisAgent,
+            "surrogate_screen": FakeAnalysisAgent,
+            "knowledge_graph": FakeAnalysisAgent,
+            "ranker": FakeAnalysisAgent,
+            "graph_expansion": FakeAnalysisAgent,
+        },
+    )
+
+    state = RunState(
+        config={
+            "generation": {
+                "loop": {
+                    "max_rounds": 4,
+                    "convergence_tolerance": {"solubility": 0.01, "synthesizability": 0.01},
+                    "taper_min_improvement": {"solubility": 0.005, "synthesizability": 0.005},
+                }
+            }
+        },
+        run_dir=tmp_path,
+        ranked=[{"id": "seed_top", "smiles": "seed", "predicted_solubility": 0.50, "predicted_synthesizability": 0.50, "predicted_priority": 0.60}],
+        action_queue=[{"action_type": "generation_iteration", "candidate_id": "seed_top"}],
+    )
+
+    state = GenerationIterationLoopAgent(config=state.config).run(state)
+
+    assert state.generation_iteration_loop_summary is not None
+    assert state.generation_iteration_loop_summary["completed_rounds"] == 2
+    assert state.generation_iteration_loop_summary["stop_reason"] == "converged"
+    assert state.ranked[0]["id"] == "round2_top"
+    summary_payload = json.loads((tmp_path / "generation_iteration_loop_summary.json").read_text())
+    assert summary_payload["rounds"][1]["delta"]["solubility"] == pytest.approx(0.005)
+    assert summary_payload["rounds"][1]["delta"]["synthesizability"] == pytest.approx(0.004)

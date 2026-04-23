@@ -140,6 +140,7 @@ class ReporterAgent(BaseAgent):
                 "generation_iteration_completed_candidates_path": str(state.run_dir / "generation_iteration_completed_candidates.json"),
                 "generation_iteration_recycle_manifest_path": str(state.run_dir / "generation_iteration_recycle_manifest.json"),
                 "generation_iteration_next_run_config_path": str(state.run_dir / "generation_iteration_next_run.yaml"),
+                "generation_iteration_loop_summary_path": str(state.run_dir / "generation_iteration_loop_summary.json"),
                 "evidence_report": str(evidence_report_path),
                 "simulation_queue_path": str(state.run_dir / "simulation_queue.json"),
                 "simulation_manifest_path": str(state.run_dir / "simulation_manifest.json"),
