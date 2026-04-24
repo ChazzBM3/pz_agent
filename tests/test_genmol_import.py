@@ -392,6 +392,55 @@ def test_generation_iteration_execute_can_autolaunch_with_subprocess_run(tmp_pat
     assert execution[0]["candidate_id"] == "genmol_0002"
 
 
+def test_generation_iteration_execute_can_autolaunch_in_background(tmp_path: Path, monkeypatch) -> None:
+    popen_calls: list[dict] = []
+
+    class FakePopen:
+        def __init__(self, args, stdout=None, stderr=None, stdin=None, start_new_session=None, env=None):
+            popen_calls.append(
+                {
+                    "args": args,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "stdin": stdin,
+                    "start_new_session": start_new_session,
+                    "env_has_path": isinstance(env, dict) and "PATH" in env,
+                }
+            )
+            self.pid = 424242
+
+    monkeypatch.setattr("pz_agent.agents.generation_iteration_execute.subprocess.Popen", FakePopen)
+
+    state = RunState(
+        config={
+            "generation": {
+                "submit": {
+                    "execute_launch": True,
+                    "launch_mode": "nohup_background",
+                }
+            }
+        },
+        run_dir=tmp_path,
+        generation_iteration_submissions=[
+            {
+                "candidate_id": "genmol_0003",
+                "launcher_mode": "serial_manifest",
+                "command": "echo launch genmol_0003",
+            }
+        ],
+    )
+
+    state = GenerationIterationExecuteAgent(config=state.config).run(state)
+
+    assert len(popen_calls) == 1
+    assert popen_calls[0]["args"][0:2] == ["bash", "-lc"]
+    assert popen_calls[0]["start_new_session"] is True
+    assert state.generation_iteration_execution is not None
+    assert state.generation_iteration_execution[0]["status"] == "launched"
+    assert state.generation_iteration_execution[0]["background_pid"] == 424242
+    assert state.generation_iteration_execution[0]["background_command"] == "echo launch genmol_0003"
+
+
 def test_generation_iteration_execute_skips_when_disabled(tmp_path: Path) -> None:
     state = RunState(
         config={"generation": {"submit": {"execute_launch": False}}},

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shlex
 import subprocess
 from datetime import datetime, timezone
@@ -51,16 +52,23 @@ class GenerationIterationExecuteAgent(BaseAgent):
                     }
                 )
             elif launch_mode == "nohup_background":
-                background_command = f"nohup bash -lc {shlex.quote(command)} >/dev/null 2>&1 &"
-                result = subprocess.run(background_command, shell=True, text=True, capture_output=True)
+                process = subprocess.Popen(
+                    ["bash", "-lc", f"exec nohup bash -lc {shlex.quote(command)} >/dev/null 2>&1"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    start_new_session=True,
+                    env=os.environ.copy(),
+                )
                 record.update(
                     {
-                        "status": "launched" if result.returncode == 0 else "failed",
+                        "status": "launched",
                         "executed": True,
-                        "returncode": result.returncode,
-                        "stdout": result.stdout,
-                        "stderr": result.stderr,
-                        "background_command": background_command,
+                        "returncode": 0,
+                        "stdout": "",
+                        "stderr": "",
+                        "background_pid": process.pid,
+                        "background_command": command,
                     }
                 )
             else:

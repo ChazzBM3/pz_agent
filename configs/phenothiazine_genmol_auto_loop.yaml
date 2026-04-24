@@ -18,7 +18,7 @@ generation:
     runs_root: research/genmol_iteration_runs
     launcher_mode: serial_manifest
     execute_launch: true
-    launch_mode: subprocess_run
+    launch_mode: nohup_background
     device: cuda
   loop:
     max_rounds: 5
