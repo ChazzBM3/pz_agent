@@ -190,14 +190,31 @@ def test_simulation_handoff_prioritizes_belief_and_simulation_priors(tmp_path: P
     state.shortlist = [
         {
             "id": "cand_low",
+            "smiles": "c1ccc2c(c1)Sc1ccccc1N2",
             "predicted_priority_literature_adjusted": 0.7,
             "ranking_rationale": {"belief_state": {"transferability_score": 0.1, "simulation_support": 0.0}},
         },
         {
             "id": "cand_high",
+            "smiles": "CCN1c2ccccc2Sc2ccccc21",
             "predicted_priority_literature_adjusted": 0.7,
             "ranking_rationale": {"belief_state": {"transferability_score": 0.8, "simulation_support": 0.4}},
         },
     ]
     updated = SimulationHandoffAgent(config=state.config).run(state)
     assert updated.simulation_queue[0]["id"] == "cand_high"
+
+
+def test_simulation_handoff_marks_candidates_blocked_when_geometry_is_missing(tmp_path: Path) -> None:
+    state = RunState(config={"screening": {"shortlist_size": 3}}, run_dir=tmp_path)
+    state.shortlist = [
+        {
+            "id": "cand_missing",
+            "predicted_priority_literature_adjusted": 0.7,
+            "ranking_rationale": {"belief_state": {"transferability_score": 0.8, "simulation_support": 0.4}},
+        },
+    ]
+    updated = SimulationHandoffAgent(config=state.config).run(state)
+    assert updated.simulation_queue[0]["status"] == "blocked_geometry_missing"
+    assert updated.simulation_queue[0]["tracking"]["status"] == "blocked_geometry_missing"
+    assert updated.simulation_queue[0]["job_package"]["status"] == "geometry_missing"

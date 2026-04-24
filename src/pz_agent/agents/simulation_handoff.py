@@ -108,18 +108,31 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
     job_dir = state.run_dir / "orca_jobs" / candidate_id
     ensure_dir(job_dir)
 
+    simulation = dict(record.get("simulation") or {})
+    parameters = dict(simulation.get("parameters") or {})
+    tracking = dict(record.get("tracking") or {})
+
     try:
         geometry, geometry_source = _resolve_geometry(record)
     except GeometryGenerationError as exc:
         raise ValueError(f"Failed to prepare XYZ for candidate {candidate_id}: {exc}") from exc
+    except ValueError as exc:
+        return {
+            "job_dir": str(job_dir),
+            "status": "geometry_missing",
+            "error": str(exc),
+            "job_spec_path": None,
+            "structure_path": None,
+            "geometry_source": None,
+            "geometry_embed_method": None,
+            "canonical_smiles": record.get("canonical_smiles") or record.get("smiles"),
+            "atom_count": None,
+        }
 
     structure_filename = "input_structure.xyz"
     structure_path = job_dir / structure_filename
     structure_path.write_text(geometry.xyz_text, encoding="utf-8")
 
-    simulation = dict(record.get("simulation") or {})
-    parameters = dict(simulation.get("parameters") or {})
-    tracking = dict(record.get("tracking") or {})
     job_spec = {
         "contract_version": CONTRACT_VERSION,
         "request_type": "submit_simulation",
@@ -161,6 +174,7 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
     write_json(job_dir / "orca_job.json", job_spec)
     return {
         "job_dir": str(job_dir),
+        "status": "prepared",
         "structure_path": str(structure_path),
         "job_spec_path": str(job_dir / "orca_job.json"),
         "geometry_source": geometry_source,
@@ -253,6 +267,9 @@ class SimulationHandoffAgent(BaseAgent):
             }
             record["tracking"] = _tracking(record, record["simulation"], state)
             record["job_package"] = _write_orca_job_package(state, record)
+            if record["job_package"].get("status") == "geometry_missing":
+                record["status"] = "blocked_geometry_missing"
+                record["tracking"]["status"] = "blocked_geometry_missing"
             queue_records.append(record)
 
         manifest = {
