@@ -18,10 +18,14 @@ def _scheduler_settings(simulation_cfg: dict, candidate_id: str) -> dict:
         "time": str(scheduler_cfg.get("time", "00:10:00")),
         "mem_per_cpu": str(scheduler_cfg.get("mem_per_cpu", "2000")),
         "no_requeue": bool(scheduler_cfg.get("no_requeue", True)),
-        "job_name": str(scheduler_cfg.get("job_name_prefix", "orca") ) + f"_{candidate_id}",
+        "job_name": str(scheduler_cfg.get("job_name_prefix", "htvs") ) + f"_{candidate_id}",
         "mpi_module": scheduler_cfg.get("mpi_module", "mpi/openmpi-4.1.8"),
         "orca_dir": scheduler_cfg.get("orca_dir", "/home/gridsan/groups/rgb_shared/software/orca/orca_6_0_0_linux_x86-64_shared_openmpi416"),
     }
+
+
+def _default_job_config(simulation_cfg: dict) -> str:
+    return str(simulation_cfg.get("job_config") or "xtb_opt").strip() or "xtb_opt"
 
 
 def _remote_simulation_spec(item: dict, simulation_cfg: dict) -> dict:
@@ -29,19 +33,21 @@ def _remote_simulation_spec(item: dict, simulation_cfg: dict) -> dict:
     candidate_id = str(item.get("id") or item.get("candidate_id") or "job")
     return {
         "backend": simulation_cfg.get("backend", "htvs_supercloud"),
-        "engine": simulation_cfg.get("engine", "orca"),
+        "engine": simulation_cfg.get("engine", "xtb"),
         "execution_mode": simulation_cfg.get("execution_mode", "remote"),
-        "job_driver": simulation_cfg.get("job_driver", "direct_orca") ,
+        "job_driver": simulation_cfg.get("job_driver", "htvs_jobconfig"),
         "simulation_type": simulation_cfg.get("simulation_type", "geometry_optimization"),
+        "job_config": _default_job_config(simulation_cfg),
+        "source_jobconfig": str(simulation_cfg.get("source_jobconfig") or "seed_xyz_import"),
+        "source_method": str(simulation_cfg.get("source_method") or "seed_xyz_import"),
+        "source_mode": str(simulation_cfg.get("source_mode") or "geoms"),
         "opt_type": simulation_cfg.get("opt_type", "min"),
         "charge": int(simulation_cfg.get("charge", identity.get("charge", 0)) or 0),
         "spin_multiplicity": int(simulation_cfg.get("spin_multiplicity", 1) or 1),
-        "functional": simulation_cfg.get("functional", "PBE"),
-        "basis_set": simulation_cfg.get("basis_set", "def2-SVP"),
-        "dispersion": simulation_cfg.get("dispersion", "D3"),
-        "solvation": simulation_cfg.get("solvation", "CPCM"),
+        "xtb_method": simulation_cfg.get("xtb_method", "GFN2-xTB"),
+        "gfn": simulation_cfg.get("gfn", 2),
         "solvent": simulation_cfg.get("solvent", "water"),
-        "special_option": simulation_cfg.get("special_option", "NOSOSCF"),
+        "solvation_model": simulation_cfg.get("solvation_model", "ALPB"),
         "nprocs": int(simulation_cfg.get("nprocs", 1) or 1),
         "convergence_max_iterations": int(simulation_cfg.get("convergence_max_iterations", 200) or 200),
         "calculate_final_hessian": bool(simulation_cfg.get("calculate_final_hessian", False)),
@@ -141,9 +147,9 @@ def _write_orca_job_package(state: RunState, record: dict) -> dict:
         "candidate_id": candidate_id,
         "run_id": state.run_dir.name,
         "structure_file": structure_filename,
-        "job_driver": simulation.get("job_driver", "direct_orca"),
+        "job_driver": simulation.get("job_driver", "htvs_jobconfig"),
         "backend": simulation.get("backend", "htvs_supercloud"),
-        "engine": simulation.get("engine", "orca"),
+        "engine": simulation.get("engine", "xtb"),
         "execution_mode": simulation.get("execution_mode", "remote"),
         "requested_outputs": simulation.get("requested_outputs") or [],
         "parameters": parameters,
@@ -246,8 +252,8 @@ class SimulationHandoffAgent(BaseAgent):
                     "compute_tier": simulation_cfg.get("compute_tier", "screening"),
                     "budget_tag": simulation_cfg.get("budget_tag", "default"),
                     "backend": per_item_spec.get("backend", "htvs_supercloud"),
-                    "engine": per_item_spec.get("engine", "orca"),
-                    "job_driver": per_item_spec.get("job_driver", "direct_orca"),
+                    "engine": per_item_spec.get("engine", "xtb"),
+                    "job_driver": per_item_spec.get("job_driver", "htvs_jobconfig"),
                     "execution_mode": per_item_spec.get("execution_mode", "remote"),
                     "parameters": per_item_parameters,
                     "requested_outputs": requested_outputs,
@@ -257,10 +263,10 @@ class SimulationHandoffAgent(BaseAgent):
                     "job_type": per_item_spec.get("simulation_type", "geometry_optimization"),
                     "compute_tier": simulation_cfg.get("compute_tier", "screening"),
                     "budget_tag": simulation_cfg.get("budget_tag", "default"),
-                    "orca": {
+                    "htvs": {
                         "backend": per_item_spec.get("backend", "htvs_supercloud"),
                         "execution_mode": per_item_spec.get("execution_mode", "remote"),
-                        "job_driver": per_item_spec.get("job_driver", "direct_orca"),
+                        "job_driver": per_item_spec.get("job_driver", "htvs_jobconfig"),
                         **per_item_parameters,
                     },
                 },
@@ -290,15 +296,15 @@ class SimulationHandoffAgent(BaseAgent):
                 "compute_tier": simulation_cfg.get("compute_tier", "screening"),
                 "budget_tag": simulation_cfg.get("budget_tag", "default"),
                 "backend": remote_spec.get("backend", "htvs_supercloud"),
-                "engine": remote_spec.get("engine", "orca"),
-                "job_driver": remote_spec.get("job_driver", "direct_orca"),
+                "engine": remote_spec.get("engine", "xtb"),
+                "job_driver": remote_spec.get("job_driver", "htvs_jobconfig"),
                 "execution_mode": remote_spec.get("execution_mode", "remote"),
                 "parameters": parameters,
                 "requested_outputs": requested_outputs,
-                "orca": {
+                "htvs": {
                     "backend": remote_spec.get("backend", "htvs_supercloud"),
                     "execution_mode": remote_spec.get("execution_mode", "remote"),
-                    "job_driver": remote_spec.get("job_driver", "direct_orca"),
+                    "job_driver": remote_spec.get("job_driver", "htvs_jobconfig"),
                     **parameters,
                 },
             },
@@ -309,5 +315,5 @@ class SimulationHandoffAgent(BaseAgent):
         state.simulation_manifest = manifest
         write_json(state.run_dir / "simulation_queue.json", queue_records)
         write_json(state.run_dir / "simulation_manifest.json", manifest)
-        state.log("Simulation handoff packaged ranked candidates into ORCA-ready remote queue, manifest, and job artifacts")
+        state.log("Simulation handoff packaged ranked candidates into HTVS xTB-configured remote queue, manifest, and job artifacts")
         return state

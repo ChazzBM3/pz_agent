@@ -27,6 +27,10 @@ def test_htvs_submit_config_normalizer_maps_legacy_wrapper_fields() -> None:
     assert normalized["geometry_path"] == "/tmp/input_structure.xyz"
     assert normalized["remote_job_root_base"] == "/scratch/pz_agent_jobs/inbox"
     assert normalized["remote_submit_command_legacy"] == "/opt/pz_agent/bin/remote_submit_orca_job.py"
+    assert normalized["job_config"] == "xtb_opt"
+    assert normalized["source_jobconfig"] == "seed_xyz_import"
+    assert normalized["source_method"] == "seed_xyz_import"
+    assert normalized["source_mode"] == "geoms"
 
 
 def test_htvs_check_config_normalizer_maps_legacy_wrapper_fields() -> None:
@@ -78,10 +82,10 @@ def test_htvs_pipeline_submit_and_check_accepts_normalized_native_config(tmp_pat
             payload = {
                 "job_root": "/scratch/htvs/inbox/htvs-submit-rec_a-001/jobs",
                 "exists": True,
-                "buckets": {"inbox": [], "pending": ["50000_dft_opt_orca__demo"], "completed": []},
+                "buckets": {"inbox": [], "pending": ["50000_xtb_opt__demo"], "completed": []},
                 "status": "pending",
-                "jobdir_name": "50000_dft_opt_orca__demo",
-                "jobdir": "/scratch/htvs/inbox/htvs-submit-rec_a-001/jobs/pending/50000_dft_opt_orca__demo",
+                "jobdir_name": "50000_xtb_opt__demo",
+                "jobdir": "/scratch/htvs/inbox/htvs-submit-rec_a-001/jobs/pending/50000_xtb_opt__demo",
                 "files": ["job_manager-job_id"],
                 "scheduler_job_id": "50000",
                 "slurm_logs": [],
@@ -156,6 +160,8 @@ simulation_check:
     assert submission["remote_settings"]["ssh_host"] == "user@cluster.example.edu"
     assert submission["remote_settings"]["htvs_root"] == "/scratch/htvs"
     assert submission["remote_settings"]["remote_job_root"] == "/scratch/htvs/inbox/htvs-submit-rec_a-001/jobs"
+    assert submission["engine"] == "xtb"
+    assert submission["job_driver"] == "htvs_jobconfig"
     assert check["status"] == "pending"
     assert check["status_source"] == "remote_job_root_snapshot"
     assert check["authoritative"] is True
@@ -163,7 +169,7 @@ simulation_check:
 
 def test_htvs_extract_reads_completed_jobdir_outputs(tmp_path: Path) -> None:
     job_root = tmp_path / "htvs-demo-001" / "jobs"
-    jobdir = job_root / "completed" / "50000_dft_opt_orca__demo"
+    jobdir = job_root / "completed" / "50000_xtb_opt__demo"
     jobdir.mkdir(parents=True, exist_ok=True)
 
     (jobdir / "job_manager-job_id").write_text("4570482\n", encoding="utf-8")
@@ -198,15 +204,15 @@ def test_htvs_extract_reads_completed_jobdir_outputs(tmp_path: Path) -> None:
         candidate_id="rec_a",
         submission={
             "submission_id": "htvs-demo-rec_a-001",
-            "job_id": "50000_dft_opt_orca__demo",
+            "job_id": "50000_xtb_opt__demo",
             "backend": "htvs_supercloud",
-            "engine": "orca",
+            "engine": "xtb",
             "remote_target": "supercloud",
             "remote_settings": {"job_root": str(job_root)},
         },
         simulation={
             "backend": "htvs_supercloud",
-            "engine": "orca",
+            "engine": "xtb",
             "simulation_type": "geometry_optimization",
             "parameters": {"remote_target": "supercloud"},
         },
@@ -246,7 +252,7 @@ def test_htvs_extract_marks_slurm_side_failure_even_in_completed_bucket(tmp_path
             "submission_id": "htvs-demo-rec_b-001",
             "job_id": "job123",
             "backend": "htvs_supercloud",
-            "engine": "orca",
+            "engine": "xtb",
             "remote_settings": {"job_root": str(job_root)},
         },
         simulation={"simulation_type": "geometry_optimization", "parameters": {}},
@@ -296,7 +302,7 @@ def test_htvs_extract_emits_partial_result_when_completed_bucket_lacks_requested
             "submission_id": "htvs-demo-rec_d-001",
             "job_id": "job124",
             "backend": "htvs_supercloud",
-            "engine": "orca",
+            "engine": "xtb",
             "remote_settings": {"job_root": str(job_root)},
         },
         simulation={
@@ -328,10 +334,10 @@ def test_htvs_check_uses_local_job_root_snapshot_when_available(tmp_path: Path) 
             "submission_id": "htvs-demo-rec_e-001",
             "job_id": "job125",
             "backend": "htvs_supercloud",
-            "engine": "orca",
+            "engine": "xtb",
             "remote_settings": {"job_root": str(job_root)},
         },
-        simulation={"backend": "htvs_supercloud", "engine": "orca", "parameters": {"remote_target": "supercloud"}},
+        simulation={"backend": "htvs_supercloud", "engine": "xtb", "parameters": {"remote_target": "supercloud"}},
         check_config={},
     )
 

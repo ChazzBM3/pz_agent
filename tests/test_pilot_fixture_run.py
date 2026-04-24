@@ -90,13 +90,44 @@ search:
   backend: stub
 simulation:
   max_candidates: 2
-  backend: orca_slurm
+  backend: htvs_supercloud
+  engine: xtb
+  job_driver: htvs_jobconfig
+  job_config: xtb_opt
   simulation_type: geometry_optimization
   compute_tier: pilot
   budget_tag: fixed_fixture
+simulation_submit:
+  submission_prefix: stub-submit
+  transport: ssh
+  remote_host: user@cluster.example.edu
+  remote_root: /scratch/htvs
+simulation_check:
+  remote_host: user@cluster.example.edu
 """,
         encoding="utf-8",
     )
+
+    def fake_run(command, shell, text, capture_output, cwd=None):
+        assert shell is True
+        if command.startswith("ssh -T user@cluster.example.edu 'bash -s' <<'EOF'"):
+            if "requestjobs" in command:
+                payload = {
+                    "job_root": "/scratch/htvs/inbox/stub-submit-rec_a-001/jobs",
+                    "exists": True,
+                    "buckets": {"inbox": [], "pending": ["50000_xtb_opt__demo"], "completed": []},
+                    "status": "pending",
+                    "jobdir_name": "50000_xtb_opt__demo",
+                    "jobdir": "/scratch/htvs/inbox/stub-submit-rec_a-001/jobs/pending/50000_xtb_opt__demo",
+                    "files": ["job_manager-job_id"],
+                    "scheduler_job_id": "50000",
+                    "slurm_logs": [],
+                }
+                return __import__("subprocess").CompletedProcess(command, 0, stdout=json.dumps(payload), stderr="")
+            return __import__("subprocess").CompletedProcess(command, 0, stdout="GROUP_OK\n/scratch/htvs/inbox/stub-submit-rec_a-001/jobs\n", stderr="")
+        raise AssertionError(command)
+
+    monkeypatch.setattr("pz_agent.simulation.backends.htvs.subprocess.run", fake_run)
 
     state = run_pipeline(config_path, run_dir=tmp_path / "run")
 
@@ -108,28 +139,30 @@ simulation:
     assert state.simulation_manifest["queue"][0]["candidate_id"] == "rec_a"
     assert state.simulation_manifest["queue"][0]["simulation"]["simulation_type"] == "geometry_optimization"
     assert state.simulation_manifest["queue"][0]["simulation"]["budget_tag"] == "fixed_fixture"
-    assert state.simulation_manifest["simulation_defaults"]["backend"] == "orca_slurm"
+    assert state.simulation_manifest["simulation_defaults"]["backend"] == "htvs_supercloud"
+    assert state.simulation_manifest["simulation_defaults"]["engine"] == "xtb"
     assert state.simulation_manifest["simulation_defaults"]["execution_mode"] == "remote"
-    assert state.simulation_manifest["simulation_defaults"]["job_driver"] == "direct_orca"
+    assert state.simulation_manifest["simulation_defaults"]["job_driver"] == "htvs_jobconfig"
     assert state.simulation_manifest["queue"][0]["simulation"]["parameters"]["opt_type"] == "min"
     assert state.simulation_manifest["queue"][0]["job_package"]["job_spec_path"].endswith("orca_job.json")
 
     job_spec = json.loads((tmp_path / "run" / "orca_jobs" / "rec_a" / "orca_job.json").read_text())
     assert job_spec["candidate_id"] == "rec_a"
     assert job_spec["simulation_type"] == "geometry_optimization"
-    assert job_spec["job_driver"] == "direct_orca"
+    assert job_spec["job_driver"] == "htvs_jobconfig"
+    assert job_spec["engine"] == "xtb"
     assert job_spec["structure_file"] == "input_structure.xyz"
     assert job_spec["parameters"]["opt_type"] == "min"
-    assert job_spec["parameters"]["functional"] == "PBE"
-    assert job_spec["parameters"]["basis_set"] == "def2-SVP"
-    assert job_spec["provenance"]["remote_backend"] == "orca_slurm"
+    assert job_spec["parameters"]["job_config"] == "xtb_opt"
+    assert job_spec["parameters"]["xtb_method"] == "GFN2-xTB"
+    assert job_spec["provenance"]["remote_backend"] == "htvs_supercloud"
 
     structure_stub = (tmp_path / "run" / "orca_jobs" / "rec_a" / "input_structure.xyz").read_text()
     assert "c1ccc2c(c1)Sc1ccccc1S2" in structure_stub.splitlines()[1]
     submissions = json.loads((tmp_path / "run" / "simulation_submissions.json").read_text())
     assert len(submissions) == 2
     assert submissions[0]["status"] == "submitted"
-    assert submissions[0]["backend"] == "orca_slurm"
+    assert submissions[0]["backend"] == "htvs_supercloud"
     assert submissions[0]["job_spec_path"].endswith("orca_job.json")
 
     graph = json.loads(state.knowledge_graph_path.read_text())

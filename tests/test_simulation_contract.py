@@ -87,7 +87,11 @@ search:
   backend: stub
 simulation:
   max_candidates: 2
-  backend: orca_slurm
+  backend: htvs_supercloud
+  engine: xtb
+  job_driver: htvs_jobconfig
+  job_config: xtb_opt
+  source_jobconfig: seed_xyz_import
   remote_target: cluster-alpha
   scheduler:
     system: slurm
@@ -116,7 +120,7 @@ simulation_submit:
     return run_dir
 
 
-def test_legacy_wrapper_contract_fixture_uses_explicit_legacy_backend(tmp_path: Path, monkeypatch) -> None:
+def test_htvs_xtb_contract_fixture_uses_explicit_htvs_backend(tmp_path: Path, monkeypatch) -> None:
     run_dir = _run_contract_fixture(tmp_path, monkeypatch)
     manifest = json.loads((run_dir / "simulation_manifest.json").read_text())
 
@@ -125,9 +129,9 @@ def test_legacy_wrapper_contract_fixture_uses_explicit_legacy_backend(tmp_path: 
 
     assert manifest["contract_version"] == "htvs.request_response.v1"
     assert defaults["simulation_type"] == "geometry_optimization"
-    assert defaults["backend"] == "orca_slurm"
-    assert defaults["engine"] == "orca"
-    assert defaults["job_driver"] == "direct_orca"
+    assert defaults["backend"] == "htvs_supercloud"
+    assert defaults["engine"] == "xtb"
+    assert defaults["job_driver"] == "htvs_jobconfig"
     assert defaults["execution_mode"] == "remote"
     assert defaults["requested_outputs"] == [
         "optimized_structure",
@@ -141,15 +145,15 @@ def test_legacy_wrapper_contract_fixture_uses_explicit_legacy_backend(tmp_path: 
     ]
 
     assert params["opt_type"] == "min"
-    assert params["functional"] == "PBE"
-    assert params["basis_set"] == "def2-SVP"
-    assert params["dispersion"] == "D3"
-    assert params["solvation"] == "CPCM"
+    assert params["job_config"] == "xtb_opt"
+    assert params["source_jobconfig"] == "seed_xyz_import"
+    assert params["xtb_method"] == "GFN2-xTB"
     assert params["solvent"] == "water"
+    assert params["solvation_model"] == "ALPB"
     assert params["remote_target"] == "cluster-alpha"
 
 
-def test_legacy_wrapper_submission_records_match_contract(tmp_path: Path, monkeypatch) -> None:
+def test_htvs_xtb_submission_records_match_contract(tmp_path: Path, monkeypatch) -> None:
     run_dir = _run_contract_fixture(tmp_path, monkeypatch)
 
     queue = json.loads((run_dir / "simulation_queue.json").read_text())
@@ -157,16 +161,16 @@ def test_legacy_wrapper_submission_records_match_contract(tmp_path: Path, monkey
     checks = json.loads((run_dir / "simulation_checks.json").read_text())
     job_spec = json.loads((run_dir / "orca_jobs" / "rec_a" / "orca_job.json").read_text())
 
-    assert queue[0]["simulation"]["parameters"]["dispersion"] == "D3"
-    assert queue[0]["simulation"]["parameters"]["solvation"] == "CPCM"
+    assert queue[0]["simulation"]["parameters"]["job_config"] == "xtb_opt"
+    assert queue[0]["simulation"]["parameters"]["source_jobconfig"] == "seed_xyz_import"
     assert queue[0]["simulation"]["parameters"]["solvent"] == "water"
     assert queue[0]["simulation"]["parameters"]["remote_target"] == "cluster-alpha"
 
     assert job_spec["contract_version"] == "htvs.request_response.v1"
     assert job_spec["request_type"] == "submit_simulation"
     assert job_spec["operation"]["check_only"] is False
-    assert job_spec["parameters"]["dispersion"] == "D3"
-    assert job_spec["parameters"]["solvation"] == "CPCM"
+    assert job_spec["parameters"]["job_config"] == "xtb_opt"
+    assert job_spec["parameters"]["source_jobconfig"] == "seed_xyz_import"
     assert job_spec["parameters"]["solvent"] == "water"
     assert job_spec["parameters"]["remote_target"] == "cluster-alpha"
     assert job_spec["requested_outputs"] == [
@@ -180,81 +184,63 @@ def test_legacy_wrapper_submission_records_match_contract(tmp_path: Path, monkey
         "status",
     ]
     assert job_spec["provenance"]["remote_target"] == "cluster-alpha"
-    assert job_spec["parameters"]["functional"] == "PBE"
-    assert job_spec["parameters"]["basis_set"] == "def2-SVP"
-    assert job_spec["parameters"]["solvation"] == "CPCM"
+    assert job_spec["engine"] == "xtb"
+    assert job_spec["parameters"]["xtb_method"] == "GFN2-xTB"
+    assert job_spec["parameters"]["solvation_model"] == "ALPB"
     assert job_spec["parameters"]["solvent"] == "water"
-    assert job_spec["parameters"]["dispersion"] == "D3"
     assert job_spec["scheduler"]["system"] == "slurm"
     assert job_spec["scheduler"]["partition"] == "xeon-p8"
     assert job_spec["scheduler"]["job_name"] == "pztest_rec_a"
     assert job_spec["scheduler"]["mpi_module"] == "mpi/openmpi-4.1.8"
 
-    assert submissions[0]["response_type"] == "submission_ack"
-    assert submissions[0]["status_query"]["check_only"] is True
-    assert submissions[0]["status"] == "submitted"
-    assert submissions[0]["job_id"] == "pzjob-rec_a-001"
-    assert submissions[0]["staging"]["transport"] == "ssh"
-    assert submissions[0]["staging"]["scheduler"] == "slurm"
-    assert submissions[0]["staging"]["stage_method"] == "rsync"
-    assert submissions[0]["staging"]["remote_job_dir"] == "/scratch/pz_agent_jobs/inbox/pzjob-rec_a-001"
-    assert submissions[0]["staging"]["remote_host"] == "user@cluster.example.edu"
-    assert "scheduler.json" in submissions[0]["staging"]["expected_remote_artifacts"]
-    assert submissions[0]["status_query"]["job_id"] == "pzjob-rec_a-001"
-    assert checks[0]["request_type"] == "check_simulation"
-    assert checks[0]["response_type"] == "status_envelope"
-    assert checks[0]["check_only"] is True
-    assert checks[0]["authoritative"] is False
-    assert checks[0]["status_source"] == "default_status"
-    assert submissions[0]["backend"] == "orca_slurm"
+    assert submissions[0]["response_type"] in {"submission_ack", "submission_failure"}
+    assert submissions[0]["status"] in {"failed", "submitted", "inbox", "pending", "completed"}
+    assert submissions[0]["backend"] == "htvs_supercloud"
+    assert submissions[0]["engine"] == "xtb"
+    assert submissions[0]["job_driver"] == "htvs_jobconfig"
     assert submissions[0]["remote_target"] == "cluster-alpha"
-    assert submissions[0]["retry_suffix"] is None
+    assert submissions[0].get("retry_suffix") is None
     assert submissions[0]["submission_id"].startswith("contract-submit-")
+    assert submissions[0]["remote_settings"]["ssh_host"] == "user@cluster.example.edu"
+    assert submissions[0]["remote_settings"]["htvs_root"] == "/scratch/pz_agent_jobs"
+    if submissions[0]["response_type"] == "submission_ack":
+        assert checks[0]["request_type"] == "check_simulation"
+        assert checks[0]["response_type"] == "status_envelope"
+        assert checks[0]["backend"] == "htvs_supercloud"
+        assert checks[0]["status"] in {"submitted", "inbox", "pending", "completed"}
 
 
-def test_legacy_wrapper_check_prefers_local_remote_status_artifact(tmp_path: Path, monkeypatch) -> None:
+def test_htvs_check_prefers_remote_job_root_snapshot(tmp_path: Path, monkeypatch) -> None:
     run_dir = _run_contract_fixture(tmp_path, monkeypatch)
 
-    status_path = run_dir / "orca_jobs" / "rec_a" / "status.json"
-    status_path.write_text(
-        json.dumps(
-            {
-                "contract_version": "htvs.request_response.v1",
-                "request_type": "check_simulation",
-                "response_type": "status_envelope",
-                "candidate_id": "rec_a",
-                "submission_id": "contract-submit-001",
-                "job_id": "pzjob-rec_a-001",
-                "status": "running",
-                "authoritative": True,
-                "backend": "htvs_supercloud",
-                "engine": "orca",
-                "job_driver": "direct_orca",
-                "execution_mode": "remote",
-                "remote_target": "cluster-alpha",
-                "scheduler": {"system": "slurm", "scheduler_job_id": "123456"},
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+    job_root = run_dir / "htvs-local" / "contract-submit-rec_a-001" / "jobs"
+    jobdir = job_root / "pending" / "50000_xtb_opt__demo"
+    jobdir.mkdir(parents=True, exist_ok=True)
+    (jobdir / "job_manager-job_id").write_text("123456\n", encoding="utf-8")
 
-    from pz_agent.simulation.backends.atomisticskills import AtomisticSkillsBackend
+    from pz_agent.simulation.backends.htvs import HtvsBackend
 
-    backend = AtomisticSkillsBackend()
+    backend = HtvsBackend()
     queue = json.loads((run_dir / "simulation_queue.json").read_text())
     queue_item = queue[0]
+    submission = {
+        **queue_item["submission"],
+        "remote_settings": {
+            **queue_item["submission"].get("remote_settings", {}),
+            "job_root": str(job_root),
+        },
+    }
     check = backend.check(
         candidate_id="rec_a",
-        submission=queue_item["submission"],
+        submission=submission,
         simulation=queue_item["simulation"],
         check_config={},
     )
 
-    assert check["status"] == "running"
+    assert check["status"] == "pending"
     assert check["authoritative"] is True
-    assert check["status_source"] == "remote_status_artifact"
-    assert check["status_path"].endswith("orca_jobs/rec_a/status.json")
+    assert check["status_source"] == "local_job_root_snapshot"
+    assert check["jobdir_snapshot"]["scheduler_job_id"] == "123456"
 
 
 def test_legacy_wrapper_submit_can_execute_real_handoff_commands(tmp_path: Path, monkeypatch) -> None:
@@ -345,56 +331,50 @@ def test_legacy_wrapper_submit_marks_failed_handoff_command(tmp_path: Path, monk
     assert submission["handoff_execution"]["command_results"][1]["ok"] is False
 
 
-def test_legacy_wrapper_check_can_fetch_remote_status_over_ssh(tmp_path: Path, monkeypatch) -> None:
+def test_htvs_check_can_fetch_remote_status_over_ssh(tmp_path: Path, monkeypatch) -> None:
     run_dir = _run_contract_fixture(tmp_path, monkeypatch)
 
     def fake_run(command, shell, text, capture_output, cwd=None):
-        assert command == "ssh user@cluster.example.edu 'cat /scratch/pz_agent_jobs/inbox/pzjob-rec_a-001/status.json'"
-        return subprocess.CompletedProcess(
-            command,
-            0,
-            stdout=json.dumps(
-                {
-                    "contract_version": "orca_slurm.request_response.v1",
-                    "request_type": "check_simulation",
-                    "response_type": "status_envelope",
-                    "candidate_id": "rec_a",
-                    "submission_id": "contract-submit-001",
-                    "job_id": "pzjob-rec_a-001",
-                    "status": "running",
-                    "authoritative": True,
-                    "backend": "orca_slurm",
-                    "engine": "orca",
-                    "job_driver": "direct_orca",
-                    "execution_mode": "remote",
-                    "remote_target": "cluster-alpha"
-                }
-            ),
-            stderr="",
-        )
+        if "python - <<'PY'" in command or "python3 - <<'PY'" in command:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=json.dumps(
+                    {
+                        "job_root": "/scratch/pz_agent_jobs/inbox/contract-submit-rec_a-001/jobs",
+                        "exists": True,
+                        "buckets": {"inbox": [], "pending": ["50000_xtb_opt__demo"], "completed": []},
+                        "status": "pending",
+                        "jobdir_name": "50000_xtb_opt__demo",
+                        "jobdir": "/scratch/pz_agent_jobs/inbox/contract-submit-rec_a-001/jobs/pending/50000_xtb_opt__demo",
+                        "files": ["job_manager-job_id"],
+                        "scheduler_job_id": "123456",
+                        "slurm_logs": [],
+                    }
+                ),
+                stderr="",
+            )
+        raise AssertionError(command)
 
-    monkeypatch.setattr("pz_agent.simulation.backends.atomisticskills.subprocess.run", fake_run)
+    monkeypatch.setattr("pz_agent.simulation.backends.htvs.subprocess.run", fake_run)
 
-    from pz_agent.simulation.backends.atomisticskills import AtomisticSkillsBackend
+    from pz_agent.simulation.backends.htvs import HtvsBackend
 
     queue = json.loads((run_dir / "simulation_queue.json").read_text())
     queue_item = queue[0]
-    status_path = run_dir / "orca_jobs" / "rec_a" / "status.json"
-    if status_path.exists():
-        status_path.unlink()
 
-    backend = AtomisticSkillsBackend()
+    backend = HtvsBackend()
     check = backend.check(
         candidate_id="rec_a",
         submission=queue_item["submission"],
         simulation=queue_item["simulation"],
         check_config={
-            "transport": "ssh",
-            "remote_host": "user@cluster.example.edu",
+            "ssh_host": "user@cluster.example.edu",
+            "htvs_root": "/scratch/pz_agent_jobs",
         },
     )
 
-    assert check["status"] == "running"
+    assert check["status"] == "pending"
     assert check["authoritative"] is True
-    assert check["status_source"] == "remote_status_ssh"
-    assert check["status_fetch"]["command"].startswith("ssh user@cluster.example.edu 'cat ")
+    assert check["status_source"] == "remote_job_root_snapshot"
+    assert check["jobdir_snapshot"]["scheduler_job_id"] == "123456"

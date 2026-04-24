@@ -22,7 +22,21 @@ def _normalize_submit_config(submit_cfg: dict, simulation: dict, job_package: di
         remote_root = str(normalized.get("remote_root") or "").rstrip("/")
         if remote_root:
             normalized["remote_job_root_base"] = f"{remote_root}/inbox"
-    if not normalized.get("job_config") and normalized.get("remote_submit_command"):
+    if not normalized.get("job_config"):
+        simulation_params = dict(simulation.get("parameters") or {})
+        normalized["job_config"] = simulation_params.get("job_config") or "xtb_opt"
+    if not normalized.get("source_jobconfig"):
+        simulation_params = dict(simulation.get("parameters") or {})
+        normalized["source_jobconfig"] = simulation_params.get("source_jobconfig") or "seed_xyz_import"
+    if not normalized.get("source_method"):
+        simulation_params = dict(simulation.get("parameters") or {})
+        normalized["source_method"] = simulation_params.get("source_method") or normalized.get("source_jobconfig") or "seed_xyz_import"
+    if not normalized.get("source_mode"):
+        simulation_params = dict(simulation.get("parameters") or {})
+        normalized["source_mode"] = simulation_params.get("source_mode") or "geoms"
+    if not normalized.get("remote_submit_command") and normalized.get("remote_submit_command_legacy"):
+        normalized["remote_submit_command"] = normalized.get("remote_submit_command_legacy")
+    if normalized.get("remote_submit_command"):
         normalized["remote_submit_command_legacy"] = normalized.get("remote_submit_command")
     return normalized
 
