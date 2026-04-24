@@ -455,6 +455,48 @@ def test_generation_iteration_monitor_collects_completed_outputs(tmp_path: Path)
     assert completed_candidates[0]["smiles"] == "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21"
 
 
+def test_generation_iteration_monitor_collects_partial_generated_smiles_outputs(tmp_path: Path) -> None:
+    output_dir = tmp_path / "research" / "iter_runs" / "01_genmol_partial"
+    partial_dir = output_dir / "genmol_generation" / "site_000"
+    partial_dir.mkdir(parents=True)
+    payload = {
+        "mode": "fragment",
+        "fragment_task": "scaffold_decoration",
+        "fragment": "*c1ccc2c(c1)Sc1ccccc1S2",
+        "model_version": "v2",
+        "num_samples_requested": 1,
+        "samples": ["ON=C(O)C1(c2ccc(F)cc2)CC(c2ccc3c(c2)Sc2ccccc2S3)N=C1O"],
+        "metrics": {"num_generated": 1},
+    }
+    (partial_dir / "generated_smiles.json").write_text(json.dumps(payload), encoding="utf-8")
+    log_path = output_dir.with_suffix(".log")
+    log_path.write_text("still running\n", encoding="utf-8")
+
+    state = RunState(
+        config={},
+        run_dir=tmp_path,
+        generation_iteration_submissions=[
+            {
+                "candidate_id": "genmol_partial",
+                "output_dir": str(output_dir),
+                "log_path": str(log_path),
+            }
+        ],
+    )
+
+    state = GenerationIterationMonitorAgent(config=state.config).run(state)
+
+    assert state.generation_iteration_monitor is not None
+    assert state.generation_iteration_monitor[0]["status"] == "running"
+    assert state.generation_iteration_monitor[0]["generated_count"] == 1
+    assert state.generation_iteration_monitor[0]["partial_output_count"] == 1
+    assert state.generation_iteration_reingest_manifest is not None
+    assert state.generation_iteration_reingest_manifest["completed_submission_count"] == 0
+    completed_candidates = json.loads((tmp_path / "generation_iteration_completed_candidates.json").read_text())
+    assert completed_candidates[0]["seed"] == "genmol_partial"
+    assert completed_candidates[0]["smiles"] == "ON=C(O)C1(c2ccc(F)cc2)CC(c2ccc3c(c2)Sc2ccccc2S3)N=C1O"
+
+
 def test_generation_iteration_recycle_writes_next_run_config(tmp_path: Path) -> None:
     aggregate_path = tmp_path / "generation_iteration_completed_candidates.json"
     aggregate_path.write_text(json.dumps([{"smiles": "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21"}]), encoding="utf-8")

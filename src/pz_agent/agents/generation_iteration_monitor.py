@@ -35,6 +35,19 @@ def _ssh_read(remote_host: str, path: str) -> str:
     return result.stdout
 
 
+def _ssh_find_generated_json(remote_host: str, root: str) -> list[str]:
+    inner = f"find {shlex.quote(root)} -type f -name generated_smiles.json | sort"
+    result = subprocess.run(
+        f"ssh {shlex.quote(remote_host)} {shlex.quote(inner)}",
+        shell=True,
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
 class GenerationIterationMonitorAgent(BaseAgent):
     name = "generation_iteration_monitor"
 
@@ -55,8 +68,10 @@ class GenerationIterationMonitorAgent(BaseAgent):
             log_path = Path(log_path_value)
             payload_path_value = f"{output_dir_value.rstrip('/')}/lowest_energy_conformers.json"
             ranked_path_value = f"{output_dir_value.rstrip('/')}/sa_scores_ranked.json"
+            generated_root_value = f"{output_dir_value.rstrip('/')}/genmol_generation"
             payload_path = Path(payload_path_value)
             ranked_path = Path(ranked_path_value)
+            generated_root = Path(generated_root_value)
             record = {
                 "candidate_id": submission.get("candidate_id"),
                 "output_dir": output_dir_value,
@@ -70,12 +85,13 @@ class GenerationIterationMonitorAgent(BaseAgent):
 
             payload_exists = _ssh_exists(remote_host, payload_path_value) if remote_host else payload_path.exists()
             ranked_exists = _ssh_exists(remote_host, ranked_path_value) if remote_host else ranked_path.exists()
+            generated_root_exists = _ssh_exists(remote_host, generated_root_value) if remote_host else generated_root.exists()
             log_exists = _ssh_exists(remote_host, log_path_value) if remote_host else log_path.exists()
 
-            if payload_exists or ranked_exists:
-                record["status"] = "finished"
-                completed_outputs.append(output_dir_value)
+            if payload_exists or ranked_exists or generated_root_exists:
                 if payload_exists:
+                    record["status"] = "finished"
+                    completed_outputs.append(output_dir_value)
                     import_path = output_dir
                     if remote_host:
                         cached_payload = remote_cache_dir / f"{submission.get('candidate_id')}_lowest_energy_conformers.json"
@@ -95,9 +111,41 @@ class GenerationIterationMonitorAgent(BaseAgent):
                             candidate["id"] = f"{submission.get('candidate_id')}_iter_{idx:04d}"
                         aggregate_candidates.append(candidate)
                 elif ranked_exists:
+                    record["status"] = "finished"
+                    completed_outputs.append(output_dir_value)
                     data = json.loads(_ssh_read(remote_host, ranked_path_value) if remote_host else ranked_path.read_text())
                     if isinstance(data, list):
                         record["generated_count"] = len(data)
+                else:
+                    record["status"] = "running"
+                    if remote_host:
+                        generated_json_paths = _ssh_find_generated_json(remote_host, generated_root_value)
+                    else:
+                        generated_json_paths = [str(path) for path in sorted(generated_root.glob("site_*/generated_smiles.json"))]
+
+                    imported_generated: list[dict] = []
+                    for idx, json_path in enumerate(generated_json_paths, start=1):
+                        import_path: Path | str = json_path
+                        if remote_host:
+                            cached_payload = remote_cache_dir / f"{submission.get('candidate_id')}_generated_{idx:04d}.json"
+                            cached_payload.write_text(_ssh_read(remote_host, json_path), encoding="utf-8")
+                            import_path = cached_payload
+                        imported_generated.extend(load_external_genmol_candidates(import_path))
+
+                    record["generated_count"] = len(imported_generated)
+                    record["partial_output_count"] = len(generated_json_paths)
+                    record["partial_output_mode"] = "generated_smiles"
+                    for idx, item in enumerate(imported_generated, start=1):
+                        candidate = dict(item)
+                        if not candidate.get("seed"):
+                            candidate["seed"] = submission.get("candidate_id")
+                        if not candidate.get("generation_round"):
+                            candidate["generation_round"] = state.run_dir.name
+                        if not candidate.get("notes"):
+                            candidate["notes"] = f"iteration_seed:{submission.get('candidate_id')}"
+                        if not candidate.get("id"):
+                            candidate["id"] = f"{submission.get('candidate_id')}_partial_{idx:04d}"
+                        aggregate_candidates.append(candidate)
             elif log_exists:
                 text = _ssh_read(remote_host, log_path_value) if remote_host else log_path.read_text(errors="ignore")
                 lines = [line for line in text.splitlines() if line.strip()]

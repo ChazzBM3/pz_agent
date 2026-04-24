@@ -90,15 +90,48 @@ def _normalize_genmol_result_row(row: dict[str, Any], payload: dict[str, Any] | 
     return item
 
 
+def _generated_smiles_payload_to_candidates(data: dict[str, Any], source_path: Path) -> list[dict[str, Any]]:
+    samples = data.get("samples")
+    if not isinstance(samples, list):
+        return []
+
+    metadata = {
+        "mode": data.get("mode"),
+        "fragment_task": data.get("fragment_task"),
+        "fragment": data.get("fragment"),
+        "model_version": data.get("model_version"),
+        "checkpoint_path": data.get("checkpoint_path"),
+        "num_samples_requested": data.get("num_samples_requested"),
+        "metrics": data.get("metrics") or {},
+        "source_path": str(source_path),
+    }
+
+    candidates: list[dict[str, Any]] = []
+    for idx, sample in enumerate(samples):
+        smiles = str(sample or "").strip()
+        if not smiles:
+            continue
+        candidates.append(
+            {
+                "smiles": smiles,
+                "generated_index": idx,
+                "generation_metadata": metadata,
+            }
+        )
+    return candidates
+
+
 def _load_json_candidates(path: Path) -> list[dict[str, Any]]:
     data = read_json(path)
     if isinstance(data, dict) and "results" in data and isinstance(data["results"], list):
         return [_normalize_genmol_result_row(row, payload=data) for row in data["results"] if isinstance(row, dict)]
+    if isinstance(data, dict) and "samples" in data and isinstance(data.get("samples"), list):
+        return _generated_smiles_payload_to_candidates(data, path)
     if isinstance(data, dict) and "candidates" in data:
         return list(data["candidates"])
     if isinstance(data, list):
         return list(data)
-    raise ValueError("JSON GenMol import must be a list, contain 'candidates', or be a workflow payload with 'results'")
+    raise ValueError("JSON GenMol import must be a list, contain 'candidates', be a generated_smiles payload, or be a workflow payload with 'results'")
 
 
 def _resolve_import_path(path: Path) -> Path:
@@ -107,6 +140,7 @@ def _resolve_import_path(path: Path) -> Path:
             path / "lowest_energy_conformers.json",
             path / "global_ranked.json",
             path / "combined_results.json",
+            path / "generated_smiles.json",
         ]
         for candidate in candidates:
             if candidate.exists():
