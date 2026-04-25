@@ -32,6 +32,11 @@ class GenerationIterationHandoffAgent(BaseAgent):
         ]
 
         deduped: list[dict] = []
+        if not iteration_actions:
+            bootstrap = self._bootstrap_from_top_ranked(state)
+            if bootstrap is not None:
+                deduped.append(bootstrap)
+
         seen: set[tuple[str, str]] = set()
         for action in sorted(
             iteration_actions,
@@ -115,3 +120,53 @@ class GenerationIterationHandoffAgent(BaseAgent):
         write_json(state.run_dir / "genmol_iteration_input.json", input_records)
         state.log("Generation iteration handoff packaged KG-selected candidates into a GenMol iteration queue and manifest")
         return state
+
+    @staticmethod
+    def _bootstrap_from_top_ranked(state: RunState) -> dict | None:
+        ranked = list(state.ranked or [])
+        if not ranked:
+            return None
+        top = dict(ranked[0] or {})
+        candidate_id = str(top.get("id") or "").strip()
+        smiles = str(top.get("smiles") or "").strip()
+        if not candidate_id or not smiles or smiles.startswith("PLACEHOLDER_SMILES"):
+            return None
+
+        identity = dict(top.get("identity") or {})
+        proposal_prior = dict(top.get("proposal_prior") or {})
+        return {
+            "candidate_id": candidate_id,
+            "seed_candidate_id": candidate_id,
+            "smiles": smiles,
+            "stable_identity_key": top.get("stable_identity_key") or identity.get("stable_identity_key"),
+            "priority": top.get("predicted_priority_literature_adjusted", top.get("predicted_priority", 0.0)),
+            "source": "generation_iteration_handoff_bootstrap",
+            "proposal_type": "generation_iteration_bootstrap",
+            "proposal_reason": "top_ranked_candidate_bootstrap",
+            "critic_reason": "bootstrap_when_generation_queue_missing",
+            "generation_request": {
+                "contract_version": CONTRACT_VERSION,
+                "engine": state.config.get("generation", {}).get("engine", "genmol_external"),
+                "strategy": state.config.get("generation", {}).get("strategy", "genmol_conformer_generation"),
+                "objective": state.config.get("generation", {}).get("prompts", {}).get("objective"),
+                "num_generations": int(state.config.get("generation", {}).get("num_generations", 100) or 100),
+                "num_conformers": int(state.config.get("generation", {}).get("num_conformers", 100) or 100),
+                "source_path": None,
+                "seed_batch_count": 1,
+                "bridge_dimensions": list(proposal_prior.get("bridge_dimensions", []) or []),
+                "generation_priors": dict(proposal_prior.get("generation_priors") or {}),
+            },
+            "selection_basis": {
+                "bootstrap": True,
+                "predicted_priority": top.get("predicted_priority"),
+                "predicted_priority_literature_adjusted": top.get("predicted_priority_literature_adjusted"),
+                "predicted_solubility": top.get("predicted_solubility"),
+                "predicted_synthesizability": top.get("predicted_synthesizability"),
+            },
+            "history": {
+                "bootstrap_reason": "missing_generation_iteration_action_queue",
+            },
+            "bridge_case_id": None,
+            "generation_batch_ids": [],
+            "status": "queued",
+        }

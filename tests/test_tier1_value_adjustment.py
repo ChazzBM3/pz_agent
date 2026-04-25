@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
+from pz_agent.agents.generation_iteration_handoff import GenerationIterationHandoffAgent
 from pz_agent.analysis.pareto import compute_tier_1_value_adjustment
 from pz_agent.io import write_json
 from pz_agent.state import RunState
@@ -189,3 +190,62 @@ def test_critique_reranker_uses_note_only_measurement_values_without_kg(tmp_path
     assert updated.ranked[0]["id"] == "cand_good"
     assert updated.ranked[0]["predicted_priority_literature_adjusted"] > 0.5
     assert updated.ranked[1]["predicted_priority_literature_adjusted"] < 0.5
+
+
+
+def test_generation_iteration_handoff_bootstraps_from_top_ranked_candidate() -> None:
+    state = RunState(
+        config={
+            "generation": {
+                "engine": "genmol_external",
+                "prompts": {"objective": "demo objective"},
+                "num_generations": 25,
+                "num_conformers": 8,
+                "iteration_top_k": 1,
+            }
+        },
+        run_dir=Path("artifacts/test_bootstrap"),
+    )
+    state.ranked = [
+        {
+            "id": "cand_top",
+            "smiles": "c1ccc2nc3ccccc3sc2c1",
+            "predicted_priority": 0.7,
+            "predicted_priority_literature_adjusted": 0.73,
+            "predicted_solubility": 0.55,
+            "predicted_synthesizability": 0.81,
+            "identity": {"stable_identity_key": "mol_identity::cand_top"},
+            "proposal_prior": {
+                "bridge_dimensions": ["solubilizing_handle"],
+                "generation_priors": {"bridge_driven": 0.4},
+            },
+        }
+    ]
+    state.action_queue = []
+
+    updated = GenerationIterationHandoffAgent(config=state.config).run(state)
+    assert len(updated.generation_iteration_queue or []) == 1
+    row = updated.generation_iteration_queue[0]
+    assert row["candidate_id"] == "cand_top"
+    assert row["selection_basis"]["bootstrap"] is True
+    assert row["generation_request"]["num_generations"] == 25
+
+
+
+def test_generation_iteration_handoff_does_not_bootstrap_placeholder_smiles() -> None:
+    state = RunState(
+        config={"generation": {"iteration_top_k": 1}},
+        run_dir=Path("artifacts/test_bootstrap_placeholder"),
+    )
+    state.ranked = [
+        {
+            "id": "cand_top",
+            "smiles": "PLACEHOLDER_SMILES_1",
+            "predicted_priority": 0.7,
+            "identity": {},
+        }
+    ]
+    state.action_queue = []
+
+    updated = GenerationIterationHandoffAgent(config=state.config).run(state)
+    assert updated.generation_iteration_queue == []
