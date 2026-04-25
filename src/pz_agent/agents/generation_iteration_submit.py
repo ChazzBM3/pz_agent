@@ -78,13 +78,12 @@ class GenerationIterationSubmitAgent(BaseAgent):
             )
             remote_script_path = f"/tmp/pz_agent_genmol_{candidate_id}.sh"
             if remote_host:
+                local_script_path = state.run_dir / f"launch_{candidate_id}.remote.sh"
                 remote_script_body = "#!/usr/bin/env bash\nset -euo pipefail\n" + inner_command + "\n"
-                quoted_script = shlex.quote(remote_script_body)
+                local_script_path.write_text(remote_script_body, encoding="utf-8")
                 command = (
-                    f"ssh {shlex.quote(remote_host)} "
-                    f"\"cat > {shlex.quote(remote_script_path)} <<'__PZ_AGENT_EOF__'\\n{remote_script_body}__PZ_AGENT_EOF__\\n"
-                    f"chmod +x {shlex.quote(remote_script_path)}\\n"
-                    f"nohup bash {shlex.quote(remote_script_path)} >/dev/null 2>&1 &\""
+                    f"scp {shlex.quote(str(local_script_path))} {shlex.quote(remote_host)}:{shlex.quote(remote_script_path)} && "
+                    f"ssh {shlex.quote(remote_host)} \"chmod +x {shlex.quote(remote_script_path)} && nohup bash {shlex.quote(remote_script_path)} >/dev/null 2>&1 &\""
                 )
             else:
                 command = inner_command
