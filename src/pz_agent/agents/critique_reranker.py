@@ -40,6 +40,28 @@ class CritiqueRerankerAgent(BaseAgent):
                         "electron_reorganization_energy",
                     ],
                 )
+                note_measurement_summary = dict(note.get("measurement_context") or {})
+                note_measurement_values = dict(note.get("measurement_values") or {})
+                if note_measurement_summary:
+                    note_properties = note_measurement_summary.get("properties") or []
+                    kg_properties = measurement_summary.get("properties") or []
+                    measurement_summary = {
+                        **measurement_summary,
+                        **note_measurement_summary,
+                        "properties": sorted({*kg_properties, *note_properties}),
+                        "measurement_count": max(
+                            int(measurement_summary.get("measurement_count", 0) or 0),
+                            int(note_measurement_summary.get("measurement_count", 0) or 0),
+                            len(note_measurement_values),
+                        ),
+                        "property_count": max(
+                            int(measurement_summary.get("property_count", 0) or 0),
+                            int(note_measurement_summary.get("property_count", 0) or 0),
+                            len({*kg_properties, *note_properties}),
+                        ),
+                    }
+                if note_measurement_values:
+                    measurement_values = {**measurement_values, **note_measurement_values}
                 note["signals"]["exact_match_hits"] = max(
                     int(note["signals"].get("exact_match_hits", 0) or 0),
                     int(kg_summary.get("exact_match_hits", 0) or 0),

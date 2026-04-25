@@ -109,3 +109,83 @@ def test_critique_reranker_uses_tier1_measurement_values(tmp_path: Path) -> None
         "tier1_value_adjustment:oxidation_potential" in item
         for item in row["ranking_rationale"]["literature_adjustment"]
     )
+
+
+
+def test_critique_reranker_uses_note_only_measurement_values_without_kg(tmp_path: Path) -> None:
+    state = RunState(config={"screening": {"shortlist_size": 3}}, run_dir=tmp_path)
+    state.ranked = [
+        {
+            "id": "cand_good",
+            "predicted_priority": 0.5,
+            "identity": {},
+        },
+        {
+            "id": "cand_bad",
+            "predicted_priority": 0.5,
+            "identity": {},
+        },
+    ]
+    state.critique_notes = [
+        {
+            "candidate_id": "cand_good",
+            "signals": {
+                "supports_solubility": False,
+                "supports_synthesizability": False,
+                "warns_instability": False,
+                "exact_match_hits": 0,
+                "analog_match_hits": 0,
+                "support_score": 0.0,
+                "contradiction_score": 0.0,
+                "measurement_count": 0,
+                "property_count": 0,
+            },
+            "measurement_context": {
+                "properties": [
+                    "oxidation_potential",
+                    "reduction_potential",
+                    "groundState.solvation_energy",
+                    "hole_reorganization_energy",
+                ]
+            },
+            "measurement_values": {
+                "oxidation_potential": {"value": 1.8},
+                "reduction_potential": {"value": 7.2},
+                "groundState.solvation_energy": {"value": -0.5},
+                "hole_reorganization_energy": {"value": 0.3},
+            },
+        },
+        {
+            "candidate_id": "cand_bad",
+            "signals": {
+                "supports_solubility": False,
+                "supports_synthesizability": False,
+                "warns_instability": False,
+                "exact_match_hits": 0,
+                "analog_match_hits": 0,
+                "support_score": 0.0,
+                "contradiction_score": 0.0,
+                "measurement_count": 0,
+                "property_count": 0,
+            },
+            "measurement_context": {
+                "properties": [
+                    "oxidation_potential",
+                    "reduction_potential",
+                    "groundState.solvation_energy",
+                    "hole_reorganization_energy",
+                ]
+            },
+            "measurement_values": {
+                "oxidation_potential": {"value": 0.4},
+                "reduction_potential": {"value": 4.5},
+                "groundState.solvation_energy": {"value": 0.4},
+                "hole_reorganization_energy": {"value": 1.6},
+            },
+        },
+    ]
+
+    updated = CritiqueRerankerAgent(config=state.config).run(state)
+    assert updated.ranked[0]["id"] == "cand_good"
+    assert updated.ranked[0]["predicted_priority_literature_adjusted"] > 0.5
+    assert updated.ranked[1]["predicted_priority_literature_adjusted"] < 0.5
