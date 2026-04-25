@@ -76,11 +76,18 @@ class GenerationIterationSubmitAgent(BaseAgent):
                 f"--output-dir {shlex.quote(output_dir)}"
                 f" > {shlex.quote(log_path)} 2>&1"
             )
-            command = (
-                f"ssh {shlex.quote(remote_host)} {shlex.quote(inner_command)}"
-                if remote_host
-                else inner_command
-            )
+            remote_script_path = f"/tmp/pz_agent_genmol_{candidate_id}.sh"
+            if remote_host:
+                remote_script_body = "#!/usr/bin/env bash\nset -euo pipefail\n" + inner_command + "\n"
+                quoted_script = shlex.quote(remote_script_body)
+                command = (
+                    f"ssh {shlex.quote(remote_host)} "
+                    f"\"cat > {shlex.quote(remote_script_path)} <<'__PZ_AGENT_EOF__'\\n{remote_script_body}__PZ_AGENT_EOF__\\n"
+                    f"chmod +x {shlex.quote(remote_script_path)}\\n"
+                    f"nohup bash {shlex.quote(remote_script_path)} >/dev/null 2>&1 &\""
+                )
+            else:
+                command = inner_command
             submission = {
                 "candidate_id": candidate_id,
                 "smiles": smiles,
@@ -92,6 +99,7 @@ class GenerationIterationSubmitAgent(BaseAgent):
                 "device": device,
                 "status": "prepared",
                 "command": command,
+                "remote_script_path": remote_script_path if remote_host else None,
                 "generation_request": request,
                 "selection_basis": record.get("selection_basis", {}),
             }
