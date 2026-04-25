@@ -92,11 +92,14 @@ class GenerationIterationLoopAgent(BaseAgent):
             "completed_rounds": 0,
         }
 
-        if not current_action_queue:
+        has_bootstrap_seed = bool(state.ranked)
+        summary["bootstrap_seed_available"] = has_bootstrap_seed
+
+        if not current_action_queue and not has_bootstrap_seed:
             summary["stop_reason"] = "missing_action_queue"
             state.generation_iteration_loop_summary = summary
             write_json(state.run_dir / "generation_iteration_loop_summary.json", summary)
-            state.log("Generation iteration loop skipped because there was no action queue to seed the first iteration")
+            state.log("Generation iteration loop skipped because there was no action queue and no ranked candidate was available to bootstrap the first iteration")
             return state
 
         last_analysis_state: RunState | None = None

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from pz_agent.agents.critique_reranker import CritiqueRerankerAgent
 from pz_agent.agents.generation_iteration_handoff import GenerationIterationHandoffAgent
+from pz_agent.agents.generation_iteration_loop import GenerationIterationLoopAgent
 from pz_agent.analysis.pareto import compute_tier_1_value_adjustment
 from pz_agent.io import write_json
 from pz_agent.state import RunState
@@ -249,3 +250,45 @@ def test_generation_iteration_handoff_does_not_bootstrap_placeholder_smiles() ->
 
     updated = GenerationIterationHandoffAgent(config=state.config).run(state)
     assert updated.generation_iteration_queue == []
+
+
+
+def test_generation_iteration_loop_allows_bootstrap_without_action_queue(tmp_path: Path) -> None:
+    state = RunState(
+        config={
+            "generation": {
+                "loop": {
+                    "max_rounds": 1,
+                    "iteration_stages": ["generation_iteration_handoff"],
+                    "analysis_stages": [],
+                },
+                "iteration_top_k": 1,
+                "engine": "genmol_external",
+                "prompts": {"objective": "demo objective"},
+                "num_generations": 10,
+                "num_conformers": 4,
+            }
+        },
+        run_dir=tmp_path,
+    )
+    state.ranked = [
+        {
+            "id": "cand_top",
+            "smiles": "c1ccc2nc3ccccc3sc2c1",
+            "predicted_priority": 0.7,
+            "predicted_priority_literature_adjusted": 0.72,
+            "predicted_solubility": 0.5,
+            "predicted_synthesizability": 0.8,
+            "identity": {"stable_identity_key": "mol_identity::cand_top"},
+            "proposal_prior": {},
+        }
+    ]
+    state.action_queue = []
+
+    updated = GenerationIterationLoopAgent(config=state.config).run(state)
+    summary = updated.generation_iteration_loop_summary or {}
+    assert summary.get("bootstrap_seed_available") is True
+    assert summary.get("stop_reason") == "no_completed_outputs"
+    assert len(summary.get("rounds") or []) == 1
+    assert len(updated.generation_iteration_queue or []) == 1
+    assert updated.generation_iteration_queue[0]["candidate_id"] == "cand_top"
