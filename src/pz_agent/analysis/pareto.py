@@ -112,6 +112,14 @@ D3TALES_TIER_1_DIRECTIONS = {
     "electron_reorganization_energy": "low",
 }
 
+D3TALES_TIER_1_VALUE_ANCHORS = {
+    "oxidation_potential": {"low": 1.128, "high": 1.895},
+    "reduction_potential": {"low": 6.083, "high": 7.415},
+    "groundState.solvation_energy": {"low": -0.4212, "high": -0.07663},
+    "hole_reorganization_energy": {"low": 0.4637, "high": 0.9618},
+    "electron_reorganization_energy": {"low": 0.7882, "high": 2.781},
+}
+
 D3TALES_TIER_2 = {
     "adiabatic_ionization_energy",
     "adiabatic_electron_affinity",
@@ -216,6 +224,26 @@ def compute_measurement_hierarchy_adjustment(measurement_summary: dict[str, Any]
 
 
 
+def _normalize_property_value(property_name: str, value: float) -> float | None:
+    anchors = D3TALES_TIER_1_VALUE_ANCHORS.get(property_name)
+    direction = D3TALES_TIER_1_DIRECTIONS.get(property_name)
+    if not anchors or not direction:
+        return None
+
+    low_anchor = anchors["low"]
+    high_anchor = anchors["high"]
+    span = high_anchor - low_anchor
+    if span <= 0:
+        return None
+
+    if direction == "high":
+        normalized = (value - low_anchor) / span
+    else:
+        normalized = (high_anchor - value) / span
+    return max(-1.0, min(1.0, normalized))
+
+
+
 def compute_tier_1_value_adjustment(
     measurement_values: dict[str, dict[str, Any]] | None,
 ) -> tuple[float, list[str]]:
@@ -225,7 +253,7 @@ def compute_tier_1_value_adjustment(
     bonus = 0.0
     rationale: list[str] = []
 
-    for property_name, direction in D3TALES_TIER_1_DIRECTIONS.items():
+    for property_name in D3TALES_TIER_1_DIRECTIONS:
         summary = measurement_values.get(property_name)
         if not summary:
             continue
@@ -237,13 +265,15 @@ def compute_tier_1_value_adjustment(
         except (TypeError, ValueError):
             continue
 
-        if direction == "high":
-            property_bonus = max(-0.04, min(0.04, value * 0.02))
-        else:
-            property_bonus = max(-0.04, min(0.04, -value * 0.02))
+        normalized = _normalize_property_value(property_name, value)
+        if normalized is None:
+            continue
 
+        property_bonus = max(-0.04, min(0.04, normalized * 0.04))
         bonus += property_bonus
-        rationale.append(f"tier1_value_adjustment:{property_name}={property_bonus:.3f}:value={value:.3f}")
+        rationale.append(
+            f"tier1_value_adjustment:{property_name}={property_bonus:.3f}:value={value:.3f}:normalized={normalized:.3f}"
+        )
 
     return bonus, rationale
 

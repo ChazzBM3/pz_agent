@@ -11,16 +11,31 @@ from pz_agent.state import RunState
 def test_tier1_value_adjustment_rewards_good_measurements() -> None:
     bonus, rationale = compute_tier_1_value_adjustment(
         {
-            "oxidation_potential": {"value": 1.2},
-            "reduction_potential": {"value": 0.8},
-            "groundState.solvation_energy": {"value": -0.6},
-            "hole_reorganization_energy": {"value": 0.2},
+            "oxidation_potential": {"value": 1.8},
+            "reduction_potential": {"value": 7.2},
+            "groundState.solvation_energy": {"value": -0.5},
+            "hole_reorganization_energy": {"value": 0.3},
         }
     )
 
     assert bonus > 0
     assert any("tier1_value_adjustment:oxidation_potential" in item for item in rationale)
     assert any("tier1_value_adjustment:groundState.solvation_energy" in item for item in rationale)
+
+
+
+def test_tier1_value_adjustment_penalizes_bad_measurements() -> None:
+    bonus, rationale = compute_tier_1_value_adjustment(
+        {
+            "oxidation_potential": {"value": 0.4},
+            "reduction_potential": {"value": 4.5},
+            "groundState.solvation_energy": {"value": 0.4},
+            "hole_reorganization_energy": {"value": 1.6},
+        }
+    )
+
+    assert bonus < 0
+    assert any("normalized=-" in item for item in rationale)
 
 
 def test_critique_reranker_uses_tier1_measurement_values(tmp_path: Path) -> None:
@@ -36,7 +51,7 @@ def test_critique_reranker_uses_tier1_measurement_values(tmp_path: Path) -> None
                     "attrs": {
                         "record_id": "cand_1",
                         "property_name": "oxidation_potential",
-                        "value": 1.5,
+                        "value": 1.8,
                     },
                 },
                 {
@@ -45,7 +60,7 @@ def test_critique_reranker_uses_tier1_measurement_values(tmp_path: Path) -> None
                     "attrs": {
                         "record_id": "cand_1",
                         "property_name": "groundState.solvation_energy",
-                        "value": -0.8,
+                        "value": -0.5,
                     },
                 },
             ],
