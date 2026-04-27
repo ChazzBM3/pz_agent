@@ -4,9 +4,15 @@ __pycache__/
 *.pyo
 *.pyd
 *.egg-info/
-artifacts/run/
-artifacts/*_run/
-artifacts/review_run/
-artifacts/d3tales_demo_*/
-artifacts/visual_benchmark_*/
-artifacts/pubchem_name_cache.json
+
+# Local scratch and helper scripts
+/tmp/
+tmp_*.sh
+
+# Generated experiment outputs and bulky local snapshots
+artifacts/**
+!artifacts/*.py
+
+# Keep specific lightweight tracked configs if added intentionally
+!artifacts/*.yaml
+!artifacts/*.yml
