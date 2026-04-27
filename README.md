@@ -22,6 +22,27 @@ pip install -e '.[dev]'
 pytest -q
 ```
 
+## Fresh laptop quick start
+
+On a new machine, use the repo virtualenv and the CLI entrypoint rather than calling modules directly:
+
+```bash
+git clone git@github.com:ChazzBM3/pz_agent.git
+cd pz_agent
+git checkout charles/local-state-2026-04-23-clean
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+python -m pz_agent.cli run configs/phenothiazine_genmol_auto_loop_dry.yaml --run-dir artifacts/smoke_dry
+```
+
+If you want a quick regression check before a real remote launch:
+
+```bash
+source .venv/bin/activate
+pytest tests/test_genmol_import.py tests/test_htvs_backend.py -q
+```
+
 ## D3TaLES KG audit workflow
 
 To build and audit the baseline D3TaLES production KG, including exclusion of zero-information rows, run:
