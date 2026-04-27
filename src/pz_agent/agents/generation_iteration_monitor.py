@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import shlex
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from pz_agent.agents.base import BaseAgent
 from pz_agent.chemistry.genmol_import import load_external_genmol_candidates
@@ -35,6 +35,12 @@ def _ssh_read(remote_host: str, path: str) -> str:
     return result.stdout
 
 
+def _resolve_remote_path(workdir: str | None, path: str) -> str:
+    if not workdir or not path or path.startswith("/"):
+        return path
+    return str(PurePosixPath(workdir) / path)
+
+
 def _ssh_find_generated_json(remote_host: str, root: str) -> list[str]:
     inner = f"find {shlex.quote(root)} -type f -name generated_smiles.json | sort"
     result = subprocess.run(
@@ -62,13 +68,16 @@ class GenerationIterationMonitorAgent(BaseAgent):
 
         for submission in submissions:
             remote_host = str(submission.get("remote_host") or "").strip() or None
+            remote_workdir = str(submission.get("remote_workdir") or "").strip() or None
             output_dir_value = str(submission.get("output_dir") or "")
             log_path_value = str(submission.get("log_path") or "")
+            resolved_output_dir_value = _resolve_remote_path(remote_workdir, output_dir_value) if remote_host else output_dir_value
+            resolved_log_path_value = _resolve_remote_path(remote_workdir, log_path_value) if remote_host else log_path_value
             output_dir = Path(output_dir_value)
             log_path = Path(log_path_value)
-            payload_path_value = f"{output_dir_value.rstrip('/')}/lowest_energy_conformers.json"
-            ranked_path_value = f"{output_dir_value.rstrip('/')}/sa_scores_ranked.json"
-            generated_root_value = f"{output_dir_value.rstrip('/')}/genmol_generation"
+            payload_path_value = f"{resolved_output_dir_value.rstrip('/')}/lowest_energy_conformers.json"
+            ranked_path_value = f"{resolved_output_dir_value.rstrip('/')}/sa_scores_ranked.json"
+            generated_root_value = f"{resolved_output_dir_value.rstrip('/')}/genmol_generation"
             payload_path = Path(payload_path_value)
             ranked_path = Path(ranked_path_value)
             generated_root = Path(generated_root_value)
@@ -76,6 +85,8 @@ class GenerationIterationMonitorAgent(BaseAgent):
                 "candidate_id": submission.get("candidate_id"),
                 "output_dir": output_dir_value,
                 "log_path": log_path_value,
+                "resolved_output_dir": resolved_output_dir_value,
+                "resolved_log_path": resolved_log_path_value,
                 "remote_host": remote_host,
                 "status": "missing",
                 "generated_count": 0,
@@ -86,7 +97,7 @@ class GenerationIterationMonitorAgent(BaseAgent):
             payload_exists = _ssh_exists(remote_host, payload_path_value) if remote_host else payload_path.exists()
             ranked_exists = _ssh_exists(remote_host, ranked_path_value) if remote_host else ranked_path.exists()
             generated_root_exists = _ssh_exists(remote_host, generated_root_value) if remote_host else generated_root.exists()
-            log_exists = _ssh_exists(remote_host, log_path_value) if remote_host else log_path.exists()
+            log_exists = _ssh_exists(remote_host, resolved_log_path_value) if remote_host else log_path.exists()
 
             if payload_exists or ranked_exists or generated_root_exists:
                 if payload_exists:
@@ -147,7 +158,7 @@ class GenerationIterationMonitorAgent(BaseAgent):
                             candidate["id"] = f"{submission.get('candidate_id')}_partial_{idx:04d}"
                         aggregate_candidates.append(candidate)
             elif log_exists:
-                text = _ssh_read(remote_host, log_path_value) if remote_host else log_path.read_text(errors="ignore")
+                text = _ssh_read(remote_host, resolved_log_path_value) if remote_host else log_path.read_text(errors="ignore")
                 lines = [line for line in text.splitlines() if line.strip()]
                 if "Traceback" in text or "Error" in text or "Exception" in text:
                     record["status"] = "error"

@@ -1,5 +1,5 @@
 project:
-  name: phenothiazine-genmol-auto-loop-dry
+  name: phenothiazine-genmol-auto-loop-real
 
 generation:
   engine: genmol_external
@@ -10,15 +10,15 @@ generation:
   num_generations: 100
   num_conformers: 32
   submit:
-    remote_host: null
+    remote_host: grimm
     atomistic_root: /home/chazzm3/AtomisticSkills
     conda_init: /home/chazzm3/miniconda3/etc/profile.d/conda.sh
     conda_env: genmol-agent
     script_path: .agents/skills/ml-generative-genmol/scripts/generate_functionalized_lowest_conformers.py
     runs_root: research/genmol_iteration_runs
     launcher_mode: serial_manifest
-    execute_launch: false
-    launch_mode: noop
+    execute_launch: true
+    launch_mode: nohup_background
     device: cuda
   loop:
     max_rounds: 3

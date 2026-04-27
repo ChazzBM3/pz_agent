@@ -95,6 +95,7 @@ class GenerationIterationSubmitAgent(BaseAgent):
                 "log_path": log_path,
                 "launcher_mode": cfg["launcher_mode"],
                 "remote_host": remote_host,
+                "remote_workdir": cfg["atomistic_root"] if remote_host else None,
                 "device": device,
                 "status": "prepared",
                 "command": command,

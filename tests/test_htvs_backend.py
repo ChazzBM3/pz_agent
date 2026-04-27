@@ -345,3 +345,64 @@ def test_htvs_check_uses_local_job_root_snapshot_when_available(tmp_path: Path) 
     assert result["authoritative"] is True
     assert result["status_source"] == "local_job_root_snapshot"
     assert result["jobdir_snapshot"]["scheduler_job_id"] == "125"
+
+
+def test_htvs_extract_accepts_h2_xtb_alpb_style_result(tmp_path: Path) -> None:
+    job_root = tmp_path / "htvs-h2-001" / "jobs"
+    jobdir = job_root / "completed" / "00001_xtb_opt__h2"
+    jobdir.mkdir(parents=True, exist_ok=True)
+
+    (jobdir / "job_manager-job_id").write_text("1\n", encoding="utf-8")
+    (jobdir / "xtbopt.xyz").write_text(
+        "2\nH2 xtb opt ALPB water\nH 0.000000 0.000000 0.000000\nH 0.000000 0.000000 0.740000\n",
+        encoding="utf-8",
+    )
+    (jobdir / "summary.json").write_text(
+        json.dumps(
+            {
+                "status": "completed",
+                "final_energy": -1.234567,
+                "groundState.solvation_energy": -0.0123,
+                "job_config": "xtb_opt",
+                "solvation_model": "ALPB",
+                "solvent": "water",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    backend = HtvsBackend()
+    result = backend.extract(
+        candidate_id="h2",
+        submission={
+            "submission_id": "htvs-h2-001",
+            "job_id": "00001_xtb_opt__h2",
+            "backend": "htvs_supercloud",
+            "engine": "xtb",
+            "remote_target": "supercloud",
+            "remote_settings": {"job_root": str(job_root)},
+        },
+        simulation={
+            "backend": "htvs_supercloud",
+            "engine": "xtb",
+            "simulation_type": "geometry_optimization",
+            "parameters": {
+                "remote_target": "supercloud",
+                "job_config": "xtb_opt",
+                "xtb_method": "GFN2-xTB",
+                "solvation_model": "ALPB",
+                "solvent": "water",
+            },
+        },
+        extract_config={},
+    )
+
+    assert result is not None
+    assert result["status"] == "completed"
+    assert result["engine"] == "xtb"
+    assert result["outputs"]["status"] == "completed"
+    assert result["outputs"]["final_energy"] == -1.234567
+    assert result["outputs"]["groundState.solvation_energy"] == -0.0123
+    assert "H 0.000000 0.000000 0.740000" in str(result["outputs"]["optimized_structure"])
+    assert result["raw_result"]["jobdir_snapshot"]["scheduler_job_id"] == "1"
+    assert (jobdir / "pz_agent_result.json").exists()

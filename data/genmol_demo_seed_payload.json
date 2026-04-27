@@ -1,0 +1,73 @@
+{
+  "candidates": [
+    {
+      "id": "genmol_seed_05jhcb_dimethoxy_pegylated",
+      "smiles": "CCN1c2c(OC)cc(OCCOCCOC)cc2Sc2ccccc21",
+      "name": "05JHCB_variant_dimethoxy_pegylated",
+      "prompt": "Functionalized variant derived from 05JHCB with one solubilizing chain and one methoxy substituent to keep donor-rich phenothiazine character.",
+      "seed": "05JHCB",
+      "generation_round": 0,
+      "generated_index": 0,
+      "notes": "Different functionalization of the starting seed, replacing one side chain with methoxy donation.",
+      "generation_metadata": {
+        "source_candidate_id": "05JHCB",
+        "source_report": "artifacts/validation_review_2026_04_17/report.json",
+        "role": "initial_functionalized_seed",
+        "derivation": "replace_one_side_chain_with_methoxy",
+        "seed_strategy": "functionalized_variants_of_starting_seed",
+        "expected_demo_rounds": 3
+      }
+    },
+    {
+      "id": "genmol_seed_05jhcb_mono_pegylated",
+      "smiles": "CCN1c2ccc(OCCOCCOC)cc2Sc2ccccc21",
+      "name": "05JHCB_variant_mono_pegylated",
+      "prompt": "Functionalized variant derived from 05JHCB by removing one solubilizing side chain while preserving the phenothiazine core.",
+      "seed": "05JHCB",
+      "generation_round": 0,
+      "generated_index": 1,
+      "notes": "Different functionalization of the starting seed, mono-substituted relative to the parent.",
+      "generation_metadata": {
+        "source_candidate_id": "05JHCB",
+        "source_report": "artifacts/validation_review_2026_04_17/report.json",
+        "role": "initial_functionalized_seed",
+        "derivation": "remove_one_2-(2-methoxyethoxy)ethoxy_group",
+        "seed_strategy": "functionalized_variants_of_starting_seed"
+      }
+    },
+    {
+      "id": "genmol_seed_05jhcb_methyl_pegylated",
+      "smiles": "CCN1c2c(C)cc(OCCOCCOC)cc2Sc2ccccc21",
+      "name": "05JHCB_variant_methyl_pegylated",
+      "prompt": "Functionalized variant derived from 05JHCB with one solubilizing chain and one methyl decoration to diversify substitution pattern.",
+      "seed": "05JHCB",
+      "generation_round": 0,
+      "generated_index": 2,
+      "notes": "Different functionalization of the starting seed, mixing solubilizing and hydrophobic substitution.",
+      "generation_metadata": {
+        "source_candidate_id": "05JHCB",
+        "source_report": "artifacts/validation_review_2026_04_17/report.json",
+        "role": "initial_functionalized_seed",
+        "derivation": "replace_one_side_chain_with_methyl",
+        "seed_strategy": "functionalized_variants_of_starting_seed"
+      }
+    },
+    {
+      "id": "genmol_seed_05jhcb_cf3_pegylated",
+      "smiles": "CCN1c2ccc(OCCOCCOC)cc2Sc2ccc(C(F)(F)F)cc21",
+      "name": "05JHCB_variant_cf3_pegylated",
+      "prompt": "Functionalized variant derived from 05JHCB with one solubilizing chain and one trifluoromethyl substituent to create a push-pull variant.",
+      "seed": "05JHCB",
+      "generation_round": 0,
+      "generated_index": 3,
+      "notes": "Different functionalization of the starting seed, balancing solubilizing and electron-withdrawing substitution.",
+      "generation_metadata": {
+        "source_candidate_id": "05JHCB",
+        "source_report": "artifacts/validation_review_2026_04_17/report.json",
+        "role": "initial_functionalized_seed",
+        "derivation": "replace_one_side_chain_with_trifluoromethyl",
+        "seed_strategy": "functionalized_variants_of_starting_seed"
+      }
+    }
+  ]
+}
