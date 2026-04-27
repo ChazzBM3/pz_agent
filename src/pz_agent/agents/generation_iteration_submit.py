@@ -73,8 +73,8 @@ class GenerationIterationSubmitAgent(BaseAgent):
             output_dir = f"{str(run_root).rstrip('/')}/{idx:02d}_{candidate_id}"
             log_path = f"{output_dir}.log"
             inner_command = (
-                f"mkdir -p {shlex.quote(output_dir)} && "
                 f"{shell_prefix} && "
+                f"mkdir -p {shlex.quote(output_dir)} && "
                 f"{shlex.quote(cfg['python_bin'])} {shlex.quote(cfg['script_path'])} "
                 f"--smiles {shlex.quote(smiles)} "
                 f"--num-generations {int(request.get('num_generations', 100) or 100)} "

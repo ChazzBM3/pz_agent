@@ -351,6 +351,37 @@ def test_generation_iteration_submit_emits_launch_manifest(tmp_path: Path) -> No
     assert "genmol_0002" in launcher_script
 
 
+def test_generation_iteration_remote_script_creates_relative_output_dir_after_cd(tmp_path: Path) -> None:
+    state = RunState(
+        config={
+            "generation": {
+                "submit": {
+                    "remote_host": "grimm",
+                    "atomistic_root": "/home/chazzm3/AtomisticSkills",
+                    "conda_init": "/home/chazzm3/miniconda3/etc/profile.d/conda.sh",
+                    "conda_env": "genmol-agent",
+                    "runs_root": "research/iter_runs",
+                }
+            }
+        },
+        run_dir=tmp_path,
+        generation_iteration_queue=[
+            {
+                "candidate_id": "genmol_remote",
+                "smiles": "CCO",
+                "generation_request": {"num_generations": 1, "num_conformers": 1},
+            }
+        ],
+    )
+
+    state = GenerationIterationSubmitAgent(config=state.config).run(state)
+
+    remote_script = (tmp_path / "launch_genmol_remote.remote.sh").read_text()
+    cd_index = remote_script.index("cd /home/chazzm3/AtomisticSkills")
+    mkdir_index = remote_script.index("mkdir -p research/iter_runs/01_genmol_remote")
+    assert cd_index < mkdir_index
+
+
 def test_generation_iteration_execute_can_autolaunch_with_subprocess_run(tmp_path: Path, monkeypatch) -> None:
     command_log: list[str] = []
 
