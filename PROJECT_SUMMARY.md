@@ -107,6 +107,29 @@ GitHub:
 
 The biggest remaining gap is now **remote execution hardening and downstream rigor**, not basic loop closure.
 
+### April 27, 2026 status update
+
+New things that were verified today:
+- repo bootstrap/handoff was cleaned up for use on another laptop
+- fresh-machine instructions were added to `README.md` and `TRANSITION.md`
+- `scripts/smoke_genmol_dry.sh` was added as a dry-run helper
+- targeted regression tests for GenMol-loop and HTVS backend behavior passed locally
+- a real Grimm-backed GenMol smoke test succeeded for one full remote round
+- the loop stopping rule was updated to be exploration-biased: for now it stops only when both solubility and synthesizability worsen beyond tolerance
+
+What the real Grimm test proved:
+- SSH + remote wrapper launch works
+- remote path resolution under `AtomisticSkills` works
+- remote `lowest_energy_conformers.json` detection/import works
+- recycle manifests and next-run configs are written correctly
+- round-1 reanalysis from imported GenMol outputs works
+
+What the multi-round Grimm test exposed:
+- the scientific stopping rule is no longer the main blocker
+- the current blocker is orchestration semantics for async remote jobs
+- if round N+1 is still `submitted` or `running`, the loop currently stops with `no_completed_outputs`
+- that behavior should become a resumable waiting state rather than a terminal stop
+
 ### 1. Validation path now works, but needs stronger contract hardening
 The repo can now generate simulation-ready artifacts, emit submission records, ingest completed results, log failed calculations cleanly, and write usable validation outcomes back into the KG and reports. The next hardening work is around making that path operationally trustworthy:
 - queue artifacts still need explicit acceptance checks against the live HTVS executor path
@@ -116,17 +139,22 @@ The repo can now generate simulation-ready artifacts, emit submission records, i
 - failed-calculation logging should remain explicit and operator-facing, not blurred into speculative auto-rerun behavior
 - the proven live path is now the HTVS-backed Supercloud flow; `docs/REMOTE_SIMULATION_PROTOCOL.md` remains useful as legacy context for the older direct ORCA-over-Slurm design
 
-### 2. Scoring remains partially heuristic
+### 2. GenMol loop orchestration still assumes too much synchrony
+- remote multi-round GenMol execution is now real, but the loop still behaves like a single blocking process
+- `submitted` / `running` round states should become resumable waiting states, not terminal `no_completed_outputs`
+- the next design step should likely be an `awaiting_remote_outputs` stop reason plus a resume path that continues monitor -> recycle -> analysis on a later invocation
+
+### 3. Scoring remains partially heuristic
 - synthesizability and solubility scoring are still not production-grade
 - benchmark gates are not yet strong enough to fail a run with confidence
 - ranking is stronger structurally than scientifically calibrated
 
-### 3. Chemistry reasoning is still uneven
+### 4. Chemistry reasoning is still uneven
 - bridge and substituent reasoning are richer than before, but still not fully chemistry-native
 - exact-vs-analog evidence alignment is improved, not solved
 - some chemistry interpretation remains heuristic
 
-### 4. Evidence semantics still need tightening
+### 5. Evidence semantics still need tightening
 - contradiction handling is still shallow
 - evidence weighting can still drift toward over-crediting weak or correlated signals
 - report language needs to stay explicit about measured vs inferred vs predicted support
@@ -135,18 +163,23 @@ The repo can now generate simulation-ready artifacts, emit submission records, i
 
 The recommended next sequence is:
 
-1. **Remote simulation contract hardening**
+1. **Make remote GenMol loop execution resumable**
+   - add a non-terminal waiting state when remote round outputs are still `submitted` or `running`
+   - preserve enough round metadata to resume monitor -> recycle -> analysis later
+   - avoid classifying in-flight remote work as `no_completed_outputs`
+
+2. **Then harden the remote simulation contract**
    - codify the required request/response contract for the live HTVS-backed Supercloud target
    - inspect emitted queue, manifest, submission, reconciliation, and validation artifacts for completeness
    - turn the now-working HTVS path into a testable acceptance gate
    - keep `pz_agent` as orchestrator, not the executor
 
-2. **Result-ingest and validator hardening**
+3. **Result-ingest and validator hardening**
    - tighten extraction around the real HTVS completed-job payloads and parsed ORCA artifacts
    - formalize what downstream consumers require from HTVS-backed result envelopes
    - keep usable / partial / failed quality states explicit in operator-facing reporting
 
-3. **Then deeper KG and bridge chemistry refinement**
+4. **Then deeper KG and bridge chemistry refinement**
    - make bridge reasoning compete for simulation budget using actual validation outcomes instead of only internal belief structure
    - continue enriching the KG so measured outcomes and failure history can guide future prioritization
 
@@ -154,4 +187,4 @@ The recommended next sequence is:
 
 `pz_agent` is now best understood as a **KG-backed phenothiazine screening and validation orchestrator**.
 
-The repo already has enough architecture for the next meaningful milestone. The highest-leverage move is to harden the now-working **screening -> simulation -> validation** loop into a real remote-execution contract before doing another large conceptual expansion.
+The repo already has enough architecture for the next meaningful milestone. The highest-leverage move is to harden the now-working remote execution story, especially the new **GenMol multi-round remote loop** and the established **screening -> simulation -> validation** path, before doing another large conceptual expansion.

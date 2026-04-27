@@ -43,6 +43,12 @@ source .venv/bin/activate
 pytest tests/test_genmol_import.py tests/test_htvs_backend.py -q
 ```
 
+For a dry-loop helper script:
+
+```bash
+./scripts/smoke_genmol_dry.sh
+```
+
 ## D3TaLES KG audit workflow
 
 To build and audit the baseline D3TaLES production KG, including exclusion of zero-information rows, run:
@@ -97,6 +103,11 @@ The repo now includes a Python package scaffold for:
 - simulation handoff packaging and submission scaffolding
 
 Current priority: validate and harden the simulation-first execution path around the HTVS-backed Supercloud flow, keep failed calculations logged cleanly for operator follow-up, then tighten scoring, evidence semantics, downstream result ingestion, and KG-guided prioritization.
+
+Recent April 27 status:
+- Grimm-backed GenMol remote smoke testing succeeded for a single completed round
+- the GenMol loop stop rule is currently exploration-biased and stops only when both solubility and synthesizability worsen beyond tolerance
+- the next real gap is making multi-round remote GenMol loops resumable when the next round is still in flight
 
 ## Current simulation defaults
 

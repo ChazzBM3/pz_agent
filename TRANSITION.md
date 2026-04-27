@@ -8,6 +8,10 @@ Use this branch on the other laptop:
 
 ## Latest pushed commits
 
+- `f4a11e9` - Stop GenMol loop only when both metrics worsen
+- `608e716` - Base iteration stopping on score improvement only
+- `9382ed3` - Add laptop bootstrap and dry smoke-run helper
+- `d776959` - Track followup presets outside artifacts
 - `7b1037b` - Add generation loop updates and config changes
 - `bb63eee` - previous local continuation point carried in memory
 
@@ -42,3 +46,6 @@ Optional quick regression pass:
 - Temporary local debug shell scripts like `tmp_*.sh` are ignored.
 - If you need any specific artifact directory from this machine later, transfer it separately rather than versioning it in git.
 - Follow-up YAML presets previously living under `artifacts/` were moved to `configs/artifact_presets/` so they are included in git for the laptop handoff.
+- A real Grimm smoke test succeeded for round 1 remote GenMol launch, remote output detection, import, recycle-config writing, and re-analysis.
+- The current next blocker is multi-round remote orchestration: when round N+1 is still in flight, the loop currently stops with `no_completed_outputs` instead of a resumable `awaiting_remote_outputs` style state.
+- Current exploration-biased loop rule: stop only when both solubility and synthesizability worsen beyond tolerance, otherwise continue until convergence or `max_rounds`.
