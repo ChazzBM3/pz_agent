@@ -165,10 +165,10 @@ class GenerationIterationLoopAgent(BaseAgent):
             delta = self._metric_delta(previous_top, current_top)
             if delta is not None:
                 round_summary["delta"] = delta
-                if self._is_converged(delta, convergence_tol):
+                if self._both_metrics_worsened(delta, taper_tol):
+                    stop_reason = "both_metrics_worsened"
+                elif self._is_converged(delta, convergence_tol):
                     stop_reason = "converged"
-                elif self._is_tapered(delta, taper_tol):
-                    stop_reason = "tapered"
 
             round_summary["stop_reason"] = stop_reason
             summary["rounds"].append(round_summary)
@@ -218,10 +218,10 @@ class GenerationIterationLoopAgent(BaseAgent):
         )
 
     @staticmethod
-    def _is_tapered(delta: dict[str, Any], tolerance: dict[str, float]) -> bool:
+    def _both_metrics_worsened(delta: dict[str, Any], tolerance: dict[str, float]) -> bool:
         return (
-            float(delta.get("solubility", 0.0)) <= tolerance["solubility"]
-            and float(delta.get("synthesizability", 0.0)) <= tolerance["synthesizability"]
+            float(delta.get("solubility", 0.0)) < -abs(float(tolerance["solubility"]))
+            and float(delta.get("synthesizability", 0.0)) < -abs(float(tolerance["synthesizability"]))
         )
 
     @staticmethod

@@ -649,7 +649,7 @@ def test_generation_iteration_recycle_writes_next_run_config(tmp_path: Path) -> 
     assert recycle_manifest["completed_submission_count"] == 1
 
 
-def test_generation_iteration_loop_stops_when_scores_taper(tmp_path: Path, monkeypatch) -> None:
+def test_generation_iteration_loop_stops_when_both_metrics_worsen(tmp_path: Path, monkeypatch) -> None:
     round_counter = {"value": 0}
 
     class FakeIterationAgent:
@@ -675,7 +675,7 @@ def test_generation_iteration_loop_stops_when_scores_taper(tmp_path: Path, monke
         def run(self, state: RunState) -> RunState:
             metrics = {
                 1: {"id": "round1_top", "smiles": "C1", "predicted_solubility": 0.72, "predicted_synthesizability": 0.71, "predicted_priority": 0.80},
-                2: {"id": "round2_top", "smiles": "C2", "predicted_solubility": 0.725, "predicted_synthesizability": 0.714, "predicted_priority": 0.81},
+                2: {"id": "round2_top", "smiles": "C2", "predicted_solubility": 0.70, "predicted_synthesizability": 0.69, "predicted_priority": 0.78},
             }
             state.ranked = [metrics[round_counter["value"]]]
             state.action_queue = [{"action_type": "generation_iteration", "candidate_id": metrics[round_counter['value']]['id']}]
@@ -717,9 +717,10 @@ def test_generation_iteration_loop_stops_when_scores_taper(tmp_path: Path, monke
 
     assert state.generation_iteration_loop_summary is not None
     assert state.generation_iteration_loop_summary["completed_rounds"] == 2
-    assert state.generation_iteration_loop_summary["stop_reason"] == "converged"
+    assert state.generation_iteration_loop_summary["stop_reason"] == "both_metrics_worsened"
     assert state.ranked[0]["id"] == "round2_top"
     summary_payload = json.loads((tmp_path / "generation_iteration_loop_summary.json").read_text())
     assert summary_payload["rounds"][0]["stop_reason"] is None
-    assert summary_payload["rounds"][1]["delta"]["solubility"] == pytest.approx(0.005)
-    assert summary_payload["rounds"][1]["delta"]["synthesizability"] == pytest.approx(0.004)
+    assert summary_payload["rounds"][1]["delta"]["solubility"] == pytest.approx(-0.02)
+    assert summary_payload["rounds"][1]["delta"]["synthesizability"] == pytest.approx(-0.02)
+    assert summary_payload["rounds"][1]["stop_reason"] == "both_metrics_worsened"
