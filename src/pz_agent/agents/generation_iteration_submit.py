@@ -11,6 +11,13 @@ from pz_agent.state import RunState
 DEFAULT_GENMOL_SCRIPT = ".agents/skills/ml-generative-genmol/scripts/generate_functionalized_lowest_conformers.py"
 
 
+def _optional_str(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 def _submit_config(config: dict) -> dict:
     generation_cfg = dict(config.get("generation", {}) or {})
     submit_cfg = dict(generation_cfg.get("submit", {}) or {})
@@ -23,7 +30,7 @@ def _submit_config(config: dict) -> dict:
         "launcher_mode": str(submit_cfg.get("launcher_mode", "serial_manifest")),
         "python_bin": str(submit_cfg.get("python_bin", "python")),
         "device": str(submit_cfg.get("device", "cuda")),
-        "remote_host": str(submit_cfg.get("remote_host", "")).strip() or None,
+        "remote_host": _optional_str(submit_cfg.get("remote_host")),
         "extra_env": dict(submit_cfg.get("extra_env") or {}),
     }
 

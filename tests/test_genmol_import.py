@@ -504,6 +504,32 @@ def test_generation_iteration_monitor_collects_completed_outputs(tmp_path: Path)
     assert completed_candidates[0]["smiles"] == "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21"
 
 
+def test_generation_iteration_submit_treats_yaml_null_remote_host_as_local(tmp_path: Path) -> None:
+    state = RunState(
+        config={
+            "generation": {
+                "submit": {"remote_host": None, "runs_root": "research/genmol_iteration_runs"},
+            }
+        },
+        run_dir=tmp_path,
+        generation_iteration_queue=[
+            {
+                "candidate_id": "dry_seed",
+                "smiles": "CCO",
+                "generation_request": {"num_generations": 1, "num_conformers": 1, "device": "cpu"},
+            }
+        ],
+    )
+
+    state = GenerationIterationSubmitAgent(config=state.config).run(state)
+
+    assert state.generation_iteration_submissions is not None
+    submission = state.generation_iteration_submissions[0]
+    assert submission["remote_host"] is None
+    assert submission["remote_workdir"] is None
+    assert str(tmp_path) in submission["output_dir"]
+
+
 def test_generation_iteration_monitor_collects_partial_generated_smiles_outputs(tmp_path: Path) -> None:
     output_dir = tmp_path / "research" / "iter_runs" / "01_genmol_partial"
     partial_dir = output_dir / "genmol_generation" / "site_000"
