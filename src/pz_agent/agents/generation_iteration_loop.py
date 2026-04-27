@@ -169,8 +169,6 @@ class GenerationIterationLoopAgent(BaseAgent):
                     stop_reason = "converged"
                 elif self._is_tapered(delta, taper_tol):
                     stop_reason = "tapered"
-            if not current_action_queue:
-                stop_reason = stop_reason or "empty_action_queue"
 
             round_summary["stop_reason"] = stop_reason
             summary["rounds"].append(round_summary)

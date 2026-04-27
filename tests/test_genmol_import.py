@@ -546,6 +546,79 @@ def test_generation_iteration_monitor_collects_partial_generated_smiles_outputs(
     assert completed_candidates[0]["smiles"] == "ON=C(O)C1(c2ccc(F)cc2)CC(c2ccc3c(c2)Sc2ccccc2S3)N=C1O"
 
 
+def test_generation_iteration_loop_does_not_stop_just_because_action_queue_is_empty(tmp_path: Path, monkeypatch) -> None:
+    round_counter = {"value": 0}
+
+    class FakeIterationAgent:
+        def __init__(self, config):
+            self.config = config
+
+        def run(self, state: RunState) -> RunState:
+            if state.generation_iteration_reingest_manifest is None:
+                round_counter["value"] += 1
+                aggregate_path = state.run_dir / f"completed_{round_counter['value']}.json"
+                aggregate_path.write_text(json.dumps([{"smiles": f"C{round_counter['value']}"}]), encoding="utf-8")
+                state.generation_iteration_reingest_manifest = {
+                    "aggregate_candidates_path": str(aggregate_path),
+                    "completed_submission_count": 1,
+                }
+                state.generation_iteration_monitor = [{"status": "finished"}]
+            return state
+
+    class FakeAnalysisAgent:
+        def __init__(self, config):
+            self.config = config
+
+        def run(self, state: RunState) -> RunState:
+            metrics = {
+                1: {"id": "round1_top", "smiles": "C1", "predicted_solubility": 0.62, "predicted_synthesizability": 0.61, "predicted_priority": 0.70},
+                2: {"id": "round2_top", "smiles": "C2", "predicted_solubility": 0.74, "predicted_synthesizability": 0.73, "predicted_priority": 0.82},
+            }
+            state.ranked = [metrics[round_counter["value"]]]
+            state.action_queue = []
+            return state
+
+    monkeypatch.setattr(
+        "pz_agent.agents.generation_iteration_loop.AGENT_MAP",
+        {
+            "generation_iteration_handoff": FakeIterationAgent,
+            "generation_iteration_submit": FakeIterationAgent,
+            "generation_iteration_execute": FakeIterationAgent,
+            "generation_iteration_monitor": FakeIterationAgent,
+            "generation_iteration_recycle": FakeIterationAgent,
+            "library_designer": FakeAnalysisAgent,
+            "standardizer": FakeAnalysisAgent,
+            "surrogate_screen": FakeAnalysisAgent,
+            "knowledge_graph": FakeAnalysisAgent,
+            "ranker": FakeAnalysisAgent,
+            "graph_expansion": FakeAnalysisAgent,
+        },
+    )
+
+    state = RunState(
+        config={
+            "generation": {
+                "loop": {
+                    "max_rounds": 2,
+                    "convergence_tolerance": {"solubility": 0.01, "synthesizability": 0.01},
+                    "taper_min_improvement": {"solubility": 0.005, "synthesizability": 0.005},
+                }
+            }
+        },
+        run_dir=tmp_path,
+        ranked=[{"id": "seed_top", "smiles": "seed", "predicted_solubility": 0.50, "predicted_synthesizability": 0.50, "predicted_priority": 0.60}],
+        action_queue=[],
+    )
+
+    state = GenerationIterationLoopAgent(config=state.config).run(state)
+
+    assert state.generation_iteration_loop_summary is not None
+    assert state.generation_iteration_loop_summary["completed_rounds"] == 2
+    assert state.generation_iteration_loop_summary["stop_reason"] == "max_rounds_reached"
+    assert state.ranked[0]["id"] == "round2_top"
+    assert all((round_item.get("stop_reason") is None) for round_item in state.generation_iteration_loop_summary["rounds"])
+
+
 def test_generation_iteration_recycle_writes_next_run_config(tmp_path: Path) -> None:
     aggregate_path = tmp_path / "generation_iteration_completed_candidates.json"
     aggregate_path.write_text(json.dumps([{"smiles": "CCN1c2ccc(OC)cc2Sc2cc(OC)ccc21"}]), encoding="utf-8")
@@ -647,5 +720,6 @@ def test_generation_iteration_loop_stops_when_scores_taper(tmp_path: Path, monke
     assert state.generation_iteration_loop_summary["stop_reason"] == "converged"
     assert state.ranked[0]["id"] == "round2_top"
     summary_payload = json.loads((tmp_path / "generation_iteration_loop_summary.json").read_text())
+    assert summary_payload["rounds"][0]["stop_reason"] is None
     assert summary_payload["rounds"][1]["delta"]["solubility"] == pytest.approx(0.005)
     assert summary_payload["rounds"][1]["delta"]["synthesizability"] == pytest.approx(0.004)
