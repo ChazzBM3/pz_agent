@@ -172,13 +172,25 @@ class GenerationIterationMonitorAgent(BaseAgent):
 
         aggregate_path = state.run_dir / "generation_iteration_completed_candidates.json"
         write_json(aggregate_path, aggregate_candidates)
+        status_counts: dict[str, int] = {}
+        for item in monitor_records:
+            status = str(item.get("status") or "unknown")
+            status_counts[status] = status_counts.get(status, 0) + 1
+
+        nonterminal_statuses = {"submitted", "running"}
+        waiting_submission_count = sum(
+            1 for item in monitor_records if str(item.get("status") or "unknown") in nonterminal_statuses
+        )
         reingest_manifest = {
             "run_id": state.run_dir.name,
             "completed_output_dirs": completed_outputs,
             "completed_submission_count": sum(1 for item in monitor_records if item.get("status") == "finished"),
             "error_submission_count": sum(1 for item in monitor_records if item.get("status") == "error"),
+            "waiting_submission_count": waiting_submission_count,
+            "status_counts": status_counts,
             "aggregate_candidates_path": str(aggregate_path),
             "aggregate_candidate_count": len(aggregate_candidates),
+            "awaiting_remote_outputs": waiting_submission_count > 0,
         }
 
         state.generation_iteration_monitor = monitor_records

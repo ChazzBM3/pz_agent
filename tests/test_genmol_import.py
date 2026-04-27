@@ -541,9 +541,196 @@ def test_generation_iteration_monitor_collects_partial_generated_smiles_outputs(
     assert state.generation_iteration_monitor[0]["partial_output_count"] == 1
     assert state.generation_iteration_reingest_manifest is not None
     assert state.generation_iteration_reingest_manifest["completed_submission_count"] == 0
+    assert state.generation_iteration_reingest_manifest["waiting_submission_count"] == 1
+    assert state.generation_iteration_reingest_manifest["awaiting_remote_outputs"] is True
+    assert state.generation_iteration_reingest_manifest["status_counts"] == {"running": 1}
     completed_candidates = json.loads((tmp_path / "generation_iteration_completed_candidates.json").read_text())
     assert completed_candidates[0]["seed"] == "genmol_partial"
     assert completed_candidates[0]["smiles"] == "ON=C(O)C1(c2ccc(F)cc2)CC(c2ccc3c(c2)Sc2ccccc2S3)N=C1O"
+
+
+def test_generation_iteration_monitor_marks_submitted_runs_as_awaiting_remote_outputs(tmp_path: Path) -> None:
+    output_dir = tmp_path / "research" / "iter_runs" / "01_genmol_submitted"
+    log_path = output_dir.with_suffix(".log")
+    state = RunState(
+        config={},
+        run_dir=tmp_path,
+        generation_iteration_submissions=[
+            {
+                "candidate_id": "genmol_submitted",
+                "output_dir": str(output_dir),
+                "log_path": str(log_path),
+            }
+        ],
+    )
+
+    state = GenerationIterationMonitorAgent(config=state.config).run(state)
+
+    assert state.generation_iteration_monitor is not None
+    assert state.generation_iteration_monitor[0]["status"] == "submitted"
+    assert state.generation_iteration_reingest_manifest is not None
+    assert state.generation_iteration_reingest_manifest["completed_submission_count"] == 0
+    assert state.generation_iteration_reingest_manifest["waiting_submission_count"] == 1
+    assert state.generation_iteration_reingest_manifest["status_counts"] == {"submitted": 1}
+    assert state.generation_iteration_reingest_manifest["awaiting_remote_outputs"] is True
+
+
+def test_generation_iteration_recycle_skips_when_remote_outputs_are_still_pending(tmp_path: Path) -> None:
+    aggregate_path = tmp_path / "generation_iteration_completed_candidates.json"
+    aggregate_path.write_text("[]", encoding="utf-8")
+    state = RunState(
+        config={"generation": {"submit": {"remote_host": "grimm"}}},
+        run_dir=tmp_path,
+        generation_iteration_reingest_manifest={
+            "aggregate_candidates_path": str(aggregate_path),
+            "completed_submission_count": 0,
+            "waiting_submission_count": 1,
+            "awaiting_remote_outputs": True,
+        },
+    )
+
+    state = GenerationIterationRecycleAgent(config=state.config).run(state)
+
+    assert not (tmp_path / "generation_iteration_next_run.yaml").exists()
+    assert any("no completed GenMol outputs" in message for message in state.logs)
+
+
+def test_generation_iteration_loop_waits_for_submitted_or_running_remote_outputs(tmp_path: Path, monkeypatch) -> None:
+    class FakeIterationAgent:
+        def __init__(self, config):
+            self.config = config
+
+        def run(self, state: RunState) -> RunState:
+            if state.generation_iteration_reingest_manifest is None:
+                aggregate_path = state.run_dir / "generation_iteration_completed_candidates.json"
+                aggregate_path.write_text("[]", encoding="utf-8")
+                state.generation_iteration_reingest_manifest = {
+                    "aggregate_candidates_path": str(aggregate_path),
+                    "completed_submission_count": 0,
+                    "waiting_submission_count": 2,
+                    "status_counts": {"submitted": 1, "running": 1},
+                    "awaiting_remote_outputs": True,
+                }
+                state.generation_iteration_monitor = [{"status": "submitted"}, {"status": "running"}]
+            return state
+
+    monkeypatch.setattr(
+        "pz_agent.agents.generation_iteration_loop.AGENT_MAP",
+        {
+            "generation_iteration_handoff": FakeIterationAgent,
+            "generation_iteration_submit": FakeIterationAgent,
+            "generation_iteration_execute": FakeIterationAgent,
+            "generation_iteration_monitor": FakeIterationAgent,
+            "generation_iteration_recycle": FakeIterationAgent,
+        },
+    )
+
+    state = RunState(
+        config={"generation": {"loop": {"max_rounds": 3, "iteration_stages": ["generation_iteration_monitor"]}}},
+        run_dir=tmp_path,
+        ranked=[{"id": "seed_top", "smiles": "seed", "predicted_solubility": 0.50, "predicted_synthesizability": 0.50}],
+    )
+
+    state = GenerationIterationLoopAgent(config=state.config).run(state)
+
+    assert state.generation_iteration_loop_summary is not None
+    assert state.generation_iteration_loop_summary["completed_rounds"] == 0
+    assert state.generation_iteration_loop_summary["stop_reason"] == "awaiting_remote_outputs"
+    assert state.generation_iteration_loop_summary["awaiting_remote_outputs"] is True
+    assert state.generation_iteration_loop_summary["waiting_submission_count"] == 2
+    assert state.generation_iteration_loop_summary["waiting_statuses"] == ["running", "submitted"]
+    waiting_round = state.generation_iteration_loop_summary["rounds"][0]
+    assert waiting_round["stop_reason"] == "awaiting_remote_outputs"
+    assert waiting_round["resume_iteration_run_dir"].endswith("generation_iteration_loop/round_01_iteration")
+
+
+def test_generation_iteration_loop_can_resume_from_recorded_iteration_run_dir(tmp_path: Path, monkeypatch) -> None:
+    resume_dir = tmp_path / "generation_iteration_loop" / "round_01_iteration"
+    resume_dir.mkdir(parents=True)
+    submissions_path = resume_dir / "generation_iteration_submissions.json"
+    submissions_path.write_text(
+        json.dumps([
+            {
+                "candidate_id": "resumed_seed",
+                "output_dir": str(resume_dir / "remote_output"),
+                "log_path": str(resume_dir / "remote_output.log"),
+            }
+        ]),
+        encoding="utf-8",
+    )
+    round_counter = {"analysis": 0}
+
+    class FakeMonitorAgent:
+        def __init__(self, config):
+            self.config = config
+
+        def run(self, state: RunState) -> RunState:
+            assert state.generation_iteration_submissions is not None
+            assert state.generation_iteration_submissions[0]["candidate_id"] == "resumed_seed"
+            aggregate_path = state.run_dir / "generation_iteration_completed_candidates.json"
+            aggregate_path.write_text(json.dumps([{"smiles": "CCO"}]), encoding="utf-8")
+            state.generation_iteration_reingest_manifest = {
+                "aggregate_candidates_path": str(aggregate_path),
+                "completed_submission_count": 1,
+                "waiting_submission_count": 0,
+                "status_counts": {"finished": 1},
+            }
+            state.generation_iteration_monitor = [{"status": "finished"}]
+            return state
+
+    class FakeRecycleAgent:
+        def __init__(self, config):
+            self.config = config
+
+        def run(self, state: RunState) -> RunState:
+            return state
+
+    class FakeAnalysisAgent:
+        def __init__(self, config):
+            self.config = config
+
+        def run(self, state: RunState) -> RunState:
+            round_counter["analysis"] += 1
+            state.ranked = [{"id": "resumed_top", "smiles": "CCO", "predicted_solubility": 0.60, "predicted_synthesizability": 0.70}]
+            state.action_queue = []
+            return state
+
+    monkeypatch.setattr(
+        "pz_agent.agents.generation_iteration_loop.AGENT_MAP",
+        {
+            "generation_iteration_monitor": FakeMonitorAgent,
+            "generation_iteration_recycle": FakeRecycleAgent,
+            "library_designer": FakeAnalysisAgent,
+            "standardizer": FakeAnalysisAgent,
+            "surrogate_screen": FakeAnalysisAgent,
+            "knowledge_graph": FakeAnalysisAgent,
+            "ranker": FakeAnalysisAgent,
+            "graph_expansion": FakeAnalysisAgent,
+        },
+    )
+
+    state = RunState(
+        config={
+            "generation": {
+                "loop": {
+                    "max_rounds": 1,
+                    "resume_iteration_run_dir": str(resume_dir),
+                    "analysis_stages": ["ranker"],
+                }
+            }
+        },
+        run_dir=tmp_path,
+        ranked=[{"id": "seed_top", "smiles": "seed", "predicted_solubility": 0.50, "predicted_synthesizability": 0.50}],
+    )
+
+    state = GenerationIterationLoopAgent(config=state.config).run(state)
+
+    assert round_counter["analysis"] == 1
+    assert state.generation_iteration_loop_summary is not None
+    assert state.generation_iteration_loop_summary["stop_reason"] == "max_rounds_reached"
+    assert state.generation_iteration_loop_summary["rounds"][0]["resume_mode"] is True
+    assert state.generation_iteration_loop_summary["rounds"][0]["iteration_run_dir"] == str(resume_dir)
+    assert state.ranked[0]["id"] == "resumed_top"
 
 
 def test_generation_iteration_loop_does_not_stop_just_because_action_queue_is_empty(tmp_path: Path, monkeypatch) -> None:

@@ -17,7 +17,7 @@ from pz_agent.agents.library_designer import LibraryDesignerAgent
 from pz_agent.agents.ranker import RankerAgent
 from pz_agent.agents.standardizer import StandardizerAgent
 from pz_agent.agents.surrogate_screen import SurrogateScreenAgent
-from pz_agent.io import ensure_dir, write_json
+from pz_agent.io import ensure_dir, read_json, write_json
 from pz_agent.state import RunState
 
 
@@ -80,12 +80,24 @@ class GenerationIterationLoopAgent(BaseAgent):
 
         loop_root = state.run_dir / "generation_iteration_loop"
         ensure_dir(loop_root)
+        resume_iteration_run_dir = loop_cfg.get("resume_iteration_run_dir")
+        resume_iteration_stages = list(
+            loop_cfg.get(
+                "resume_iteration_stages",
+                [
+                    "generation_iteration_monitor",
+                    "generation_iteration_recycle",
+                ],
+            )
+        )
         previous_top = self._top_metrics(state)
         current_action_queue = list(state.action_queue or [])
         summary: dict[str, Any] = {
             "max_rounds": max_rounds,
             "analysis_stages": analysis_stages,
             "iteration_stages": iteration_stages,
+            "resume_iteration_run_dir": str(resume_iteration_run_dir) if resume_iteration_run_dir else None,
+            "resume_iteration_stages": resume_iteration_stages if resume_iteration_run_dir else None,
             "baseline_top": previous_top,
             "rounds": [],
             "stop_reason": None,
@@ -95,7 +107,7 @@ class GenerationIterationLoopAgent(BaseAgent):
         has_bootstrap_seed = bool(state.ranked)
         summary["bootstrap_seed_available"] = has_bootstrap_seed
 
-        if not current_action_queue and not has_bootstrap_seed:
+        if not current_action_queue and not has_bootstrap_seed and not resume_iteration_run_dir:
             summary["stop_reason"] = "missing_action_queue"
             state.generation_iteration_loop_summary = summary
             write_json(state.run_dir / "generation_iteration_loop_summary.json", summary)
@@ -106,15 +118,20 @@ class GenerationIterationLoopAgent(BaseAgent):
         last_iteration_state: RunState | None = None
 
         for round_index in range(1, max_rounds + 1):
+            resume_mode = bool(resume_iteration_run_dir) and round_index == 1
+            iteration_run_dir = Path(resume_iteration_run_dir) if resume_mode else loop_root / f"round_{round_index:02d}_iteration"
             iteration_state = RunState(
                 config=deepcopy(state.config),
-                run_dir=loop_root / f"round_{round_index:02d}_iteration",
+                run_dir=iteration_run_dir,
                 action_queue=deepcopy(current_action_queue),
                 ranked=deepcopy(last_analysis_state.ranked if last_analysis_state else state.ranked),
             )
             ensure_dir(iteration_state.run_dir)
+            if resume_mode:
+                self._load_resume_iteration_state(iteration_state)
             iteration_state.log(f"Starting generation iteration loop round {round_index}")
-            for stage_name in iteration_stages:
+            stages_to_run = resume_iteration_stages if resume_mode else iteration_stages
+            for stage_name in stages_to_run:
                 agent_cls = AGENT_MAP[stage_name]
                 iteration_state = agent_cls(config=iteration_state.config).run(iteration_state)
 
@@ -122,13 +139,17 @@ class GenerationIterationLoopAgent(BaseAgent):
             reingest_manifest = dict(iteration_state.generation_iteration_reingest_manifest or {})
             aggregate_candidates_path = reingest_manifest.get("aggregate_candidates_path")
             completed_submission_count = int(reingest_manifest.get("completed_submission_count", 0) or 0)
+            waiting_submission_count = int(reingest_manifest.get("waiting_submission_count", 0) or 0)
             monitor_statuses = sorted({str(item.get("status") or "unknown") for item in (iteration_state.generation_iteration_monitor or [])})
 
             round_summary: dict[str, Any] = {
                 "round_index": round_index,
                 "iteration_run_dir": str(iteration_state.run_dir),
+                "resume_mode": resume_mode,
                 "completed_submission_count": completed_submission_count,
+                "waiting_submission_count": waiting_submission_count,
                 "monitor_statuses": monitor_statuses,
+                "status_counts": reingest_manifest.get("status_counts", {}),
                 "aggregate_candidates_path": aggregate_candidates_path,
                 "analysis_run_dir": None,
                 "top_candidate": None,
@@ -137,9 +158,23 @@ class GenerationIterationLoopAgent(BaseAgent):
             }
 
             if not aggregate_candidates_path or completed_submission_count <= 0:
-                round_summary["stop_reason"] = "no_completed_outputs"
+                awaiting_remote_outputs = waiting_submission_count > 0 or bool(reingest_manifest.get("awaiting_remote_outputs"))
+                stop_reason = "awaiting_remote_outputs" if awaiting_remote_outputs else "no_completed_outputs"
+                round_summary["stop_reason"] = stop_reason
+                round_summary["resume_iteration_run_dir"] = str(iteration_state.run_dir) if awaiting_remote_outputs else None
+                round_summary["resume_hint"] = (
+                    "Re-run this loop after remote GenMol outputs finish; monitor -> recycle -> analysis can resume from the recorded iteration run directory."
+                    if awaiting_remote_outputs
+                    else None
+                )
                 summary["rounds"].append(round_summary)
-                summary["stop_reason"] = "no_completed_outputs"
+                summary["stop_reason"] = stop_reason
+                if awaiting_remote_outputs:
+                    summary["awaiting_remote_outputs"] = True
+                    summary["waiting_round_index"] = round_index
+                    summary["resume_iteration_run_dir"] = str(iteration_state.run_dir)
+                    summary["waiting_submission_count"] = waiting_submission_count
+                    summary["waiting_statuses"] = monitor_statuses
                 break
 
             analysis_state = RunState(
@@ -236,6 +271,24 @@ class GenerationIterationLoopAgent(BaseAgent):
             "predicted_solubility": top.get("predicted_solubility"),
             "predicted_synthesizability": top.get("predicted_synthesizability"),
         }
+
+    @staticmethod
+    def _load_resume_iteration_state(state: RunState) -> None:
+        submissions_path = state.run_dir / "generation_iteration_submissions.json"
+        if submissions_path.exists():
+            state.generation_iteration_submissions = list(read_json(submissions_path) or [])
+        manifest_path = state.run_dir / "generation_iteration_manifest.json"
+        if manifest_path.exists():
+            state.generation_iteration_manifest = dict(read_json(manifest_path) or {})
+            if state.generation_iteration_queue is None:
+                state.generation_iteration_queue = list(state.generation_iteration_manifest.get("queue") or [])
+        queue_path = state.run_dir / "generation_iteration_queue.json"
+        if queue_path.exists():
+            state.generation_iteration_queue = list(read_json(queue_path) or [])
+        execution_path = state.run_dir / "generation_iteration_execution.json"
+        if execution_path.exists():
+            state.generation_iteration_execution = list(read_json(execution_path) or [])
+        state.log(f"Loaded resumable generation iteration state from {state.run_dir}")
 
     @staticmethod
     def _merge_child_state(parent: RunState, child: RunState) -> None:

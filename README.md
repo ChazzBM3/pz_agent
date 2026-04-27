@@ -130,7 +130,7 @@ Current priority: validate and harden the simulation-first execution path around
 Recent April 27 status:
 - Grimm-backed GenMol remote smoke testing succeeded for a single completed round
 - the GenMol loop stop rule is currently exploration-biased and stops only when both solubility and synthesizability worsen beyond tolerance
-- the next real gap is making multi-round remote GenMol loops resumable when the next round is still in flight
+- in-flight multi-round remote GenMol work is now reported as `awaiting_remote_outputs` instead of terminal `no_completed_outputs`; config-level resume is available via `generation.loop.resume_iteration_run_dir`, and the next real gap is a first-class resume command/operator wrapper
 
 ## Current simulation defaults
 

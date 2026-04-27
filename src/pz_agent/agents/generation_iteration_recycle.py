@@ -14,8 +14,12 @@ class GenerationIterationRecycleAgent(BaseAgent):
     def run(self, state: RunState) -> RunState:
         manifest = dict(state.generation_iteration_reingest_manifest or {})
         aggregate_path = manifest.get("aggregate_candidates_path")
+        completed_submission_count = int(manifest.get("completed_submission_count", 0) or 0)
         if not aggregate_path:
             state.log("Generation iteration recycle skipped because no aggregate candidates path was available")
+            return state
+        if completed_submission_count <= 0:
+            state.log("Generation iteration recycle skipped because no completed GenMol outputs were available yet")
             return state
 
         recycle_cfg = dict((state.config.get("generation", {}) or {}).get("recycle", {}) or {})
@@ -59,7 +63,7 @@ class GenerationIterationRecycleAgent(BaseAgent):
             "next_config_path": str(state.run_dir / "generation_iteration_next_run.yaml"),
             "next_run_dir": str(next_run_dir),
             "next_stages": next_stages,
-            "completed_submission_count": manifest.get("completed_submission_count", 0),
+            "completed_submission_count": completed_submission_count,
         }
 
         (state.run_dir / "generation_iteration_next_run.yaml").write_text(

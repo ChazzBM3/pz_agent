@@ -124,11 +124,12 @@ What the real Grimm test proved:
 - recycle manifests and next-run configs are written correctly
 - round-1 reanalysis from imported GenMol outputs works
 
-What the multi-round Grimm test exposed:
+What the multi-round Grimm test exposed, and the first fix now covers:
 - the scientific stopping rule is no longer the main blocker
 - the current blocker is orchestration semantics for async remote jobs
-- if round N+1 is still `submitted` or `running`, the loop currently stops with `no_completed_outputs`
-- that behavior should become a resumable waiting state rather than a terminal stop
+- if round N+1 is still `submitted` or `running`, the loop should not be treated as failed or output-less
+- monitor/recycle/loop artifacts now record this as `awaiting_remote_outputs`, preserving waiting counts, status counts, and the iteration run directory needed for a later resume pass
+- `generation.loop.resume_iteration_run_dir` can now resume from that recorded iteration directory by loading prior submissions and running monitor -> recycle before analysis
 
 ### 1. Validation path now works, but needs stronger contract hardening
 The repo can now generate simulation-ready artifacts, emit submission records, ingest completed results, log failed calculations cleanly, and write usable validation outcomes back into the KG and reports. The next hardening work is around making that path operationally trustworthy:
@@ -139,10 +140,11 @@ The repo can now generate simulation-ready artifacts, emit submission records, i
 - failed-calculation logging should remain explicit and operator-facing, not blurred into speculative auto-rerun behavior
 - the proven live path is now the HTVS-backed Supercloud flow; `docs/REMOTE_SIMULATION_PROTOCOL.md` remains useful as legacy context for the older direct ORCA-over-Slurm design
 
-### 2. GenMol loop orchestration still assumes too much synchrony
-- remote multi-round GenMol execution is now real, but the loop still behaves like a single blocking process
-- `submitted` / `running` round states should become resumable waiting states, not terminal `no_completed_outputs`
-- the next design step should likely be an `awaiting_remote_outputs` stop reason plus a resume path that continues monitor -> recycle -> analysis on a later invocation
+### 2. GenMol loop orchestration still needs operator polish
+- remote multi-round GenMol execution is now real, but the loop still behaves mostly like a single blocking process
+- `submitted` / `running` round states are now represented as `awaiting_remote_outputs` instead of terminal `no_completed_outputs`
+- a config-level resume path now starts from a recorded iteration run directory and continues monitor -> recycle -> analysis on a later invocation
+- the remaining design step is a first-class CLI/operator command or preset that makes that resume path easy to invoke without hand-editing YAML
 
 ### 3. Scoring remains partially heuristic
 - synthesizability and solubility scoring are still not production-grade
@@ -163,10 +165,10 @@ The repo can now generate simulation-ready artifacts, emit submission records, i
 
 The recommended next sequence is:
 
-1. **Make remote GenMol loop execution resumable**
-   - add a non-terminal waiting state when remote round outputs are still `submitted` or `running`
-   - preserve enough round metadata to resume monitor -> recycle -> analysis later
-   - avoid classifying in-flight remote work as `no_completed_outputs`
+1. **Polish remote GenMol loop resumption**
+   - use the new `awaiting_remote_outputs` state when remote round outputs are still `submitted` or `running`
+   - resume with `generation.loop.resume_iteration_run_dir` once remote outputs finish
+   - add a convenient CLI/operator wrapper or preset so resume does not require manual YAML editing
 
 2. **Then harden the remote simulation contract**
    - codify the required request/response contract for the live HTVS-backed Supercloud target

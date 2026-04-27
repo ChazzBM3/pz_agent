@@ -75,4 +75,8 @@ Specifically:
 - Temporary local debug shell scripts like `tmp_*.sh` are ignored.
 - Follow-up YAML presets previously living under `artifacts/` were moved to `configs/artifact_presets/` so they are included in git.
 - `artifacts/kg_prod_2026_04_22/` on this machine contains about 1.0G of D3TaLES KG snapshots and audit outputs.
-- If the other laptop needs any exact artifact directory from this machine, transfer it separately rather than expecting git to provide it.
+- Large generated experiment outputs are intentionally not pushed; if another laptop needs exact artifact directories, transfer them separately rather than expecting git to provide them.
+- A real Grimm smoke test succeeded for round 1 remote GenMol launch, remote output detection, import, recycle-config writing, and re-analysis.
+- Multi-round remote orchestration now distinguishes in-flight work from missing outputs: monitor manifests count `submitted` / `running` records, recycle skips cleanly when no completed outputs exist yet, and the loop stops with `awaiting_remote_outputs` plus resume metadata instead of mislabeling in-flight remote work as `no_completed_outputs`. To resume after remote outputs finish, set `generation.loop.resume_iteration_run_dir` to the recorded iteration directory; the loop reloads submissions and continues monitor -> recycle -> analysis.
+- Current exploration-biased loop rule: stop only when both solubility and synthesizability worsen beyond tolerance, otherwise continue until convergence or `max_rounds`.
+
