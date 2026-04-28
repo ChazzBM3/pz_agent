@@ -54,6 +54,11 @@ It is no longer just an architecture scaffold. The interesting question is no lo
 GitHub:
 - <https://github.com/ChazzBM3/pz_agent>
 
+Current continuation branch:
+- `charles/local-state-2026-04-23-clean`
+
+If resuming in OpenClaw on another computer, clone the repo, check out that branch, install the editable dev environment, then read this file plus `README.md` and `docs/GENMOL_LOOP_CONTROL_SCHEMA.md` before touching the remote simulation path.
+
 ## What is implemented
 
 ### Orchestration and CLI
@@ -94,7 +99,8 @@ GitHub:
 ### Simulation and validation path
 - `simulation_handoff` packages shortlisted candidates into queue records and per-candidate job bundles
 - queue and manifest artifacts are written to disk
-- current default packaged calculation is an ORCA geometry optimization / minimum search using `PBE`, `def2-SVP`, `D3`, and implicit water via `CPCM`
+- current generic packaged calculation remains an ORCA geometry optimization / minimum search using `PBE`, `def2-SVP`, `D3`, and implicit water via `CPCM`
+- the active April 28 phenothiazine GenMol handoff uses the HTVS-backed Supercloud path, with intended production xTB calculations through HTVS `xtb_opt_orca`: ORCA 6.0.0 mediated GFN2-xTB with ALPB water
 - `simulation_submit` emits backend submission records through a simulation backend abstraction
 - `simulation_extract` now cleanly separates completed result envelopes from failed calculation records
 - failed calculations are persisted in `simulation_failures.json` for operator follow-up rather than being treated as automatic rerun candidates by default
@@ -106,6 +112,30 @@ GitHub:
 ## 5. Main gaps
 
 The biggest remaining gap is now **remote execution hardening and downstream rigor**, not basic loop closure.
+
+### April 28, 2026 status update
+
+New things that were verified today:
+- objective-aware ranking now honors `screening.primary_objectives`; the solubility-only Grimm GenMol comparison produced a different top set while preserving synthesizability as a logged secondary metric
+- canonical GenMol loop controls are emitted and consumed via `payload.loop_controls`, using `pz_agent.generation_loop_controls.build_loop_controls(...)`
+- `docs/GENMOL_LOOP_CONTROL_SCHEMA.md` documents the loop-control contract for continuation work
+- the Supercloud HTVS checkout had a stale `JobConfig(name="xtb_opt_orca")` pointer; that was repaired remotely from `xtb_engrad_orca` to `xtb_opt_orca`
+- the Supercloud `xtb_opt_orca` job template was patched remotely to export `XTBEXE=/home/gridsan/groups/rgb_shared/software/xtb/xtb-6.4.1/bin/xtb`, allowing ORCA 6.0.0 to find xTB
+- `genmol_0011` was smoke-tested through ORCA-mediated GFN2-xTB with ALPB water and produced normal ORCA outputs
+- paired gas / ALPB-water ORCA-xTB single-points on the optimized `genmol_0011` geometry gave a derived solvation energy of `-0.022137792710 Eh` (`-13.891675 kcal/mol`)
+
+Current April 28 operational state:
+- recommended simulation handoff set from the solubility-only Grimm comparison: `genmol_0001`, `genmol_0006`, `genmol_0004`, `genmol_0005`, `genmol_0011`, `genmol_0012`, `genmol_0013`
+- six candidates can proceed; `genmol_0005` is still blocked before ORCA by HTVS `addxyz` formula / stoichiometry checks
+- earlier standalone native-xTB (`general_gfn_opt`) results exist locally as a workaround, but the intended path is now fixed as `xtb_opt_orca`
+- next continuation task is to rerun the six usable candidates through `xtb_opt_orca`, then refresh the submitted-set / KG reintegration artifacts from ORCA-mediated results
+
+Properties to extract from the ORCA-mediated xTB path:
+- optimized geometry
+- final ALPB-water GFN2-xTB energy
+- final gradient / convergence status
+- derived solvation energy from paired same-geometry single-points: `E_ALPB_water - E_gas`
+- raw status / provenance: ORCA version, xTB type, solvent model, SLURM job id, HTVS project/job ids, and job directory
 
 ### April 27, 2026 status update
 

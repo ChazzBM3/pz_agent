@@ -14,7 +14,8 @@ class RankerAgent(BaseAgent):
     name = "ranker"
 
     def run(self, state: RunState) -> RunState:
-        ranked = compute_placeholder_pareto(list(state.predictions or []))
+        primary_objectives = list(self.config.get("screening", {}).get("primary_objectives", []) or [])
+        ranked = compute_placeholder_pareto(list(state.predictions or []), primary_objectives=primary_objectives)
         critique_by_candidate = {note.get("candidate_id"): note for note in (state.critique_notes or []) if note.get("candidate_id")}
 
         raw_run_dir = getattr(state, "run_dir", None)

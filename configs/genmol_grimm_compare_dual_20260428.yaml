@@ -1,0 +1,40 @@
+project:
+  name: phenothiazine-genmol-grimm-compare-dual-20260428
+
+generation:
+  engine: genmol_external
+  mode: phenothiazine_derivative_generation
+  external_genmol_path: /Users/chazzm3/.openclaw/workspace/pz_agent_origin_main/artifacts/grimm/global_ranked_external_import.json
+  prompts:
+    objective: rank globally deduplicated Grimm GenMol phenothiazine candidates for KG reintegration
+
+screening:
+  primary_objectives:
+    - synthesizability
+    - solubility
+  secondary_objectives:
+    - novelty
+    - diversity
+  use_external_scores: true
+  shortlist_size: 10
+
+pipeline:
+  stages:
+    - library_designer
+    - standardizer
+    - surrogate_screen
+    - ranker
+    - knowledge_graph
+    - reporter
+    - simulation_handoff
+
+kg:
+  backend: json
+  path: artifacts/knowledge_graph.json
+
+critique:
+  enable_web_search: false
+
+search:
+  backend: stub
+  count: 5

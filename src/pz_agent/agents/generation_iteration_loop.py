@@ -17,6 +17,7 @@ from pz_agent.agents.library_designer import LibraryDesignerAgent
 from pz_agent.agents.ranker import RankerAgent
 from pz_agent.agents.standardizer import StandardizerAgent
 from pz_agent.agents.surrogate_screen import SurrogateScreenAgent
+from pz_agent.generation_loop_controls import build_loop_controls
 from pz_agent.io import ensure_dir, read_json, write_json
 from pz_agent.state import RunState
 
@@ -38,6 +39,39 @@ AGENT_MAP = {
 
 class GenerationIterationLoopAgent(BaseAgent):
     name = "generation_iteration_loop"
+
+    @classmethod
+    def _resolve_loop_controls(cls, config: dict[str, Any], action_queue: list[dict[str, Any]] | None) -> dict[str, Any]:
+        controls = {"source": "user_config", **build_loop_controls(config=config)}
+
+        generation_actions = [
+            item for item in (action_queue or [])
+            if item.get("action_type") == "generation_iteration"
+        ]
+        if not generation_actions:
+            return controls
+
+        ranked_actions = sorted(
+            generation_actions,
+            key=lambda item: (-float(item.get("priority", 0.0) or 0.0), str(item.get("candidate_id") or "")),
+        )
+        for action in ranked_actions:
+            payload = dict(action.get("payload") or {})
+            raw_controls = dict(payload.get("loop_controls") or {})
+            if not raw_controls:
+                continue
+            controls = {
+                "source": "agent_payload",
+                "candidate_id": action.get("candidate_id"),
+                **build_loop_controls(
+                    config=config,
+                    primary_objectives=raw_controls.get("primary_objectives"),
+                    convergence_tolerance=raw_controls.get("convergence_tolerance"),
+                    taper_min_improvement=raw_controls.get("taper_min_improvement"),
+                ),
+            }
+            break
+        return controls
 
     def run(self, state: RunState) -> RunState:
         loop_cfg = dict((state.config.get("generation", {}) or {}).get("loop", {}) or {})
@@ -67,17 +101,6 @@ class GenerationIterationLoopAgent(BaseAgent):
                 ],
             )
         )
-        convergence_cfg = dict(loop_cfg.get("convergence_tolerance") or {})
-        taper_cfg = dict(loop_cfg.get("taper_min_improvement") or {})
-        convergence_tol = {
-            "solubility": float(convergence_cfg.get("solubility", 0.01) or 0.01),
-            "synthesizability": float(convergence_cfg.get("synthesizability", 0.01) or 0.01),
-        }
-        taper_tol = {
-            "solubility": float(taper_cfg.get("solubility", 0.0) or 0.0),
-            "synthesizability": float(taper_cfg.get("synthesizability", 0.0) or 0.0),
-        }
-
         loop_root = state.run_dir / "generation_iteration_loop"
         ensure_dir(loop_root)
         resume_iteration_run_dir = loop_cfg.get("resume_iteration_run_dir")
@@ -92,12 +115,17 @@ class GenerationIterationLoopAgent(BaseAgent):
         )
         previous_top = self._top_metrics(state)
         current_action_queue = list(state.action_queue or [])
+        loop_controls = self._resolve_loop_controls(state.config, current_action_queue)
+        primary_objectives = list(loop_controls["primary_objectives"])
+        convergence_tol = dict(loop_controls["convergence_tolerance"])
+        taper_tol = dict(loop_controls["taper_min_improvement"])
         summary: dict[str, Any] = {
             "max_rounds": max_rounds,
             "analysis_stages": analysis_stages,
             "iteration_stages": iteration_stages,
             "resume_iteration_run_dir": str(resume_iteration_run_dir) if resume_iteration_run_dir else None,
             "resume_iteration_stages": resume_iteration_stages if resume_iteration_run_dir else None,
+            "loop_controls": loop_controls,
             "baseline_top": previous_top,
             "rounds": [],
             "stop_reason": None,
@@ -191,18 +219,27 @@ class GenerationIterationLoopAgent(BaseAgent):
 
             last_analysis_state = analysis_state
             current_action_queue = list(analysis_state.action_queue or [])
+            loop_controls = self._resolve_loop_controls(state.config, current_action_queue)
+            primary_objectives = list(loop_controls["primary_objectives"])
+            convergence_tol = dict(loop_controls["convergence_tolerance"])
+            taper_tol = dict(loop_controls["taper_min_improvement"])
             current_top = self._top_metrics(analysis_state)
             round_summary["analysis_run_dir"] = str(analysis_state.run_dir)
             round_summary["top_candidate"] = current_top
             round_summary["next_action_queue_count"] = len(current_action_queue)
+            round_summary["loop_controls"] = loop_controls
 
             stop_reason = None
             delta = self._metric_delta(previous_top, current_top)
             if delta is not None:
                 round_summary["delta"] = delta
-                if self._both_metrics_worsened(delta, taper_tol):
-                    stop_reason = "both_metrics_worsened"
-                elif self._is_converged(delta, convergence_tol):
+                if self._all_primary_metrics_worsened(delta, taper_tol, primary_objectives):
+                    stop_reason = (
+                        "both_metrics_worsened"
+                        if set(primary_objectives) == {"solubility", "synthesizability"} and len(primary_objectives) == 2
+                        else "primary_objectives_worsened"
+                    )
+                elif self._is_converged(delta, convergence_tol, primary_objectives):
                     stop_reason = "converged"
 
             round_summary["stop_reason"] = stop_reason
@@ -246,17 +283,26 @@ class GenerationIterationLoopAgent(BaseAgent):
         }
 
     @staticmethod
-    def _is_converged(delta: dict[str, Any], tolerance: dict[str, float]) -> bool:
-        return (
-            abs(float(delta.get("solubility", 0.0))) <= tolerance["solubility"]
-            and abs(float(delta.get("synthesizability", 0.0))) <= tolerance["synthesizability"]
+    def _primary_objectives(config: dict[str, Any]) -> list[str]:
+        objectives = [
+            str(item)
+            for item in ((config.get("screening", {}) or {}).get("primary_objectives", []) or [])
+            if str(item) in {"solubility", "synthesizability"}
+        ]
+        return objectives or ["solubility", "synthesizability"]
+
+    @staticmethod
+    def _is_converged(delta: dict[str, Any], tolerance: dict[str, float], primary_objectives: list[str]) -> bool:
+        return all(
+            abs(float(delta.get(metric, 0.0))) <= tolerance[metric]
+            for metric in primary_objectives
         )
 
     @staticmethod
-    def _both_metrics_worsened(delta: dict[str, Any], tolerance: dict[str, float]) -> bool:
-        return (
-            float(delta.get("solubility", 0.0)) < -abs(float(tolerance["solubility"]))
-            and float(delta.get("synthesizability", 0.0)) < -abs(float(tolerance["synthesizability"]))
+    def _all_primary_metrics_worsened(delta: dict[str, Any], tolerance: dict[str, float], primary_objectives: list[str]) -> bool:
+        return all(
+            float(delta.get(metric, 0.0)) < -abs(float(tolerance[metric]))
+            for metric in primary_objectives
         )
 
     @staticmethod

@@ -555,17 +555,42 @@ def apply_literature_adjustment(row: dict[str, Any], critique_note: dict[str, An
 
 
 
-def compute_placeholder_pareto(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _resolve_objective_weights(primary_objectives: list[str] | None) -> dict[str, float]:
+    objectives = [str(item) for item in (primary_objectives or []) if str(item)]
+    if not objectives:
+        objectives = ["synthesizability", "solubility"]
+
+    explicit_weights = {
+        "synthesizability": 0.55,
+        "solubility": 0.45,
+    }
+    if set(objectives) == {"synthesizability", "solubility"} and len(objectives) == 2:
+        total = sum(explicit_weights[name] for name in objectives)
+        return {name: explicit_weights[name] / total for name in objectives}
+
+    uniform_weight = 1.0 / len(objectives)
+    return {name: uniform_weight for name in objectives}
+
+
+def compute_placeholder_pareto(rows: list[dict[str, Any]], primary_objectives: list[str] | None = None) -> list[dict[str, Any]]:
+    objectives = [str(item) for item in (primary_objectives or []) if str(item)] or ["synthesizability", "solubility"]
+    weights = _resolve_objective_weights(objectives)
     enriched: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
-        base_priority = compute_priority_score(item)
+        base_priority = None
+        if set(weights) <= {"synthesizability", "solubility"}:
+            base_priority = compute_priority_score(
+                item,
+                synth_weight=weights.get("synthesizability", 0.0),
+                sol_weight=weights.get("solubility", 0.0),
+            )
         decoration_bonus, decoration_rationale = compute_decoration_adjustment(item)
         item["predicted_priority"] = None if base_priority is None else base_priority + decoration_bonus
         item["decoration_adjustment"] = decoration_bonus
         item["ranking_rationale"] = {
-            "primary_objectives": ["synthesizability", "solubility"],
-            "weights": {"synthesizability": 0.55, "solubility": 0.45},
+            "primary_objectives": objectives,
+            "weights": weights,
             "decoration_adjustment": decoration_rationale,
         }
         enriched.append(item)

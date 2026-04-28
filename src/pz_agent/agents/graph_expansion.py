@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pz_agent.agents.base import BaseAgent
+from pz_agent.generation_loop_controls import build_loop_controls
 from pz_agent.io import read_json, write_json
 from pz_agent.kg.rag import summarize_generation_iteration_candidate
 from pz_agent.state import RunState
@@ -174,6 +175,7 @@ class GraphExpansionAgent(BaseAgent):
                 elif item["kind"] == "generation":
                     iteration_summary = summarize_generation_iteration_candidate(state.knowledge_graph_path, str(candidate_id))
                     if iteration_summary.get("eligible"):
+                        loop_controls = build_loop_controls(config=state.config)
                         proposals.append(
                             {
                                 "merge_tag": "supported",
@@ -188,6 +190,7 @@ class GraphExpansionAgent(BaseAgent):
                                     "bridge_case_id": iteration_summary.get("bridge_case_id"),
                                     "bridge_principles": iteration_summary.get("bridge_principles", []),
                                     "generation_batch_ids": iteration_summary.get("generation_batch_ids", []),
+                                    "loop_controls": loop_controls,
                                     "history": iteration_summary.get("history", {}),
                                     "selection_basis": {
                                         "transferability_score": iteration_summary.get("transferability_score"),

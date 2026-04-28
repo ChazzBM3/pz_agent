@@ -406,3 +406,56 @@ def test_htvs_extract_accepts_h2_xtb_alpb_style_result(tmp_path: Path) -> None:
     assert "H 0.000000 0.000000 0.740000" in str(result["outputs"]["optimized_structure"])
     assert result["raw_result"]["jobdir_snapshot"]["scheduler_job_id"] == "1"
     assert (jobdir / "pz_agent_result.json").exists()
+
+
+def test_htvs_extract_derives_orca_xtb_alpb_solvation_energy_from_paired_single_points(tmp_path: Path) -> None:
+    job_root = tmp_path / "htvs-orca-xtb-001" / "jobs"
+    jobdir = job_root / "completed" / "00001_xtb_opt_orca__demo"
+    jobdir.mkdir(parents=True, exist_ok=True)
+
+    (jobdir / "job_manager-job_id").write_text("4674685\n", encoding="utf-8")
+    (jobdir / "orca_xtb_opt.xyz").write_text(
+        "2\nORCA xTB opt\nH 0.000000 0.000000 0.000000\nH 0.000000 0.000000 0.740000\n",
+        encoding="utf-8",
+    )
+    (jobdir / "orca_xtb_opt.engrad").write_text(
+        "# The current total energy in Eh\n#\n-58.428716056160\n",
+        encoding="utf-8",
+    )
+    (jobdir / "orca_xtb_opt.out").write_text("ORCA TERMINATED NORMALLY\n", encoding="utf-8")
+    (jobdir / "gas.out").write_text(
+        "FINAL SINGLE POINT ENERGY       -58.406578263450\nORCA TERMINATED NORMALLY\n",
+        encoding="utf-8",
+    )
+    (jobdir / "water.out").write_text(
+        "FINAL SINGLE POINT ENERGY       -58.428716056160\nORCA TERMINATED NORMALLY\n",
+        encoding="utf-8",
+    )
+
+    backend = HtvsBackend()
+    result = backend.extract(
+        candidate_id="genmol_0011",
+        submission={
+            "submission_id": "htvs-orca-xtb-001",
+            "job_id": "00001_xtb_opt_orca__demo",
+            "backend": "htvs_supercloud",
+            "engine": "xtb",
+            "remote_settings": {"job_root": str(job_root)},
+        },
+        simulation={
+            "backend": "htvs_supercloud",
+            "engine": "xtb",
+            "parameters": {"job_config": "xtb_opt_orca", "solvation_model": "ALPB", "solvent": "water"},
+        },
+        extract_config={},
+    )
+
+    assert result is not None
+    assert result["status"] == "completed"
+    assert result["outputs"]["final_energy"] == -58.428716056160
+    assert result["outputs"]["groundState.gas_phase_energy"] == -58.406578263450
+    assert result["outputs"]["groundState.solvated_energy"] == -58.428716056160
+    assert result["outputs"]["groundState.solvation_energy"] == -0.02213779270999794
+    assert result["outputs"]["groundState.solvation_energy_kcal_mol"] == -13.89167465897184
+    assert "E_ALPB_water - E_gas" in result["outputs"]["groundState.solvation_energy_derivation"]
+    assert "H 0.000000 0.000000 0.740000" in str(result["outputs"]["optimized_structure"])

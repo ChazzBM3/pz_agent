@@ -132,6 +132,8 @@ def _parse_orca_output_metrics(jobdir: Path) -> dict:
             "orca_dft_opt.out",
             "orca_dft_sp.out",
             "orca_dft_freq.out",
+            "orca_xtb_opt.out",
+            "water.out",
         ],
     )
     slurm_path = None
@@ -176,9 +178,63 @@ def _parse_orca_output_metrics(jobdir: Path) -> dict:
     return metrics
 
 
+def _parse_orca_final_energy(path: Path) -> float | None:
+    text = _read_text_if_exists(path)
+    if not text:
+        return None
+    values: list[float] = []
+    for match in re.finditer(r"FINAL SINGLE POINT ENERGY\s+(-?\d+(?:\.\d+)?)", text, flags=re.IGNORECASE):
+        value = _coerce_float(match.group(1))
+        if value is not None:
+            values.append(value)
+    return values[-1] if values else None
+
+
+def _parse_engrad_energy(path: Path) -> float | None:
+    text = _read_text_if_exists(path)
+    if not text:
+        return None
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if "current total energy" not in line.lower():
+            continue
+        for follow in lines[index + 1 : index + 5]:
+            value = _coerce_float(follow)
+            if value is not None:
+                return value
+    return None
+
+
+def _parse_derived_solvation_energy(jobdir: Path) -> dict:
+    """Extract paired gas/ALPB-water solvation energy when both single points exist.
+
+    ORCA-mediated xTB optimizations tested with ALPB water do not expose a clean
+    separate dGsolv field in the main optimization output. The continuation
+    convention is therefore to run paired single-points on the same optimized
+    geometry and store ``E_ALPB_water - E_gas``.
+    """
+
+    gas_path = _find_first_existing(jobdir, ["gas.out", "orca_xtb_gas.out"])
+    water_path = _find_first_existing(jobdir, ["water.out", "orca_xtb_water.out", "orca_xtb_opt.out"])
+    if not gas_path or not water_path or gas_path == water_path:
+        return {}
+    gas_energy = _parse_orca_final_energy(gas_path)
+    water_energy = _parse_orca_final_energy(water_path)
+    if gas_energy is None or water_energy is None:
+        return {}
+    solvation_energy = water_energy - gas_energy
+    return {
+        "groundState.gas_phase_energy": gas_energy,
+        "groundState.solvated_energy": water_energy,
+        "groundState.solvation_energy": solvation_energy,
+        "groundState.solvation_energy_kcal_mol": solvation_energy * 627.509474,
+        "groundState.solvation_energy_derivation": "E_ALPB_water - E_gas paired ORCA-xTB single-points on the same optimized geometry",
+    }
+
+
 def _parse_property_text(jobdir: Path) -> dict:
     outputs: dict[str, object] = {}
-    property_path = _find_first_existing(jobdir, ["orca_dft_opt.property.txt", "orca.property.txt", "property.txt"])
+    property_path = _find_first_existing(jobdir, ["orca_dft_opt.property.txt", "orca_xtb_opt.property.txt", "orca.property.txt", "property.txt"])
     if not property_path:
         return outputs
     text = _read_text_if_exists(property_path)
@@ -245,6 +301,16 @@ def _extract_outputs_from_jobdir(jobdir: Path) -> dict:
     for key, value in metrics.items():
         outputs.setdefault(key, value)
 
+    engrad_path = _find_first_existing(jobdir, ["orca_xtb_opt.engrad", "orca_dft_opt.engrad", "job.engrad"])
+    if engrad_path:
+        engrad_energy = _parse_engrad_energy(engrad_path)
+        if engrad_energy is not None:
+            outputs.setdefault("final_energy", engrad_energy)
+
+    solvation_outputs = _parse_derived_solvation_energy(jobdir)
+    for key, value in solvation_outputs.items():
+        outputs.setdefault(key, value)
+
     job_info = _load_json_if_exists(jobdir / "job_info.json")
     if isinstance(job_info, dict):
         outputs.setdefault("job_info", job_info)
@@ -254,6 +320,7 @@ def _extract_outputs_from_jobdir(jobdir: Path) -> dict:
         [
             "optimized_structure.xyz",
             "orca_dft_opt.xyz",
+            "orca_xtb_opt.xyz",
             "final.xyz",
             "opt.xyz",
             "job.xyz",
@@ -396,11 +463,11 @@ class HtvsBackend:
 
         remote_script = [
             "set -euo pipefail",
-            f"HTVS_ROOT={shlex.quote(htvs_root)}",
-            f"PYTHON={shlex.quote(python_bin)}",
-            f"PROJECT={shlex.quote(project)}",
-            f"JOB_ROOT={shlex.quote(remote_job_root)}",
-            f"GEOM_PATH={shlex.quote(geometry_path)}",
+            f"export HTVS_ROOT={shlex.quote(htvs_root)}",
+            f"export PYTHON={shlex.quote(python_bin)}",
+            f"export PROJECT={shlex.quote(project)}",
+            f"export JOB_ROOT={shlex.quote(remote_job_root)}",
+            f"export GEOM_PATH={shlex.quote(geometry_path)}",
             "cd \"$HTVS_ROOT/djangochem\"",
             "export PYTHONPATH=\"$HTVS_ROOT:$HTVS_ROOT/djangochem\"",
             "$PYTHON - <<'PY'",
@@ -416,28 +483,33 @@ class HtvsBackend:
         ]
 
         addxyz_cmd = [
-            "$PYTHON",
+            python_bin,
             "manage.py",
             "addxyz",
-            "$PROJECT",
-            "$GEOM_PATH",
+            project,
+            geometry_path,
             source_mode,
             "--jobconfig",
             source_jobconfig,
             "--method",
             source_method,
+        ]
+        smiles = str(submit_config.get("smiles") or job_package.get("canonical_smiles") or job_package.get("smiles") or "").strip()
+        if smiles:
+            addxyz_cmd.extend(["--smiles", smiles])
+        addxyz_cmd.extend([
             "--charge",
             str(submit_config.get("charge", 0)),
             "--ionization",
             str(submit_config.get("ionization", 0)),
             "--force",
             f"--settings={settings_module}",
-        ]
+        ])
         request_cmd = [
-            "$PYTHON",
+            python_bin,
             "manage.py",
             "requestjobs",
-            "$PROJECT",
+            project,
             str(submit_config.get("job_config") or "xtb_opt"),
             "--parent_config",
             source_jobconfig,
@@ -450,11 +522,11 @@ class HtvsBackend:
         if request_limit is not None:
             request_cmd.extend(["--limit", str(request_limit)])
         build_cmd = [
-            "$PYTHON",
+            python_bin,
             "manage.py",
             "buildjobs",
-            "$PROJECT",
-            "$JOB_ROOT/inbox",
+            project,
+            f"{remote_job_root}/inbox",
             "-c",
             str(submit_config.get("job_config") or "xtb_opt"),
             "-p",

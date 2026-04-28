@@ -24,7 +24,7 @@ pytest -q
 
 ## Fresh laptop quick start
 
-On a new machine, use the repo virtualenv and the CLI entrypoint rather than calling modules directly:
+On a new machine or in a fresh OpenClaw workspace, use the repo virtualenv and the CLI entrypoint rather than calling modules directly:
 
 ```bash
 git clone git@github.com:ChazzBM3/pz_agent.git
@@ -38,8 +38,8 @@ python -m pz_agent.cli run configs/phenothiazine_genmol_auto_loop_dry.yaml --run
 
 Current handoff baseline:
 - branch: `charles/local-state-2026-04-23-clean`
-- head commit: `6d2976d57f8c42bda5bfeba601a661db06770ec6`
-- latest meaningful repo step: document current GenMol loop state and the next remote-orchestration gap
+- head commit: run `git log --oneline -1` after pulling; this branch is the continuation target
+- latest meaningful repo step: objective-aware GenMol controls plus ORCA-xTB/HTVS continuation docs
 
 If you want a quick regression check before a real remote launch:
 
@@ -54,23 +54,40 @@ For a dry-loop helper script:
 ./scripts/smoke_genmol_dry.sh
 ```
 
-## Continuation notes for another OpenClaw
+## April 28 OpenClaw continuation notes
 
-If another OpenClaw instance is picking this up, start with these files in this order:
-- `README.md`
-- `TRANSITION.md`
-- `PROJECT_SUMMARY.md`
-- `PLAN.md`
+This branch contains the current phenothiazine / Grimm GenMol / HTVS handoff state. If another OpenClaw instance is picking this up, start with these files in this order:
+
+1. `README.md`
+2. `TRANSITION.md`
+3. `PROJECT_SUMMARY.md`
+4. `docs/GENMOL_LOOP_CONTROL_SCHEMA.md`
+5. `PLAN.md`
 
 Then orient around this concrete state:
-- the live remote-execution direction is the HTVS-backed Supercloud path, not the older direct ORCA-over-Slurm scaffolding
-- a Grimm-backed remote GenMol smoke test succeeded for one completed round
-- the current next implementation target is making multi-round remote GenMol loops resumable when the next round is still `submitted` or `running`
-- large local artifacts are not fully versioned, especially under `artifacts/`
 
-Important local-only data on this machine:
-- `artifacts/kg_prod_2026_04_22/` contains about 1.0G of D3TaLES KG snapshots and audit outputs
-- if the other laptop needs those exact files, transfer them separately rather than expecting git to provide them
+- the live remote-execution direction is the HTVS-backed Supercloud path, not the older direct ORCA-over-Slurm scaffolding
+- a Grimm-backed remote GenMol smoke test succeeded for one completed round, and in-flight multi-round work is now represented as `awaiting_remote_outputs`
+- large local artifacts are intentionally not fully versioned, especially under `artifacts/`
+- `artifacts/kg_prod_2026_04_22/` on the original machine contains about 1.0G of D3TaLES KG snapshots and audit outputs; transfer it separately if exact files are needed
+
+For reproducing the current solubility-only ranking run:
+
+```bash
+python -m pz_agent.cli run configs/genmol_grimm_compare_solubility_only_20260428.yaml \
+  --run-dir artifacts/genmol_grimm_compare_solubility_only_20260428
+```
+
+For the live remote simulation path, use HTVS on Supercloud. The active Supercloud checkout used during testing was `/home/gridsan/cmusgrave/htvs`.
+
+Important operational details from the latest run:
+
+- `supercloud` was a local shell alias for `ssh cmusgrave@txe1-login.mit.edu`; do not assume it is resolvable from other hosts.
+- The intended xTB workflow is HTVS job config `xtb_opt_orca`, i.e. ORCA-mediated GFN2-xTB, not standalone native xTB.
+- The fixed Supercloud `xtb_opt_orca` path uses ORCA 6.0.0 with ALPB water (`%xtb doalpb true; alpbsolvent "water"`).
+- Solvation energy should be extracted as a derived paired single-point delta on the optimized geometry: `E_ALPB_water - E_gas`, because the tested ORCA-xTB optimization output did not expose a clean separate ALPB `dGsolv` field.
+- `genmol_0005` remained blocked by HTVS `addxyz` formula / stoichiometry validation and should not block progress on the other candidates.
+
 
 ## D3TaLES KG audit workflow
 
@@ -127,7 +144,15 @@ The repo now includes a Python package scaffold for:
 
 Current priority: validate and harden the simulation-first execution path around the HTVS-backed Supercloud flow, keep failed calculations logged cleanly for operator follow-up, then tighten scoring, evidence semantics, downstream result ingestion, and KG-guided prioritization.
 
-Recent April 27 status:
+Recent April 28 status:
+- objective-aware ranking now honors `screening.primary_objectives`, including solubility-only prioritization while still logging synthesizability
+- GenMol iteration actions now carry normalized `payload.loop_controls`, and the loop uses those controls for convergence / worsening checks
+- the active simulation handoff set came from the solubility-only Grimm GenMol comparison; recommended top candidates were `genmol_0001`, `genmol_0006`, `genmol_0004`, `genmol_0005`, `genmol_0011`, `genmol_0012`, and `genmol_0013`
+- six candidates submitted successfully through HTVS/Supercloud; `genmol_0005` remains the known pre-ORCA HTVS `addxyz` blocker
+- the intended ORCA-mediated xTB path (`xtb_opt_orca`) was repaired on the Supercloud HTVS checkout and smoke-tested on `genmol_0011`
+- next highest-leverage step: rerun the six usable candidates through `xtb_opt_orca`, extract optimized structure, final solvated energy, derived solvation energy, gradients/status, and refresh the KG reintegration table
+
+Earlier April 27 status:
 - Grimm-backed GenMol remote smoke testing succeeded for a single completed round
 - the GenMol loop stop rule is currently exploration-biased and stops only when both solubility and synthesizability worsen beyond tolerance
 - in-flight multi-round remote GenMol work is now reported as `awaiting_remote_outputs` instead of terminal `no_completed_outputs`; config-level resume is available via `generation.loop.resume_iteration_run_dir`, and the next real gap is a first-class resume command/operator wrapper

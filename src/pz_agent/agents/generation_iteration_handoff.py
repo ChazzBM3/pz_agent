@@ -11,6 +11,7 @@ CONTRACT_VERSION = "genmol.iteration_request.v1"
 def _generation_defaults(config: dict) -> dict:
     generation_cfg = dict(config.get("generation", {}) or {})
     prompts = dict(generation_cfg.get("prompts", {}) or {})
+    loop_cfg = dict(generation_cfg.get("loop", {}) or {})
     return {
         "engine": generation_cfg.get("engine", "genmol_external"),
         "strategy": generation_cfg.get("strategy", "genmol_conformer_generation"),
@@ -18,6 +19,11 @@ def _generation_defaults(config: dict) -> dict:
         "num_generations": int(generation_cfg.get("num_generations", 100) or 100),
         "num_conformers": int(generation_cfg.get("num_conformers", 100) or 100),
         "selection_top_k": int(generation_cfg.get("iteration_top_k", 5) or 5),
+        "loop_controls": {
+            "primary_objectives": list((config.get("screening", {}) or {}).get("primary_objectives", []) or []),
+            "convergence_tolerance": dict(loop_cfg.get("convergence_tolerance") or {}),
+            "taper_min_improvement": dict(loop_cfg.get("taper_min_improvement") or {}),
+        },
     }
 
 
@@ -55,6 +61,7 @@ class GenerationIterationHandoffAgent(BaseAgent):
             seen.add(key)
 
             protocol_metadata = dict(protocol.get("metadata") or {})
+            loop_controls = dict(payload.get("loop_controls") or {})
             record = {
                 "candidate_id": action.get("candidate_id"),
                 "seed_candidate_id": action.get("candidate_id"),
@@ -76,6 +83,7 @@ class GenerationIterationHandoffAgent(BaseAgent):
                     "seed_batch_count": protocol.get("count"),
                     "bridge_dimensions": list(protocol_metadata.get("bridge_dimensions", []) or payload.get("bridge_principles", []) or []),
                     "generation_priors": dict(protocol_metadata.get("generation_priors") or {}),
+                    "loop_controls": loop_controls,
                 },
                 "selection_basis": dict(payload.get("selection_basis") or {}),
                 "history": dict(payload.get("history") or {}),
@@ -155,6 +163,7 @@ class GenerationIterationHandoffAgent(BaseAgent):
                 "seed_batch_count": 1,
                 "bridge_dimensions": list(proposal_prior.get("bridge_dimensions", []) or []),
                 "generation_priors": dict(proposal_prior.get("generation_priors") or {}),
+                "loop_controls": {},
             },
             "selection_basis": {
                 "bootstrap": True,
