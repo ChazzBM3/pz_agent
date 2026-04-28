@@ -36,6 +36,11 @@ pip install -e '.[dev]'
 python -m pz_agent.cli run configs/phenothiazine_genmol_auto_loop_dry.yaml --run-dir artifacts/smoke_dry
 ```
 
+Current handoff baseline:
+- branch: `charles/local-state-2026-04-23-clean`
+- head commit: `6d2976d57f8c42bda5bfeba601a661db06770ec6`
+- latest meaningful repo step: document current GenMol loop state and the next remote-orchestration gap
+
 If you want a quick regression check before a real remote launch:
 
 ```bash
@@ -48,6 +53,24 @@ For a dry-loop helper script:
 ```bash
 ./scripts/smoke_genmol_dry.sh
 ```
+
+## Continuation notes for another OpenClaw
+
+If another OpenClaw instance is picking this up, start with these files in this order:
+- `README.md`
+- `TRANSITION.md`
+- `PROJECT_SUMMARY.md`
+- `PLAN.md`
+
+Then orient around this concrete state:
+- the live remote-execution direction is the HTVS-backed Supercloud path, not the older direct ORCA-over-Slurm scaffolding
+- a Grimm-backed remote GenMol smoke test succeeded for one completed round
+- the current next implementation target is making multi-round remote GenMol loops resumable when the next round is still `submitted` or `running`
+- large local artifacts are not fully versioned, especially under `artifacts/`
+
+Important local-only data on this machine:
+- `artifacts/kg_prod_2026_04_22/` contains about 1.0G of D3TaLES KG snapshots and audit outputs
+- if the other laptop needs those exact files, transfer them separately rather than expecting git to provide them
 
 ## D3TaLES KG audit workflow
 
